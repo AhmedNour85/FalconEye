@@ -5,22 +5,50 @@ import logging
 from pathlib import Path
 
 from backend.gis import schema as S
-from backend.gis.store import Store, utcnow
+from backend.gis.store import ArcGISStore, Store, utcnow
 from backend.services import synthetic
 from backend.services.audit import Audit
 from backend.services.simulation import SimEngine
 from backend.workflows.approvals import ApprovalService
-from config.settings import Settings, load_settings
+from config.settings import ConfigError, Settings, check_prefix, load_settings
 
 log = logging.getLogger("geoai.platform")
 
 
+class _RecordRefresh:
+    """Field Maps (or anyone) edits the hosted layers directly, so "pulling" field updates is refreshing the working copy from ArcGIS Online."""
+
+    def __init__(self, store: ArcGISStore):
+        self.store, self._changed = store, {}
+
+    def pull_updates(self, layer: str, since: str, store) -> int:
+        if layer == S.WORK_ORDERS:           # asked once per sync, for the work orders first: one refresh covers every layer
+            self._changed = self.store.refresh()
+        return len(self._changed.get(layer, []))
+
+
 class Platform:
-    def __init__(self, settings: Settings | None = None, init: bool = True):
+    def __init__(self, settings: Settings | None = None, gateway=None, init: bool = True):
+        """gateway: the ArcGIS Online gateway to use (tests pass a stand-in); by default one is made from the settings."""
         self.settings = settings or load_settings()
-        self.store = Store()                 # working copy in memory; the ArcGIS Online store replaces it in plan 1, task 6
-        self.mirror = None
-        self.mirror_status = "memory only (tests and development; nothing is stored)"
+        self.gateway = None
+        if self.settings.store == "arcgis":      # ArcGIS Online is the system of record
+            check_prefix(self.settings.arcgis_layer_prefix)
+            if gateway is None:
+                if not self.settings.arcgis_enabled:
+                    raise ConfigError("ARCGIS_USERNAME and ARCGIS_PASSWORD are not set. ArcGIS Online is the system of record, so the app cannot start without them. "
+                                      "Run scripts/make_env.py, or set GEOAI_STORE=memory for a development run that keeps nothing.")
+                from backend.gis.agol import ArcGISGateway
+
+                gateway = ArcGISGateway(self.settings)
+            self.gateway = gateway
+            self.store = ArcGISStore(gateway)
+            self.mirror = _RecordRefresh(self.store)
+            self.mirror_status = f"ArcGIS Online ({self.settings.arcgis_layer_prefix})"
+        else:
+            self.store = Store()                 # working copy only: tests and development
+            self.mirror = None
+            self.mirror_status = "memory only (tests and development; nothing is stored)"
         from backend.services import tasks
 
         tasks.LANG = self.settings.field_lang
@@ -34,16 +62,14 @@ class Platform:
         from backend.orchestration.crew import Crew  # local import: the crew depends on the tool layer
 
         self.crew = Crew(self)
-        marker = self.store.get(S.CONFIG, "meta.complete")
-        if init and (self.store.count(S.INFRA) == 0 or not marker or marker["attrs"]["Value"] != synthetic.data_version()):
-            if self.store.count(S.INFRA):
-                log.warning("database incomplete or built from an older data version - regenerating")
-            self.reset()
-        elif init:      # a database from before the data feeds existed
-            self.feeds.seed()
-        if init:
+        self.data_ready = self.store.count(S.INFRA) > 0
+        if init and not self.store.is_hosted:
+            self.reset()                     # a working copy that keeps nothing starts from freshly generated demo data
+            self.data_ready = True
+        elif init and not self.data_ready:   # the app never fills or empties the system of record by itself
+            log.warning("the %s layers in ArcGIS Online hold no demo data yet: run scripts/initialize_demo.py (dry run first)", self.settings.arcgis_layer_prefix)
+        if init and self.store.is_hosted:
             self.setup_field_tasks()
-            self.backfill_investigator_names()
             self.start_field_sync()
 
     def reset(self) -> dict:
@@ -187,13 +213,13 @@ class Platform:
 
     def setup_field_tasks(self) -> bool:
         """Make the hosted work-order layer ready for Field Maps Tasks: task titles (incident types) and the logins a task can be assigned to."""
-        if not self.mirror:
+        if not self.gateway:
             return False
         from backend.services import tasks
 
         try:
             users = {u: u for u in (self.settings.field_users or {}).values()}
-            return self.mirror.ensure_task_domains(S.WORK_ORDERS, tasks.TASK_TYPES, users)
+            return self.gateway.ensure_task_domains(S.WORK_ORDERS, tasks.TASK_TYPES, users)
         except Exception as exc:
             log.warning("could not prepare Field Maps tasks: %s", exc)
             return False
@@ -303,7 +329,7 @@ class Platform:
 
     def start_field_sync(self) -> None:
         """Poll ArcGIS Online for Field Maps reports in the background (only when an ArcGIS Online connection exists)."""
-        if not self.mirror or getattr(self, "_field_sync", None):
+        if not self.mirror or getattr(self, "_field_sync", None) or self.settings.field_sync_seconds <= 0:
             return
         import threading
         import time

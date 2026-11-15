@@ -8,9 +8,16 @@ Geometry objects are shared between the working copy and the rows handed out: tr
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
+import re
+import socket
 import threading
+import time
+import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Iterable
 
 from .schema import LAYERS
@@ -43,6 +50,7 @@ class Store:
         self.write_hooks: dict[str, Callable[[dict], dict]] = {}   # layer -> fn(attrs) -> attrs, applied to the app's own writes (not to rows read from the record)
         self._batch_depth = 0
         self._journal: list[tuple] = []                      # (layer, fid, row before or None, persist) for every write made inside a batch
+        self._batch_oids: dict[tuple[str, str], int | None] = {}
 
     # -- hooks a subclass overrides ----------------------------------------------
     def _persist(self, layer: str, op: str, fid: str, attrs: dict, geom: dict | None) -> int | None:
@@ -144,6 +152,8 @@ class Store:
                 continue                                       # added and removed again inside the batch
             op = "add" if before is None else "delete" if now is None else "update"
             per_layer.setdefault(layer, []).append((op, fid, dict(now["attrs"]) if now else {}, now["geom"] if now else None))
+            if before is not None:
+                self._batch_oids[(layer, fid)] = before["oid"]   # the record's row number, needed to update or delete a row that the batch changed
         try:
             for layer, rows in per_layer.items():
                 oids = self._persist_many(layer, rows) or {}
@@ -151,8 +161,10 @@ class Store:
                     if fid in self._rows.get(layer, {}):
                         self._rows[layer][fid]["oid"] = oid
         except Exception:
+            self._batch_oids = {}
             self._after_failed_batch(self._rollback())
             raise
+        self._batch_oids = {}
         self._journal = []
 
     # -- writes ------------------------------------------------------------------
@@ -279,3 +291,222 @@ class Store:
     def attachment(self, layer: str, fid: str, name: str) -> bytes | None:
         with self._lock:
             return self._files.get((layer, str(fid)), {}).get(name)
+
+
+class StoreLockedError(RuntimeError):
+    """Another server is already running against the same hosted layers."""
+
+
+log = logging.getLogger("geoai.store")
+_ID = re.compile(r"^([A-Za-z]+)-(\d+)$")
+
+
+def _same(a: dict, b: dict) -> bool:
+    """Two attribute sets say the same thing (ArcGIS Online returns an empty text as null)."""
+    return all(a.get(k) == b.get(k) or (a.get(k) in ("", None) and b.get(k) in ("", None)) for k in set(a) | set(b))
+
+
+class ArcGISStore(Store):
+    """ArcGIS Online is the system of record. The rows are loaded into the working copy at start-up; every change is made
+    in ArcGIS Online first and reaches the working copy only when ArcGIS Online has confirmed it. Nothing is kept on this computer."""
+
+    is_hosted = True
+    LOCK_LAYER, LOCK_ID = "Riyadh_Learning_Config", "server.lock"
+    AUDIT_LAYER = "Riyadh_Agent_Audit_Log"
+    LOCK_STALE_S = 60.0          # a heartbeat older than this belongs to a server that is gone
+    RECONCILE_EVERY = 4          # every fourth refresh also looks for rows deleted outside the app, and renews the lock
+    NEW_ROW_PREFIX = {"Riyadh_Field_Verification": "VER"}      # rows created in Field Maps arrive without an id
+
+    def __init__(self, gateway, audit_days: int = 7, lock: bool = True):
+        super().__init__()
+        self.gw = gateway
+        self.audit_days = audit_days
+        self._since: dict[str, int] = {}
+        self._refreshes = 0
+        self.last_refresh: str | None = None
+        self._owner = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
+        self._locked = False
+        self.load()
+        if lock:
+            self._take_lock()
+
+    # -- loading -----------------------------------------------------------------
+    def _fetch(self, layer: str) -> list[dict]:
+        if layer == self.AUDIT_LAYER:        # the audit log only grows: the working copy holds the recent part, the counter still follows the highest id
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=self.audit_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            return self.gw.rows(layer, newer_than=("Timestamp", cutoff))
+        return self.gw.rows(layer)
+
+    def _seed(self, fid: str | None) -> None:
+        m = _ID.match(fid or "")
+        if m:
+            self._counters[m.group(1)] = max(self._counters.get(m.group(1), 0), int(m.group(2)))
+
+    def _row(self, r: dict) -> dict:
+        return {"attrs": dict(r["attrs"]), "geom": r["geom"], "bbox": self._bbox(r["geom"]), "oid": r["oid"]}
+
+    def _adopt(self, layer: str, r: dict) -> str | None:
+        """A row made in Field Maps has no id yet: give it one and write it back."""
+        prefix = self.NEW_ROW_PREFIX.get(layer)
+        if not prefix:
+            return None
+        fid = self.next_id(prefix)
+        r["attrs"][LAYERS[layer].id_field] = fid
+        try:
+            self.gw.update(layer, r["oid"], dict(r["attrs"]), r["geom"])
+        except Exception as exc:              # the row is still used; the id is written again with the next change to it
+            log.warning("could not write id %s back to ArcGIS Online: %s", fid, exc)
+        return fid
+
+    def load(self, layers: Iterable[str] | None = None) -> dict[str, int]:
+        """Read these layers (default: all) from ArcGIS Online into the working copy. Returns the row count per layer."""
+        counts = {}
+        for layer in (list(layers) if layers is not None else list(LAYERS)):
+            fetched = self._fetch(layer)
+            with self._lock:
+                rows, pending = {}, []
+                for r in fetched:
+                    self._since[layer] = max(self._since.get(layer, 0), r.get("edited_ms") or 0)
+                    if r["id"]:
+                        rows[r["id"]] = self._row(r)
+                        self._seed(r["id"])
+                    else:
+                        pending.append(r)
+                if layer == self.AUDIT_LAYER:
+                    self._seed(self.gw.max_id(layer))
+                self._rows[layer] = rows
+                for r in pending:
+                    fid = self._adopt(layer, r)
+                    if fid:
+                        rows[fid] = self._row(r)
+                counts[layer] = len(rows)
+        return counts
+
+    # -- persist hooks -----------------------------------------------------------
+    def _wrap(self, exc: Exception, layer: str, fid: str = "") -> StoreWriteError:
+        if isinstance(exc, StoreWriteError):
+            exc.layer, exc.fid = exc.layer or layer, exc.fid or fid
+            return exc
+        return StoreWriteError(f"ArcGIS Online did not accept the change to {layer}{'/' + fid if fid else ''}: {exc}", layer=layer, fid=fid)
+
+    def _persist(self, layer, op, fid, attrs, geom):
+        try:
+            if op == "add":
+                return self.gw.add(layer, attrs, geom)
+            oid = self._rows[layer][fid]["oid"]
+            if op == "update":
+                self.gw.update(layer, oid, attrs, geom)
+                return oid
+            self.gw.delete(layer, oid)
+            return None
+        except Exception as exc:
+            raise self._wrap(exc, layer, fid) from exc
+
+    def _persist_many(self, layer, rows):
+        adds = [(attrs, geom) for op, _fid, attrs, geom in rows if op == "add"]
+        add_ids = [fid for op, fid, _a, _g in rows if op == "add"]
+        updates = [(self._batch_oids[(layer, fid)], attrs, geom) for op, fid, attrs, geom in rows if op == "update"]
+        deletes = [self._batch_oids[(layer, fid)] for op, fid, _a, _g in rows if op == "delete"]
+        try:
+            oids = self.gw.apply_many(layer, adds, updates, deletes)
+        except Exception as exc:
+            raise self._wrap(exc, layer) from exc
+        return dict(zip(add_ids, oids))
+
+    def _persist_clear(self, layers):
+        for layer in (layers if layers is not None else list(LAYERS)):
+            try:
+                self.gw.truncate(layer)
+            except Exception as exc:
+                raise self._wrap(exc, layer) from exc
+
+    def _after_failed_batch(self, layers):
+        try:                                  # some layers of the batch may have been written before the refusal: read back what the record holds now
+            self.load(layers)
+        except Exception as exc:
+            log.warning("could not reload %s from ArcGIS Online after a refused batch: %s", layers, exc)
+
+    def clear(self, layers=None):
+        super().clear(layers)
+        if self._locked and (layers is None or self.LOCK_LAYER in list(layers)):
+            self._write_lock()                # emptying the settings layer removed the lock row: put it back
+
+    # -- outside edits -----------------------------------------------------------
+    def refresh(self) -> dict[str, list[str]]:
+        """Bring in what changed in ArcGIS Online since the last call (Field Maps, Map Viewer). Returns layer -> ids added, changed or removed.
+        Rows deleted outside the app are found on every fourth call."""
+        self._refreshes += 1
+        reconcile = self._refreshes % self.RECONCILE_EVERY == 0
+        changed: dict[str, list[str]] = {}
+        for layer in LAYERS:
+            if layer == self.AUDIT_LAYER:     # written only by this app
+                continue
+            fetched = self.gw.rows(layer, since_ms=self._since.get(layer, 0))
+            hosted = self.gw.ids(layer) if reconcile else None
+            ids: list[str] = []
+            with self._lock:
+                rows = self._rows.setdefault(layer, {})
+                for r in fetched:
+                    self._since[layer] = max(self._since.get(layer, 0), r.get("edited_ms") or 0)
+                    fid = r["id"] or self._adopt(layer, r)
+                    if not fid:
+                        continue
+                    cur = rows.get(fid)
+                    if cur and _same(cur["attrs"], r["attrs"]) and cur["geom"] == r["geom"]:
+                        cur["oid"] = r["oid"]
+                        continue
+                    rows[fid] = self._row(r)
+                    self._seed(fid)
+                    ids.append(fid)
+                if hosted is not None:
+                    for fid in [f for f in rows if f not in hosted and rows[f]["oid"] is not None]:
+                        del rows[fid]
+                        ids.append(fid)
+            if ids:
+                changed[layer] = ids
+        if reconcile and self._locked:
+            self._write_lock()
+        self.last_refresh = utcnow()
+        return changed
+
+    # -- one server at a time ----------------------------------------------------
+    def _write_lock(self) -> None:
+        self.upsert(self.LOCK_LAYER, {"Config_ID": self.LOCK_ID, "Value": json.dumps({"owner": self._owner, "heartbeat": time.time()}), "Updated": utcnow()})
+
+    def _take_lock(self) -> None:
+        cur = self.get(self.LOCK_LAYER, self.LOCK_ID)
+        if cur:
+            try:
+                held = json.loads(cur["attrs"].get("Value") or "{}")
+            except ValueError:
+                held = {}
+            if held.get("owner") != self._owner and time.time() - float(held.get("heartbeat") or 0) < self.LOCK_STALE_S:
+                raise StoreLockedError(f"another Riyadh City View server ({held.get('owner')}) is already running against the {self.gw.title('')}* layers. "
+                                       f"Stop it first, or wait {int(self.LOCK_STALE_S)} seconds if it has already stopped.")
+        self._write_lock()
+        self._locked = True
+
+    def release(self) -> None:
+        """Give the lock back (clean shutdown)."""
+        if self._locked:
+            self._locked = False
+            try:
+                self.delete(self.LOCK_LAYER, self.LOCK_ID)
+            except StoreWriteError as exc:
+                log.warning("could not release the server lock: %s", exc)
+
+    # -- files -------------------------------------------------------------------
+    def add_attachment(self, layer, fid, name, data):
+        with self._lock:
+            row = self._rows.get(layer, {}).get(str(fid))
+            if row is None:
+                raise KeyError(f"{layer}/{fid} not found")
+            try:
+                self.gw.add_attachment(layer, row["oid"], name, data)
+            except Exception as exc:
+                raise self._wrap(exc, layer, str(fid)) from exc
+
+    def attachment(self, layer, fid, name):
+        with self._lock:
+            row = self._rows.get(layer, {}).get(str(fid))
+        return self.gw.attachment(layer, row["oid"], name) if row else None
