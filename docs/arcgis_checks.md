@@ -26,11 +26,22 @@ ArcGIS API for Python 2.4.2 is installed in `.venv` (Python 3.10.11). Without si
 
 This shows the calls are spelled correctly. It does not show what ArcGIS Online answers; that needs the live run.
 
+## Confirmed by a live run
+
+2026-11-15, account `story_viewer`, organisation "Esri Saudi Arabia GeoAI Portal" (role publisher, user type Creator).
+
+| Item | Result |
+|---|---|
+| Creating the hosted layers | 22 services created by `scripts/create_feature_layers.py --apply` in 646 s (about 30 s each). All are private. |
+| Fields | Read back: every data-model field is present on every layer. ArcGIS Online added `OBJECTID`, `GlobalID`, `CreationDate`, `Creator`, `EditDate`, `Editor`. |
+| Editor tracking set on the service with Update Definition | Took effect on 22 of 22 layers: each has an `EditDate`. The silent failure the community threads describe did not happen here. |
+| Long text length | `Notifications.Trail` and `Approvals.Payload` are 16,000 characters; ordinary text fields are 255. |
+| Attachments | Switched on for the 13 feature layers; off for the 9 tables, as defined. |
+
 ## Not confirmed yet
 
 | Item | Why it matters | When it is settled |
 |---|---|---|
-| Editor tracking actually taking effect on a service created by script | Without it every refresh reads whole layers | Plan 1, task 10, step 6: read back after the layers are created |
 | Attachments accepted and read back by ArcGIS Online | Investigator photos | Task 10, step 9: one photo sent and read back |
 | An API key in place of the stored password | The toolkit's sign-in guidance prefers it | Task 10, step 2, before the running server is switched |
 | Real timings: start-up load, one write, one crew scan, Reset demo | The plan's figures are estimates | Task 10, step 8 |
