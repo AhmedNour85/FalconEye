@@ -1,0 +1,37 @@
+[
+ {
+  "Config_ID": "calibration.change",
+  "Value": "1.0",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "calibration.lighting",
+  "Value": "1.0",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "calibration.water",
+  "Value": "1.0",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "meta.generated",
+  "Value": "2026-10-30T10:29:53Z",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "meta.history_seeded",
+  "Value": "yes",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "meta.seed",
+  "Value": "20260101",
+  "Updated": "2026-10-30T10:29:53Z"
+ },
+ {
+  "Config_ID": "streetlight.detect_threshold",
+  "Value": "0.55",
+  "Updated": "2026-10-30T10:29:53Z"
+ }
+]

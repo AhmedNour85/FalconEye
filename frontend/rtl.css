@@ -1,0 +1,91 @@
+/* Language switch + right-to-left (Arabic) overrides. Loaded last on every page. Layouts built with flex/grid mirror by themselves;
+   this file fixes the places that were written with physical left/right values. */
+.lang-toggle { background: var(--card2, var(--surface-3, #13304f)); color: var(--tx, var(--text, #e8f1fb)); border: 1px solid var(--line, var(--border-strong, #1f3d63));
+  border-radius: 10px; padding: 7px 14px; cursor: pointer; font: inherit; font-weight: 600; white-space: nowrap; }
+.lang-toggle:hover { filter: brightness(1.15); }
+.lang-toggle:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
+.lang-toggle.floating { position: fixed; top: 14px; inset-inline-end: 14px; z-index: 20; }
+.role .topright .lang-toggle { margin-inline-start: 14px; }
+
+html.rtl body, html.rtl button, html.rtl input, html.rtl select, html.rtl textarea { font-family: "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, Arial, sans-serif; }
+html.rtl .header h1 { letter-spacing: 0; }
+
+/* ids, numbers, coordinates and code stay left-to-right inside Arabic text */
+html.rtl code, html.rtl .c-meta span:nth-child(3), html.rtl .kv dd b { unicode-bidi: plaintext; }
+
+/* ---------- NCCC command center (nccc.css) */
+html.rtl .skip { left: auto; right: 8px; }
+html.rtl select { padding-right: 14px; padding-left: 8px; }
+html.rtl .track::after { left: auto; right: 3px; }
+html.rtl .switch input:checked + .track::after { transform: translateX(-18px); }
+html.rtl .bell span { right: auto; left: -4px; }
+html.rtl .panel-h .link, html.rtl .panel-h .now { margin-left: 0; margin-right: auto; }
+html.rtl body:not(.role) .card, html.rtl .chg-i { border-left: 1px solid var(--line); border-right: 5px solid var(--c, #9fb2c8); }
+html.rtl .chg-i.sig { border-left-color: var(--line); border-right-color: var(--crit); }
+html.rtl body:not(.role) .toast { border-left: 1px solid var(--line); border-right: 5px solid var(--c, var(--acc2)); }
+html.rtl .rep-obs { border-left: 0; border-right: 5px solid #7df0b3; }
+html.rtl body:not(.role) .legend { left: auto; right: 12px; }
+html.rtl .d { margin-left: 0; margin-right: 6px; }
+html.rtl .answer { padding: 12px 14px 12px 40px; }
+html.rtl .answer ul { padding-left: 0; padding-right: 20px; }
+html.rtl .answer .x, html.rtl .pick .x { right: auto; left: 8px; }
+html.rtl .agent-detail code { margin-right: 0; margin-left: 4px; }
+html.rtl .ag { text-align: right; }
+html.rtl .toasts { right: auto; left: 16px; }
+html.rtl .bellmenu { right: auto; left: 0; }
+html.rtl .bellmenu .bm-i { text-align: right; }
+html.rtl .pick { left: auto; right: 12px; border-left: 1px solid #7df0b3aa; border-right: 6px solid var(--c, #7df0b3); }
+html.rtl .sheet-h .x { margin-left: 0; margin-right: auto; }
+html.rtl .cmp-view .tag.l { left: auto; right: 8px; }
+html.rtl .cmp-view .tag.r { right: auto; left: 8px; }
+html.rtl .ask input { text-align: right; }
+/* the before/after swipe is geometric, not textual: keep it left-to-right */
+html.rtl .cmp-view, html.rtl #cmp-pos { direction: ltr; }
+html.rtl .cmp-view .tag.l { left: 8px; right: auto; }
+html.rtl .cmp-view .tag.r { right: 8px; left: auto; }
+
+/* ---------- role pages: Executive Hub and portal (role.css) */
+html.rtl .role .left { border-right: 0; border-left: 1px solid var(--border); }
+html.rtl .role .right { border-left: 0; border-right: 1px solid var(--border); }
+html.rtl .role .sev { margin-left: 0; margin-right: 6px; }
+html.rtl .role .legend { left: auto; right: 14px; }
+html.rtl .role .legend span::before { margin-right: 0; margin-left: 6px; }
+html.rtl #toasts { right: auto; left: 18px; }
+html.rtl .role .toast { border-left: 1px solid var(--border-strong); border-right: 4px solid var(--ok); }
+html.rtl .role .toast.err { border-right-color: var(--bad); }
+html.rtl .legend-inline span::before { margin-right: 0; margin-left: 5px; }
+html.rtl .kgrid .card { border-left: 1px solid var(--border); border-right: 3px solid var(--k, var(--border)); }
+html.rtl .spark { transform: scaleX(-1); }
+html.rtl .spark-wrap { direction: ltr; }
+html.rtl .spark-x { direction: ltr; margin: 3px 22px 0 0; flex-direction: row-reverse; }            /* time runs right to left in Arabic */
+
+/* ---------- field page */
+html.rtl .opts label { text-align: right; }
+
+/* ---------- Arabic text size: the script looks smaller than Latin at the same px, so the small labels get a size bump */
+html.rtl .kpi span { font-size: 16px; font-weight: 600; }
+html.rtl .kpi b { font-size: 32px; }
+html.rtl .now, html.rtl .c-meta, html.rtl .m, html.rtl .brand span, html.rtl .fchip small, html.rtl .answer .by, html.rtl .agent-detail, html.rtl .tabs button, html.rtl .cmp-view .tag { font-size: 14.5px; }
+html.rtl .c-msg, html.rtl .c-act .btn, html.rtl .btn, html.rtl select, html.rtl .ag-t small { font-size: 15px; }
+html.rtl .c-title { font-size: 16.5px; }
+html.rtl .role .label, html.rtl .role .meta, html.rtl .role .desc, html.rtl .role .sub, html.rtl .role .why, html.rtl .role .layers, html.rtl .role .legend, html.rtl .updated { font-size: 14px; }
+html.rtl .role .left > h2, html.rtl .role .right > h2 { letter-spacing: 0; text-transform: none; font-size: 15px; }
+html.rtl body, html.rtl .c-msg, html.rtl .desc { line-height: 1.6; }
+html.rtl .activity:empty::after { content: "لا توجد عمليات تسليم بعد. شغّل وكلاء الذكاء الاصطناعي أو اضغط «افحص الآن»."; }
+/* the brand subtitle stays on one line beside NCCC, as in English */
+html.rtl .brand { flex: 0 0 auto; }
+html.rtl .brand span { white-space: nowrap; font-size: 13px; }
+/* header: keep the title and the buttons on one row like English (the bumped Arabic sizes made it wrap) */
+@media (min-width: 1100px) {
+  html.rtl .top { flex-wrap: nowrap; }
+  html.rtl .tools { flex-wrap: nowrap; gap: 8px; }
+}
+html.rtl .top .btn, html.rtl .top select, html.rtl .top .lang-toggle, html.rtl .top .switch .lbl { font-size: 14px; }
+html.rtl .top .btn, html.rtl .top select, html.rtl .top .lang-toggle { padding: 8px 10px; }
+html.rtl .top select { max-width: 150px; }
+/* planner dialog: addresses, model names and keys are Latin text, so they read left to right even in Arabic */
+html.rtl #pl input[dir="ltr"] { text-align: left; }
+/* the map's zoom buttons stay on the physical left in Arabic, so the layer box and the title pill stay where they are in English */
+/* Executive Hub header (same look as the Operation header) */
+html.rtl .role .brand b { letter-spacing: 0; }
+html.rtl .role nav a { font-size: 14px; padding: 8px 12px; }

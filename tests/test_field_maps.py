@@ -1,0 +1,267 @@
+"""Field reports come from ArcGIS Field Maps; the in-app investigator form is disabled by default."""
+from fastapi.testclient import TestClient
+
+from backend.api.app import create_app
+from backend.gis import schema as S
+from backend.platform import Platform
+from backend.agent.agent import GeoAIAgent
+from config.settings import Settings
+
+
+class FakeFieldMaps:
+    """Stands in for the ArcGIS Online mirror: a worker adds a report on the Field Verification layer in Field Maps."""
+
+    def __init__(self, rows):
+        self.rows = rows                  # list of (attrs, geom) waiting in "ArcGIS Online"
+
+    def apply(self, *a):
+        pass
+
+    def pull_updates(self, layer, since, store):
+        n = 0
+        if layer == S.VERIFICATION:
+            for i, (attrs, geom) in enumerate(self.rows):
+                fid = attrs.get("Verification_ID") or store.next_id("VER")
+                attrs = {**attrs, "Verification_ID": fid}
+                self.rows[i] = (attrs, geom)              # like the real adapter, the id is written back to ArcGIS Online
+                if not store.get(layer, fid):
+                    store.upsert(layer, attrs, geom, mirror=False)
+                    n += 1
+        return n
+
+
+def _assigned_work_order(platform):
+    platform.crew.run_cycle()
+    res = platform.crew.inject("olaya_leak")
+    iid = next(i for i in res["scan"]["new_incidents"] if platform.store.get(S.INCIDENTS, i)["attrs"]["Category"] == "water")
+    for a in list(platform.approvals.pending()):
+        if a["Incident_ID"] == iid:
+            platform.approvals.approve(a["Approval_ID"], actor="t")
+    platform.crew.run_cycle()
+    for a in list(platform.approvals.pending()):
+        if a["Incident_ID"] == iid:
+            platform.approvals.approve(a["Approval_ID"], actor="t")
+    wo = platform.store.query(S.WORK_ORDERS, Incident_ID=iid)[-1]
+    assert wo["attrs"]["Assigned_Worker"]
+    return iid, wo
+
+
+def test_field_maps_report_is_assessed_and_the_operator_is_told(platform):
+    iid, wo = _assigned_work_order(platform)
+    inc = platform.store.get(S.INCIDENTS, iid)
+    lon, lat = inc["geom"]["coordinates"]
+    # the worker's report as Field Maps writes it: no id, no assessment, no distance, GPS from the phone
+    report = {"Work_Order_ID": wo["id"], "Observation": "Wet asphalt and a visible leak at the valve.", "Verification_Status": "Confirmed"}
+    platform.mirror = FakeFieldMaps([(report, {"type": "Point", "coordinates": [lon + 0.0001, lat]})])
+    out = platform.pull_field_updates()
+    assert out["pulled"] == 1 and out["assessed"] == 1
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]
+    assert v["Agent_Assessment"] and v["Worker_ID"] == wo["attrs"]["Assigned_Worker"] and v["Simulated_Worker"] == "No" and v["Distance_To_Detection_M"] < 50
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Verification_Outcome"] == "Confirmed"
+    assert any(n["Kind"] == "verified" and n["Incident_ID"] == iid for n in platform.crew.notifications(limit=100))     # the operator sees it without a scan
+    assert platform.pull_field_updates()["assessed"] == 0                                                                    # idempotent
+
+
+def test_report_without_gps_or_valid_status_is_never_strong_evidence(platform):
+    iid, wo = _assigned_work_order(platform)
+    platform.mirror = FakeFieldMaps([({"Work_Order_ID": wo["id"], "Observation": "ok", "Verification_Status": "looks fine"}, None)])
+    platform.pull_field_updates()
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]
+    assert v["Verification_Status"] == "Needs Further Inspection"
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Status"] == "Requires Further Inspection"
+
+
+def test_report_for_an_unknown_work_order_is_left_alone(platform):
+    platform.mirror = FakeFieldMaps([({"Work_Order_ID": "WO-9999", "Observation": "x", "Verification_Status": "Confirmed"}, None)])
+    out = platform.pull_field_updates()
+    assert out["assessed"] == 0
+
+
+def test_investigator_form_is_disabled_by_default(tmp_path):
+    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="")
+    assert s.field_form is False
+    p = Platform(settings=s, db_path=":memory:")
+    c = TestClient(create_app(p, GeoAIAgent(p)))
+    r = c.post("/api/field/submit", data={"work_order_id": "WO-1", "worker_id": "WRK-001", "status": "Confirmed", "observation": "anything", "lat": 24.7, "lon": 46.7})
+    assert r.status_code == 410 and "Field Maps" in r.json()["detail"]
+    assert c.post("/api/field/accept", data={"work_order_id": "WO-1", "worker_id": "WRK-001"}).status_code == 410
+    page = c.get("/field.html")
+    assert page.status_code == 200 and "Field Maps" in page.text and "<form" not in page.text
+    assert c.get("/api/health").json()["field_form"] is False
+
+
+def test_assignment_is_sent_to_field_maps_with_the_investigators_login(tmp_path):
+    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="", field_users={"WRK-001": "nawaf.harbi", "WRK-002": "khalid.otaibi", "WRK-003": "saad.qahtani", "WRK-004": "hamad.ghamdi", "WRK-005": "yousef.dosari", "WRK-006": "ibrahim.shehri", "WRK-007": "majed.mutairi"})
+    platform = Platform(settings=s, db_path=":memory:")
+    pushed = []
+
+    class Spy:
+        def apply(self, layer, op, fid, attrs, geom):
+            pushed.append((layer, fid, dict(attrs)))
+    platform.apply_field_users()
+    platform.store.attach_mirror(Spy())
+    iid, wo = _assigned_work_order(platform)
+    wo = platform.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
+    last = [a for layer, fid, a in pushed if layer == S.WORK_ORDERS and a.get("Work_Order_ID") == wo["Work_Order_ID"]][-1]
+    assert last["Assigned_Worker"] and last["Assigned_Worker_Name"] and last["Assigned_At"]
+    assert last["Field_Maps_Status"] == "Sent to ArcGIS Field Maps"
+    assert last["Incident_Type"] and last["Area_Name"]
+    assert last["Assigned_To_Username"] == s.field_users[last["Assigned_Worker"]]
+
+
+def test_field_maps_acceptance_notifies_the_operator(platform):
+    iid, wo = _assigned_work_order(platform)
+
+    class Accepting(FakeFieldMaps):
+        def pull_updates(self, layer, since, store):
+            if layer == S.WORK_ORDERS:
+                store.update(S.WORK_ORDERS, wo["id"], Accepted_At="2026-01-01T10:00:00Z")      # the worker tapped Accept in Field Maps
+                return 1
+            return 0
+    platform.mirror = Accepting([])
+    platform.pull_field_updates()
+    assert any(n["Kind"] == "accepted" and n["Incident_ID"] == iid for n in platform.crew.notifications(limit=100))
+
+
+def test_task_fields_follow_the_work_order_lifecycle(tmp_path):
+    from backend.services import tasks
+    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+                 field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
+    p = Platform(settings=s, db_path=":memory:")
+    iid, wo = _assigned_work_order(p)
+    a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
+    assert tasks.TASK_TYPES[a["esritask_type"]] == a["Incident_Type"] or a["esritask_type"] == tasks.TASK_TYPES.index("Other")     # the title Field Maps shows
+    assert a["esritask_assignee"] == "story_viewer" and a["esritask_status"] == 1 and a["esritask_priority"] in (1, 2, 3, 4)
+    assert a["esritask_duedate"] and wo["id"] in a["esritask_description"]
+    # the operator verifies -> the task moves on
+    p.simulate_field_response(wo["id"])
+    assert p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]["esritask_status"] == 2
+    # a work order nobody can be handed to in Field Maps yet stays in the Unassigned list
+    assert tasks.task_fields({"Status": "Assigned", "Assigned_Worker": "WRK-001", "Assigned_To_Username": "", "Incident_Type": "Water Leak"})["esritask_status"] == 0
+    assert tasks.task_fields({"Status": "Created", "Incident_Type": "Something new"})["esritask_type"] == tasks.TASK_TYPES.index("Other")
+
+
+def test_starting_the_task_in_field_maps_accepts_the_assignment(tmp_path):
+    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+                 field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
+    p = Platform(settings=s, db_path=":memory:")
+    iid, wo = _assigned_work_order(p)
+
+    class Starting(FakeFieldMaps):
+        def pull_updates(self, layer, since, store):
+            if layer == S.WORK_ORDERS:
+                cur = store.get(S.WORK_ORDERS, wo["id"])
+                store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 2}, cur["geom"], mirror=False)      # the worker tapped Start on the task
+                return 1
+            return 0
+    p.mirror = Starting([])
+    p.pull_field_updates()
+    a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
+    assert a["Status"] == "In Progress" and a["Accepted_At"] and a["esritask_status"] == 2
+    assert any(n["Kind"] == "accepted" and n["Incident_ID"] == iid for n in p.crew.notifications(limit=100))
+
+
+def test_report_without_a_work_order_id_is_matched_to_the_one_the_worker_is_standing_at(platform):
+    iid, wo = _assigned_work_order(platform)
+    lon, lat = platform.store.get(S.INCIDENTS, iid)["geom"]["coordinates"]
+    platform.mirror = FakeFieldMaps([({"Work_Order_ID": "", "Observation": "Leak confirmed at the valve.", "Verification_Status": "Confirmed"},
+                                      {"type": "Point", "coordinates": [lon + 0.0002, lat]})])
+    out = platform.pull_field_updates()
+    assert out["assessed"] == 1
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]
+    assert v["Work_Order_ID"] == wo["id"] and v["Agent_Assessment"]
+    assert any(n["Kind"] == "verified" and n["Incident_ID"] == iid for n in platform.crew.notifications(limit=100))
+
+
+class _Finishing(FakeFieldMaps):
+    def __init__(self, wo_id, notes=""):
+        super().__init__([])
+        self.wo_id, self.notes = wo_id, notes
+
+    def pull_updates(self, layer, since, store):
+        if layer == S.WORK_ORDERS:
+            cur = store.get(S.WORK_ORDERS, self.wo_id)
+            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, "esritask_notes": self.notes}, cur["geom"], mirror=False)      # Note, then Finish
+            return 1
+        return 0
+
+
+def test_finish_with_a_note_is_the_report(platform):
+    iid, wo = _assigned_work_order(platform)
+    platform.mirror = _Finishing(wo["id"], "Confirmed: cracks and a bulging wall on the north side")
+    platform.pull_field_updates()
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)
+    assert len(v) == 1 and v[0]["attrs"]["Verification_Status"] == "Confirmed" and v[0]["attrs"]["Agent_Assessment"]
+    assert v[0]["attrs"]["Observation"].startswith("[Field Maps task]") and v[0]["attrs"]["Investigator_Name"]
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Verification_Outcome"] == "Confirmed"
+    kinds = {n["Kind"] for n in platform.crew.notifications(limit=100) if n["Incident_ID"] == iid}
+    assert "verified" in kinds and "field_done" not in kinds                      # one alert, the verified one
+    platform.pull_field_updates()
+    assert len(platform.store.query(S.VERIFICATION, Incident_ID=iid)) == 1        # once only
+
+
+def test_finish_without_a_verdict_word_needs_a_further_inspection(platform):
+    iid, wo = _assigned_work_order(platform)
+    platform.mirror = _Finishing(wo["id"], "")
+    platform.pull_field_updates()
+    assert platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]["Verification_Status"] == "Needs Further Inspection"
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Status"] == "Requires Further Inspection"
+
+
+def test_finish_does_not_duplicate_a_report_the_worker_already_filed(platform):
+    iid, wo = _assigned_work_order(platform)
+    lon, lat = platform.store.get(S.INCIDENTS, iid)["geom"]["coordinates"]
+    platform.mirror = FakeFieldMaps([({"Work_Order_ID": wo["id"], "Observation": "Leak at the valve.", "Verification_Status": "Confirmed"}, {"type": "Point", "coordinates": [lon, lat]})])
+    platform.pull_field_updates()
+    platform.mirror = _Finishing(wo["id"], "Rejected")
+    platform.pull_field_updates()
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)
+    assert len(v) == 1 and v[0]["attrs"]["Verification_Status"] == "Confirmed"      # the filed report stands
+    assert any(n["Kind"] == "field_done" and n["Incident_ID"] == iid for n in platform.crew.notifications(limit=100))
+
+
+class _FinishingWithForm(FakeFieldMaps):
+    """Finish on the task after answering the radio buttons and the comment box (Field_Verdict / Field_Comment on the work order)."""
+
+    def __init__(self, wo_id, **fields):
+        super().__init__([])
+        self.wo_id, self.fields = wo_id, fields
+
+    def pull_updates(self, layer, since, store):
+        if layer == S.WORK_ORDERS:
+            cur = store.get(S.WORK_ORDERS, self.wo_id)
+            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, **self.fields}, cur["geom"], mirror=False)
+            return 1
+        return 0
+
+
+def test_finish_uses_the_radio_answer_and_the_comment(platform):
+    iid, wo = _assigned_work_order(platform)
+    platform.mirror = _FinishingWithForm(wo["id"], Field_Verdict="Rejected", Field_Comment="Dry asphalt, no valve chamber leak at all.")
+    platform.pull_field_updates()
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)
+    assert len(v) == 1 and v[0]["attrs"]["Verification_Status"] == "Rejected"
+    assert v[0]["attrs"]["Observation"] == "[Field Maps task] Dry asphalt, no valve chamber leak at all."
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Verification_Outcome"] == "Rejected"
+
+
+def test_the_radio_answer_wins_over_a_note_and_the_note_still_works_alone(platform):
+    iid, wo = _assigned_work_order(platform)
+    platform.mirror = _FinishingWithForm(wo["id"], Field_Verdict="Escalate", Field_Comment="", esritask_notes="Confirmed: something else")
+    platform.pull_field_updates()
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]
+    assert v["Verification_Status"] == "Escalate" and "something else" in v["Observation"]        # no comment: the note is the text
+    p2 = type(platform)(settings=platform.settings, db_path=":memory:")
+    iid2, wo2 = _assigned_work_order(p2)
+    p2.mirror = _FinishingWithForm(wo2["id"], Field_Verdict="not a real code", esritask_notes="Not found: nothing there")
+    p2.pull_field_updates()
+    assert p2.store.query(S.VERIFICATION, Incident_ID=iid2)[-1]["attrs"]["Verification_Status"] == "Rejected"    # an unknown answer falls back to the note
+
+
+def test_form_choices_match_the_in_app_form():
+    from backend.services import field, i18n
+
+    assert [c[0] for c in i18n.VERDICT_CHOICES] == list(field.STATUSES) or set(c[0] for c in i18n.VERDICT_CHOICES) == set(field.STATUSES)
+    assert i18n.verdict_label("Confirmed") == "Yes, confirmed" and i18n.verdict_label("Rejected", "ar") == "لم يتم العثور"
+    assert i18n.verdict_label("Escalate", "both") == "Escalate / تصعيد"
+    assert "Field_Verdict" in S.LAYERS[S.WORK_ORDERS].fields and "Field_Comment" in S.LAYERS[S.WORK_ORDERS].fields

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operational Center | GeoAI Riyadh</title>
+<link rel="stylesheet" href="role.css">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css">
+<script src="https://js.arcgis.com/4.30/"></script>
+<style>body.role { --role-accent: #2d8cff; }</style>
+</head>
+<body class="role">
+<header class="top">
+  <div class="brand"><i></i><span>Operational Center · Mansour</span></div>
+  <nav><a href="home.html">Portal</a><a href="strategic_dashboard.html">Strategic</a><a href="index.html">Operation</a></nav>
+</header>
+
+<aside class="left">
+  <h2>Digital Crew</h2>
+  <div class="agents" id="agents"></div>
+  <h2>Run the demo</h2>
+  <div class="row">
+    <select id="ev"></select>
+    <button class="go" id="inject">Inject event</button>
+    <button id="scan">Scan now</button>
+    <button id="auto">Autopilot: off</button>
+  </div>
+  <h2>Live Triage Queue <span class="badge" id="tcount">0</span></h2>
+  <div class="stack" id="triage"></div>
+</aside>
+
+<main class="mapwrap">
+  <div class="pill"><i></i><span>Operational grid · live</span></div>
+  <div id="map"></div>
+  <div class="legend"><span style="--c:#f0564a">Critical / P1</span><span style="--c:#f5a524">Open incident</span><span style="--c:#34c38f">Field worker</span></div>
+</main>
+
+<aside class="right">
+  <h2>Pending Approvals <span class="badge" id="acount">0</span></h2>
+  <div class="stack" id="approvals"></div>
+  <h2>Crew Activity</h2>
+  <div class="stack" id="activity"></div>
+</aside>
+
+<script src="role.js"></script>
+<script src="operational_dashboard.js"></script>
+</body>
+</html>
