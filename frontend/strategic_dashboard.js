@@ -133,7 +133,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
     w.document.open();
     w.document.write(`<!doctype html><html lang="${I18N.lang}" dir="${I18N.rtl ? "rtl" : "ltr"}"><title>${T("Daily City Health Report")}</title><style>body{font:14px Segoe UI,Tahoma,Arial;margin:40px;color:#111}h2{margin-top:28px;border-bottom:2px solid #1fb36b}
       table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px;text-align:start;font-size:12px}.k{display:inline-block;margin:0 24px 12px 0}.k b{font-size:24px;display:block}</style>
-      <h1>${T("GeoAI Operations Center | Riyadh")}</h1><div>${T("Daily City Health Report")} · ${new Date().toLocaleString(I18N.locale)} · ${T("SYNTHETIC DEMO DATA")}</div>
+      <h1>${T("Riyadh City View")}</h1><div>${T("Daily City Health Report")} · ${new Date().toLocaleString(I18N.locale)} · ${T("SYNTHETIC DEMO DATA")}</div>
       <h2>${T("City health")}</h2><div class="k"><b>${health(k)}%</b>${T("health score")}</div><div class="k"><b>${k.critical_incidents}</b>${T("critical")}</div><div class="k"><b>${k.open_incidents}</b>${T("open incidents")}</div>
       <div class="k"><b>${k.detected_urban_changes}</b>${T("urban changes")}</div><div class="k"><b>${k.avg_response_time_hours ?? 0}</b>${T("avg response (h)")}</div>
       <h2>${T("Highest-priority incidents")}</h2><table><tr><th>${T("ID")}</th><th>${T("Priority")}</th><th>${T("Area")}</th><th>${T("Risk")}</th><th>${T("Evidence")}</th></tr>${rows}</table>

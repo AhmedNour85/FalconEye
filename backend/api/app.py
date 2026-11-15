@@ -61,7 +61,7 @@ Field Verification layer and sync. It appears in the command center within about
 
 
 def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None) -> FastAPI:
-    app = FastAPI(title="GeoAI Operations Center | Riyadh", version="1.0")
+    app = FastAPI(title="Riyadh City View", version="1.0")
     p = platform or Platform()
     ag = agent or GeoAIAgent(p)
     demo = Demo(ag)

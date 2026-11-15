@@ -16,6 +16,8 @@
 
   const AR = {
     /* ---- shared / navigation */
+    "Riyadh City View": "منظور مدينة الرياض",
+    "City services and mobility in one command center. Select your role to enter.": "خدمات المدينة والتنقل في مركز قيادة واحد. اختر دورك للدخول.",
     "GeoAI Operations Center": "مركز عمليات الذكاء الاصطناعي المكاني",
     "GeoAI Operations Center | Riyadh": "مركز عمليات الذكاء الاصطناعي المكاني | الرياض",
     "Select your operational role to enter the Riyadh geospatial intelligence suite.": "اختر دورك التشغيلي للدخول إلى منظومة الذكاء الجيومكاني لمدينة الرياض.",

@@ -19,6 +19,23 @@ def test_health_layers_and_config(platform):
     assert c.get("/api/imagery/Olaya/A.png").headers["content-type"] == "image/png"
 
 
+def test_legacy_pages_are_gone(platform):
+    c = client(platform)
+    assert c.get("/classic.html").status_code == 404 and c.get("/operational_dashboard.html").status_code == 404
+    assert "classic.html" not in c.get("/index.html").text
+
+
+def test_home_page_is_named_riyadh_city_view(platform):
+    c = client(platform)
+    assert "<h1>Riyadh City View</h1>" in c.get("/home.html").text
+    assert c.get("/openapi.json").json()["info"]["title"] == "Riyadh City View"
+
+
+def test_the_server_uses_its_own_port():
+    from backend import main
+    assert main.PORT == 8020
+
+
 def test_rbac_blocks_viewer(platform):
     c = client(platform)
     assert c.post("/api/approvals/APR-0001/approve", headers={"X-Role": "viewer"}).status_code == 403
