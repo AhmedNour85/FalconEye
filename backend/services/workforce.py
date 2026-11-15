@@ -5,8 +5,9 @@ from backend.gis import geo
 from backend.gis import schema as S
 from backend.gis.store import Store
 
-SKILL_FOR = {"water": "water", "lighting": "electrical", "change": "survey", "distortion": "survey", "land_use": "survey"}
-TEAM_FOR = {"water": "Water Rapid Response", "lighting": "Electrical Maintenance", "change": "Survey & Inspection", "distortion": "Survey & Inspection", "land_use": "Survey & Inspection"}
+SKILL_FOR = {"water": "water", "lighting": "electrical", "change": "survey", "distortion": "survey", "land_use": "survey", "mobility": "traffic"}
+TEAM_FOR = {"water": "Water Rapid Response", "lighting": "Electrical Maintenance", "change": "Survey & Inspection", "distortion": "Survey & Inspection", "land_use": "Survey & Inspection",
+            "mobility": "Traffic Response"}
 
 
 def rank_workers(store: Store, location: tuple[float, float], category: str, task: str = "") -> list[dict]:

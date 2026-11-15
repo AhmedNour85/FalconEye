@@ -282,9 +282,22 @@ def _generate(store: Store, seed: int, now: datetime | None, with_history: bool)
 
     if with_history:
         _history(store, rng, now, pipes, lights, failing)
+    for attrs, geom in traffic_response_workers(now):       # after the history, with fixed positions: the seeded city-service data stays exactly as it was
+        store.upsert(S.WORKERS, attrs, geom)
     store.upsert(S.CONFIG, {"Config_ID": "meta.complete", "Value": data_version(), "Updated": _iso(now)})
 
     return {name: store.count(name) for name in S.LAYERS if store.count(name)}
+
+
+TRAFFIC_RESPONSE = [("WRK-008", "Bandar Al-Shehri", "Olaya", (120.0, -80.0)), ("WRK-009", "Rayan Al-Anazi", "KAFD", (-90.0, 60.0))]
+
+
+def traffic_response_workers(now: datetime | None = None) -> list[tuple[dict, dict]]:
+    """The two investigators of the Traffic Response team (mobility incidents), as (attributes, geometry). SYNTHETIC."""
+    stamp = _iso(now or datetime.now(timezone.utc).replace(microsecond=0))
+    return [({"Worker_ID": wid, "Name": name, "Team": "Traffic Response", "Skills": "traffic,inspection", "Status": "Available", "Base_Area": base, "ArcGIS_Username": "",
+              "Open_Tasks": 0, "Last_Update": stamp, "Data_Classification": S.SYNTHETIC}, geo.point(*geo.offset(AREAS[base]["center"], dx, dy)))
+            for wid, name, base, (dx, dy) in TRAFFIC_RESPONSE]
 
 
 def _history(store: Store, rng: random.Random, now: datetime, pipes, lights, failing_lights) -> None:
