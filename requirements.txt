@@ -11,3 +11,4 @@ httpx>=0.27
 pytest>=8.0
 arcgis>=2.4.2          # ArcGIS Online is the system of record
 six                    # without it `item.layers` comes back empty and the hosted layers look missing (noted in the City project's handoff)
+networkx>=3.2          # mobility: road graph and traffic assignment
