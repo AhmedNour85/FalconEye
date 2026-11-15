@@ -67,14 +67,17 @@ def demand_factor(hour: float, weekend: bool = False) -> float:
 
 
 # ---------------------------------------------------------------- configuration
-def configure(store=None, network: str = "auto") -> None:
+def configure(store=None, network: str = "auto", force: bool = False) -> None:
     """`network`: "auto" (hosted layer, else the file, else the skeleton), "file" or "skeleton".
-    Changing the configuration drops the cached network and the cached model."""
+    A change that affects the roads drops the cached network and the cached model; `force` drops them anyway."""
     if network not in ("auto", "file", "skeleton"):
         raise ValueError('network must be "auto", "file" or "skeleton"')
     global _net, _inter
     with _lock:
+        same = network == _cfg["network"] and (network != "auto" or store is _cfg["store"])   # only "auto" reads the roads from the store
         _cfg["store"], _cfg["network"] = store, network
+        if same and not force:
+            return
         _net = _inter = None
     from backend.mobility import network_model
     network_model.invalidate()
@@ -160,12 +163,12 @@ def _from_store() -> Optional[tuple]:
         coords = g.get("coordinates") or []
         if g.get("type") == "MultiLineString":
             coords = coords[0] if coords else []
-        if len(coords) < 2 or not r.get("SegmentID"):
+        if len(coords) < 2 or not r.get("Segment_ID") or not r.get("From_Node") or not r.get("To_Node"):
             continue
-        roads.append(road_row({"id": r["SegmentID"], "name": r.get("Name"), "corridor": r.get("Corridor") or "", "road_class": r.get("RoadClass") or "collector",
-                               "lanes": int(r.get("Lanes") or 1), "speed_limit": float(r.get("SpeedLimit") or 50), "length_km": float(r.get("LengthKm") or 0),
-                               "from_node": r.get("FromNode"), "to_node": r.get("ToNode"), "coords": [[c[0], c[1]] for c in coords],
-                               "oneway": str(r.get("Oneway")).strip().lower() in ("1", "true", "yes"), "osm_name": r.get("OsmName") or ""}))
+        roads.append(road_row({"id": r["Segment_ID"], "name": r.get("Name"), "corridor": r.get("Corridor") or "", "road_class": r.get("Road_Class") or "collector",
+                               "lanes": int(r.get("Lanes") or 1), "speed_limit": float(r.get("Speed_Limit") or 50), "length_km": float(r.get("Length_Km") or 0),
+                               "from_node": r["From_Node"], "to_node": r["To_Node"], "coords": [[c[0], c[1]] for c in coords],
+                               "oneway": str(r.get("Oneway")).strip().lower() in ("1", "true", "yes"), "osm_name": r.get("Osm_Name") or ""}))
     if not roads:
         return None
     nodes = _end_nodes(roads)
@@ -195,7 +198,7 @@ def load_network() -> Tuple[List[dict], Dict[str, tuple], dict]:
 def list_hospitals() -> List[dict]:
     rows = [r for r in _hosted(FACILITIES_LAYER) if r.get("Kind") == "hospital" and r.get("geometry")]
     if rows:
-        return [{"id": r["FacilityID"], "name": r.get("Name") or r["FacilityID"], "geometry": r["geometry"]} for r in rows]
+        return [{"id": r["Facility_ID"], "name": r.get("Name") or r["Facility_ID"], "geometry": r["geometry"]} for r in rows]
     return [f for f in reference_facilities() if f["kind"] == "hospital"]
 
 
@@ -219,7 +222,7 @@ def rcrc(name: str) -> Optional[dict]:
 def _metro_stations() -> List[dict]:
     rows = [r for r in _hosted(STATIONS_LAYER) if r.get("geometry")]
     if rows:
-        return [{"id": r["StationID"], "name": r.get("Name") or r["StationID"], "geometry": r["geometry"]} for r in rows]
+        return [{"id": r["Station_ID"], "name": r.get("Name") or r["Station_ID"], "geometry": r["geometry"]} for r in rows]
     fc = rcrc("metro_stations")
     if fc:
         return [{"id": str(f["properties"].get("metro_station_cd") or i), "name": f["properties"].get("metro_station_desc_en") or "", "geometry": f["geometry"]}

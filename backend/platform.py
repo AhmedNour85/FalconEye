@@ -62,6 +62,11 @@ class Platform:
         from backend.orchestration.crew import Crew  # local import: the crew depends on the tool layer
 
         self.crew = Crew(self)
+        from backend.mobility import sources as mobility_sources, traffic
+
+        mobility_sources.configure(self.store, self.settings.mobility_network)   # the traffic model reads its roads, hospitals and stations through here
+        if init and self.settings.mobility_warm:
+            traffic.warm()                   # in the background: the pages work while the model builds
         self.data_ready = self.store.count(S.INFRA) > 0
         if init and not self.store.is_hosted:
             self.reset()                     # a working copy that keeps nothing starts from freshly generated demo data

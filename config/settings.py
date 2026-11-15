@@ -35,6 +35,9 @@ class Settings:
     field_sync_seconds: float = 15.0   # how often reports made in Field Maps are pulled from ArcGIS Online
     citizen_reports: bool = False      # the citizen-report feed is disabled unless GEOAI_CITIZEN_REPORTS=1
     field_lang: str = "en"             # language of the task text on the phone: en | ar | both (GEOAI_FIELD_LANG)
+    mobility_network: str = "skeleton" # road network of the traffic model: "auto" (hosted road layer, else data/mobility/network.json.gz, else the skeleton), "file" or "skeleton".
+                                       # load_settings() defaults to "auto" (GEOAI_MOBILITY_NETWORK); a Settings() built by hand, as the tests do, is the 73-segment skeleton.
+    mobility_warm: bool = False        # build the traffic model in the background at start-up (GEOAI_MOBILITY_WARM=0 switches it off); off for a Settings() built by hand
 
     @property
     def arcgis_enabled(self) -> bool:
@@ -65,6 +68,9 @@ def load_settings() -> Settings:
     store = e("GEOAI_STORE", "arcgis").strip().lower()
     if store not in ("arcgis", "memory"):
         raise ConfigError(f"GEOAI_STORE={store!r}: use 'arcgis' (ArcGIS Online is the system of record) or 'memory' (tests and development; nothing is kept)")
+    net = e("GEOAI_MOBILITY_NETWORK", "auto").strip().lower()
+    if net not in ("auto", "file", "skeleton"):
+        raise ConfigError(f"GEOAI_MOBILITY_NETWORK={net!r}: use 'auto', 'file' or 'skeleton'")
     return Settings(
         anthropic_api_key=e("ANTHROPIC_API_KEY", ""),
         anthropic_model=e("ANTHROPIC_MODEL", "claude-opus-5-5"),
@@ -82,5 +88,7 @@ def load_settings() -> Settings:
         field_form=e("GEOAI_FIELD_FORM", "1").lower() in ("1", "true", "yes"),       # the in-app investigator page is on next to ArcGIS Field Maps
         field_users={k.strip(): v.strip() for k, _, v in (p.partition("=") for p in e("GEOAI_FIELD_USERS", "").split(",")) if k.strip() and v.strip()},
         field_sync_seconds=float(e("GEOAI_FIELD_SYNC_SECONDS", "15")),
+        mobility_network=net,
+        mobility_warm=e("GEOAI_MOBILITY_WARM", "1").lower() in ("1", "true", "yes"),
         field_lang=(e("GEOAI_FIELD_LANG", "en").strip().lower() if e("GEOAI_FIELD_LANG", "en").strip().lower() in ("en", "ar", "both") else "en"),
     )

@@ -5,7 +5,8 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -14,6 +15,7 @@ from backend.agent import providers
 from backend.agent.agent import GeoAIAgent
 from backend.gis import schema as S
 from backend.gis.store import StoreWriteError
+from backend.mobility import traffic, transit
 from backend.orchestration import crew as crewmod
 from backend.platform import Platform
 from backend.services import field, i18n, imagery, learning
@@ -95,6 +97,8 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-type")}
         return Response(content=data, status_code=resp.status_code, headers=headers, media_type="application/json")
 
+    app.add_middleware(GZipMiddleware, minimum_size=20000)   # added last = outermost: the road and bus layers are several MB of JSON
+
     @app.exception_handler(StoreWriteError)
     async def record_refused(request, exc: StoreWriteError):
         """The system of record did not take a change. Nothing was changed; the operator is told why."""
@@ -160,6 +164,38 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         if not f:
             raise HTTPException(404, "not found")
         return f
+
+    # ---------------------------------------------------------------- mobility (reference layers and MODELLED traffic)
+    def mobility_not_ready():
+        """The model is built in the background. Until it is there the page gets a plain "not ready yet" with progress, never a long wait."""
+        traffic.warm()
+        st = traffic.status()
+        if st["error"]:
+            raise HTTPException(500, f"The traffic model could not be built: {st['error']}")
+        return JSONResponse(status_code=503, headers={"Retry-After": "3"},
+                            content={"detail": "The traffic model is still being built. Try again in a few seconds.", "ready": False, "hours_ready": st["hours_ready"], "hours_total": 24})
+
+    @app.get("/api/mobility/status")
+    def mobility_status():
+        return traffic.status()
+
+    @app.get("/api/mobility/roads")
+    def mobility_roads():
+        if not traffic.status()["network"]:
+            return mobility_not_ready()
+        return traffic.roads_geojson()
+
+    @app.get("/api/mobility/traffic")
+    def mobility_traffic(hour: int = Query(..., ge=0, le=23)):
+        if hour not in traffic.status()["hours_ready"]:
+            return mobility_not_ready()
+        return traffic.state(hour)
+
+    @app.get("/api/mobility/layers/{kind}")
+    def mobility_layer(kind: str):
+        if kind not in transit.KINDS:
+            raise HTTPException(404, "unknown mobility layer: use " + ", ".join(transit.KINDS))
+        return transit.geojson(kind, p.store)
 
     @app.get("/api/sensors/{sensor_id}/series")
     def series(sensor_id: str):
