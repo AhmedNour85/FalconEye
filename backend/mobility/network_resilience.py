@@ -6,7 +6,7 @@ from typing import Dict, List
 
 import networkx as nx
 
-from backend.simulation.network_model import NetworkModel
+from backend.mobility.network_model import NetworkModel
 
 
 def connectivity(model: NetworkModel) -> Dict:

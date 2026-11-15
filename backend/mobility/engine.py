@@ -15,14 +15,13 @@ import time
 from collections import defaultdict
 from typing import Callable, Dict, List, Optional
 
-from backend.data import riyadh_network as RN
-from backend.gis import feature_source, store
-from backend.services.osm_service import haversine_km
-from backend.services.synthetic_data import demand_factor
-from backend.simulation import accessibility as acc
-from backend.simulation import alternative_routes as alt
-from backend.simulation import event_impact, network_resilience as res_mod, road_closure, traffic_demand
-from backend.simulation.network_model import ASSUMPTIONS, NetworkModel, get_model, level
+from backend.mobility import riyadh_network as RN
+from backend.mobility import sources as feature_source, sources as store
+from backend.mobility.sources import demand_factor, haversine_km
+from backend.mobility import accessibility as acc
+from backend.mobility import alternative_routes as alt
+from backend.mobility import event_impact, network_resilience as res_mod, road_closure, traffic_demand
+from backend.mobility.network_model import ASSUMPTIONS, NetworkModel, get_model, level
 
 TYPES = ("closure", "demand", "event", "infrastructure")
 DEFAULT_WINDOW = {"closure": (8, 16), "demand": (7, 10), "event": (17, 21), "infrastructure": (7, 19)}
@@ -73,15 +72,29 @@ def _setup(p: dict, base: NetworkModel, wh: dict):
     od_mult, extra_od = None, None
     t = p["scenario_type"]
     if t == "closure":
-        corridor = road_closure.resolve_corridor(p.get("corridor") or p.get("road") or "")
-        if not corridor:
-            raise ValueError("closure scenario requires a known corridor (e.g. 'King Fahd Road')")
+        asked = str(p.get("corridor") or p.get("road") or "").strip()
+        corridor = road_closure.resolve_corridor(asked) or road_closure.model_corridor(base, asked)
+        if not corridor and not p.get("segment_ids"):
+            raise ValueError((f"The road network has no road named '{asked}'. " if asked else "A closure needs a road name. ")
+                             + "Roads known by name include: " + ", ".join(sorted(set(road_closure.ALIASES.values()))) + ".")
         ref = base.clone().assign(wh["peak_scale"], use_cache=False)["edges"]
         sel = road_closure.select_closure(base, corridor, ref, p.get("segment_ids"), p.get("near"), p.get("section"), float(p.get("span_km") or 2.0))
         if not sel["ids"]:
             raise ValueError(sel["why"])
-        sm.close_segments(sel["ids"])
         info = {"corridor": corridor, **sel}
+        if p.get("lanes_closed") is None:
+            sm.close_segments(sel["ids"])
+        else:   # lane closure (Riyadh City View): the section stays open with fewer lanes
+            try:
+                n = int(p["lanes_closed"])
+            except (TypeError, ValueError):
+                raise ValueError(f"lanes_closed must be a whole number of lanes, not '{p['lanes_closed']}'")
+            if n <= 0:
+                raise ValueError("lanes_closed must be 1 or more (leave it out for a full closure)")
+            before = sum(float(base.segments[i]["capacity"]) for i in sel["ids"])
+            left = sm.reduce_capacity(sel["ids"], n)
+            info.update(lanes_closed=n, capacity_left_pct=round(100 * sum(left.values()) / max(before, 1e-9)),
+                        full_closure=not any(left.values()))
     elif t == "demand":
         nodes = traffic_demand.resolve_area(sm, p.get("area"))
         pct = float(p.get("demand_change_pct", 20))
@@ -126,7 +139,6 @@ def _setup(p: dict, base: NetworkModel, wh: dict):
 
 
 def acc_name(model, node):
-    from backend.data import riyadh_network as RN
     for k, n in model.zones.items():
         if n == node:
             return RN.LOCATIONS[k][0]

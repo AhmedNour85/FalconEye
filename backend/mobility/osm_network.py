@@ -13,7 +13,7 @@ from typing import Dict, List
 
 import networkx as nx
 
-from backend.services.osm_service import ATTRIBUTION, haversine_km
+from backend.mobility.sources import ATTRIBUTION, haversine_km
 
 CANON = [  # (canonical name, regex on lower-case OSM name/ref)
     ("King Fahd Road", r"^king fahd road$"), ("Northern Ring Road", r"northern ring"), ("Eastern Ring Road", r"^eastern ring( road| rd)?$"),

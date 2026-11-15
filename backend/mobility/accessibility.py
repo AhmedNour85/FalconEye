@@ -6,9 +6,9 @@ from typing import Dict
 
 import networkx as nx
 
-from backend.data import riyadh_network as RN
-from backend.gis import feature_source, store
-from backend.simulation.network_model import NetworkModel
+from backend.mobility import riyadh_network as RN
+from backend.mobility import sources as feature_source, sources as store
+from backend.mobility.network_model import NetworkModel
 
 ER_TARGET_MIN = 15.0  # planning threshold used for flagging (assumption, not a standard)
 

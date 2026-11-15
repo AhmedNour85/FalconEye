@@ -14,9 +14,8 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import networkx as nx
 
-from backend.data import riyadh_network as RN
-from backend.gis import store
-from backend.services.osm_service import haversine_km
+from backend.mobility import riyadh_network as RN
+from backend.mobility.sources import haversine_km
 
 BPR_ALPHA, BPR_BETA = 0.15, 4.0
 # Demand-weighted mean OD travel time at the daily peak / free-flow time. TomTom's Traffic Index reports ~44% average extra travel time for Riyadh
@@ -52,6 +51,7 @@ class NetworkModel:
         self.segments = {s["id"]: s for s in segments}
         self.closed: set = set()
         self.added: List[dict] = []
+        self.narrowed: Dict[str, float] = {}   # segment id -> capacity left after a lane closure (Riyadh City View)
         self.nodes = nodes
         for nid, (lon, lat) in intersections.items():
             self.G.add_node(nid, lon=lon, lat=lat)
@@ -119,6 +119,7 @@ class NetworkModel:
         m.G = self.G.copy()
         m.closed = set(self.closed)
         m.added = list(self.added)
+        m.narrowed = dict(self.narrowed)
         m._cache = {}
         m._lock = threading.RLock()
         m._crit_cache = None
@@ -132,6 +133,28 @@ class NetworkModel:
             for u, v, d in list(self.G.edges(data=True)):
                 if d["seg"] == sid:
                     self.G.remove_edge(u, v)
+
+    def reduce_capacity(self, seg_ids: Iterable[str], lanes_closed: int) -> Dict[str, float]:
+        """Lane closure (new in Riyadh City View): each segment keeps capacity x (lanes - lanes_closed) / lanes, in every
+        direction it carries. A segment with no lane left is closed. Returns segment id -> capacity left per direction."""
+        if lanes_closed <= 0:
+            raise ValueError("lanes_closed must be 1 or more")
+        left: Dict[str, float] = {}
+        shut = []
+        for sid in seg_ids:
+            seg = self.segments[sid]
+            lanes = max(1, int(seg["lanes"]))
+            if lanes_closed >= lanes:
+                shut.append(sid); left[sid] = 0.0
+                continue
+            f = (lanes - lanes_closed) / lanes
+            for _u, _v, e in self.G.edges(data=True):
+                if e["seg"] == sid:
+                    e["cap"] *= f
+            left[sid] = self.narrowed[sid] = float(seg["capacity"]) * f
+        if shut:
+            self.close_segments(shut)
+        return left
 
     def add_link(self, a: str, b: str, lanes: int = 3, speed: float = 80, name: str = "Proposed link"):
         la, lb = self.G.nodes[a], self.G.nodes[b]
@@ -161,7 +184,7 @@ class NetworkModel:
         from scipy.sparse import csr_matrix
         from scipy.sparse.csgraph import dijkstra
         key = round(demand_scale, 4)
-        plain = od_mult is None and not extra_od and not self.closed and not self.added
+        plain = od_mult is None and not extra_od and not self.closed and not self.added and not self.narrowed
         if use_cache and plain and key in self._cache:
             return self._cache[key]
         G = self.G
@@ -338,14 +361,14 @@ def invalidate():
 
 
 def get_model() -> NetworkModel:
-    """Baseline network built from the SQLite store (cached; scenarios must call .clone())."""
+    """Baseline network from backend.mobility.sources (cached; scenarios must call .clone())."""
     global _model
     with _lock:
         if _model is None:
-            from backend.gis import network_source
-            roads, inter, prov = network_source.load()
+            from backend.mobility import sources
+            roads, inter, prov = sources.load_network()
             if not roads or not inter:
-                raise RuntimeError("Database empty: run `python scripts/initialize_database.py` first.")
+                raise RuntimeError("The road network is empty: no hosted road layer, no data/mobility/network.json.gz and no skeleton.")
             m = NetworkModel(roads, {}, inter)
             m.provenance = prov
             m.calibrate()

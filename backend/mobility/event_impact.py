@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from backend.gis import store
-from backend.services.osm_service import haversine_km
-from backend.simulation.network_model import NetworkModel
+from backend.mobility import sources as store
+from backend.mobility.sources import haversine_km
+from backend.mobility.network_model import NetworkModel
 
 DEFAULTS = {"attendees": 40000, "car_share": 0.55, "occupancy": 2.4, "arrival_hours": 3.0, "parking_spaces": 6000,
             "metro_share": 0.25, "metro_capacity_pax_h": 12000, "background_growth_pct": 0}

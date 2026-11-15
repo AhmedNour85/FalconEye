@@ -6,8 +6,8 @@ import re
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
-from backend.data.riyadh_network import CORRIDORS
-from backend.services.osm_service import haversine_km
+from backend.mobility.riyadh_network import CORRIDORS
+from backend.mobility.sources import haversine_km
 
 SNAP_TOL = 0.02  # degrees (~2 km) for endpoint snapping of the synthetic skeleton
 

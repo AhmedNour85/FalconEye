@@ -4,9 +4,9 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-from backend.data import riyadh_network as RN
-from backend.services.osm_service import haversine_km
-from backend.simulation.network_model import NetworkModel
+from backend.mobility import riyadh_network as RN
+from backend.mobility.sources import haversine_km
+from backend.mobility.network_model import NetworkModel
 
 ALIASES = {"king fahd": "King Fahd Road", "northern ring": "Northern Ring Road", "eastern ring": "Eastern Ring Road",
            "southern ring": "Southern Ring Road", "western ring": "Western Ring Road", "makkah": "Makkah Road",
@@ -23,6 +23,18 @@ def resolve_corridor(text: str) -> Optional[str]:
     for name, *_ in RN.CORRIDORS:
         if name.lower() == t:
             return name
+    return None
+
+
+def model_corridor(model: NetworkModel, text: str) -> Optional[str]:
+    """A road the aliases do not cover but the network has under exactly this name (case ignored), e.g. an OpenStreetMap street name.
+    Added in Riyadh City View."""
+    t = (text or "").strip().lower()
+    if not t:
+        return None
+    for s in model.segments.values():
+        if (s.get("corridor") or "").lower() == t:
+            return s["corridor"]
     return None
 
 

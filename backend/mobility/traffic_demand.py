@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from typing import Callable, Optional, Set
 
-from backend.services.osm_service import haversine_km
-from backend.simulation.network_model import NetworkModel
+from backend.mobility.sources import haversine_km
+from backend.mobility.network_model import NetworkModel
 
 CENTER = (46.68, 24.71)
 NAMED_AREAS = {

@@ -4,8 +4,8 @@ from __future__ import annotations
 import math
 from typing import Dict, List
 
-from backend.data import riyadh_network as RN
-from backend.simulation.network_model import NetworkModel
+from backend.mobility import riyadh_network as RN
+from backend.mobility.network_model import NetworkModel
 
 
 def key_od_pairs(base: NetworkModel, scen: NetworkModel, top: int = 6) -> List[Dict]:
