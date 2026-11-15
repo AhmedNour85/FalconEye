@@ -26,10 +26,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.gis.agol import ArcGISOnlineMirror  # noqa: E402
+from backend.gis.agol import ArcGISGateway  # noqa: E402
+from scripts._guard import own_item_or_exit  # noqa: E402
 from config.settings import load_settings  # noqa: E402
 
-DEFAULT_WEBMAP = "07fb979378b94c91ab463d8c17601bd0"
+# No default web map: an id must be given, and only a web map titled with this project's prefix is accepted.
 ACTION_TITLE = "Answer"
 REQUIRED_WHEN_DONE = {"name": "geoai-required-when-completed", "title": "Required when completed", "expression": "$feature.esritask_status == 3", "returnType": "boolean"}
 
@@ -79,16 +80,16 @@ def plan_form(form: dict | None) -> tuple[dict | None, list[str]]:
     return form, changes
 
 
-def main() -> int:
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true")
-    ap.add_argument("--webmap", default=DEFAULT_WEBMAP)
-    args = ap.parse_args()
+    ap.add_argument("--webmap", required=True, help="web map item id (required)")
+    args = ap.parse_args(argv)
     s = load_settings()
     if not s.arcgis_enabled:
         sys.exit("Set ARCGIS_USERNAME / ARCGIS_PASSWORD in .env first.")
-    mirror = ArcGISOnlineMirror(s)
-    item = mirror.gis.content.get(args.webmap)
+    mirror = ArcGISGateway(s)
+    item = own_item_or_exit(mirror.gis.content.get(args.webmap), s.arcgis_layer_prefix, args.webmap, mirror.owner)
     if item is None:
         sys.exit("web map not found")
     print(f"== {'APPLY' if args.apply else 'DRY RUN (nothing is changed)'} == {item.title!r} ({args.webmap})\n")

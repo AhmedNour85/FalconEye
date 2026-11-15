@@ -30,7 +30,9 @@ NUMERIC = {
 }
 LONG_TEXT = {"Evidence", "Payload", "Result", "Instructions", "Observation", "Description", "Summary", "Input_Summary",
              "Output_Summary", "Notes", "Detection_IDs", "Value", "Field_Comment", "Trail", "Message"}
-LONG_LENGTH, SHORT_LENGTH = 4000, 255
+LONG_LENGTH, SHORT_LENGTH = 16000, 255      # ArcGIS Online allows far longer text; 4,000 is only the limit for an indexed field, and these are not indexed
+TRACKING = {"enableEditorTracking": True, "enableOwnershipAccessControl": False, "allowOthersToUpdate": True, "allowOthersToDelete": True, "allowOthersToQuery": True,
+            "allowAnonymousToUpdate": False, "allowAnonymousToDelete": False}
 GEOM = {"Point": "esriGeometryPoint", "Polyline": "esriGeometryPolyline", "Polygon": "esriGeometryPolygon"}
 BATCH = 200
 TAGS = ["CityView-Riyadh", "SYNTHETIC-DEMO"]
@@ -68,13 +70,13 @@ def to_esri_geometry(geom: dict | None) -> dict | None:
 
 
 def definition(d: LayerDef) -> dict:
-    """The hosted layer (or table) definition for one layer of the data model. Editor tracking gives every row an EditDate."""
+    """The hosted layer (or table) definition for one layer of the data model. Editor tracking is a setting of the service, not of the
+    layer: it is switched on with an update of the service definition after the layer exists (see ArcGISGateway._define)."""
     base = {
         "name": d.name, "objectIdField": "OBJECTID", "hasAttachments": d.geometry is not None,
         "fields": [{"name": "OBJECTID", "type": "esriFieldTypeOID", "alias": "OBJECTID", "nullable": False}]
         + [_field_def(f) for f in d.fields if not f.startswith("esritask_")],
         "capabilities": "Query,Create,Update,Delete,Editing,Uploads",
-        "editorTrackingInfo": {"enableEditorTracking": True, "enableOwnershipAccessControl": False, "allowOthersToUpdate": True, "allowOthersToDelete": True},
     }
     if d.geometry:
         base.update({"type": "Feature Layer", "geometryType": GEOM[d.geometry], "spatialReference": {"wkid": 4326}})
@@ -121,24 +123,49 @@ class ArcGISGateway:
             if only and name not in only:
                 continue
             item = self._item(name)
+            fields = [f for f in d.fields if not f.startswith("esritask_")]
             if item is None:
-                plan.append({"layer": name, "title": self.title(name), "action": "create", "fields": [f for f in d.fields if not f.startswith("esritask_")]})
+                step = {"layer": name, "title": self.title(name), "action": "create", "fields": fields}
+                plan.append(step)
                 if not dry_run:
                     item = self.gis.content.create_service(self.title(name), service_type="featureService", has_static_data=False, wkid=4326,
                                                            capabilities="Query,Create,Update,Delete,Editing,Uploads", tags=TAGS, snippet=SNIPPET)
-                    plan[-1]["item_id"] = item.id
-            if item is not None and not dry_run:
-                flc = self._collection(item)             # also repairs a service left empty by an interrupted earlier run
-                if not (flc.properties.get("layers") or flc.properties.get("tables")):
-                    defn = definition(d)
-                    flc.manager.add_to_definition({"tables": [defn]} if d.geometry is None else {"layers": [defn]})
-            if item is not None and plan and plan[-1]["layer"] == name:
+                    step["item_id"] = item.id
+                    self._define(item, d)
+                continue
+            if not (item.layers or item.tables):         # a service left empty by an interrupted earlier run
+                plan.append({"layer": name, "title": self.title(name), "action": "define", "fields": fields, "item_id": item.id})
+                if not dry_run:
+                    self._define(item, d)
                 continue
             missing = self._missing_fields(name)
-            plan.append({"layer": name, "title": self.title(name), "action": "add_fields" if missing else "exists", "fields": missing, "item_id": item.id})
+            tracked = self.tracks_edits(name)
+            step = {"layer": name, "title": self.title(name), "action": "add_fields" if missing else "exists", "fields": missing, "item_id": item.id, "tracking": tracked}
+            plan.append(step)
             if missing and not dry_run:
                 self.ensure_fields(name)
+            if not tracked and not dry_run:
+                step["tracking"] = self.enable_tracking(name)
         return plan
+
+    def _define(self, item, d: LayerDef) -> None:
+        flc = self._collection(item)
+        if not (flc.properties.get("layers") or flc.properties.get("tables")):
+            defn = definition(d)
+            flc.manager.add_to_definition({"tables": [defn]} if d.geometry is None else {"layers": [defn]})
+        # Esri documents editorTrackingInfo as a property of the SERVICE that is set with updateDefinition; it gives every row an EditDate,
+        # which is how the app asks only for rows changed since its last look. Whether it took effect is read back by tracks_edits().
+        flc.manager.update_definition({"editorTrackingInfo": dict(TRACKING)})
+        self._forget(d.name)
+
+    def enable_tracking(self, name: str) -> bool:
+        """Switch editor tracking on for an existing service that lacks it. Returns whether the layer has an EditDate afterwards."""
+        item = self._item(name)
+        if item is None:
+            return False
+        self._collection(item).manager.update_definition({"editorTrackingInfo": dict(TRACKING)})
+        self._forget(name)
+        return self.tracks_edits(name)
 
     def layer(self, name: str):
         if name not in self._layers:
@@ -206,7 +233,13 @@ class ArcGISGateway:
             where.append("EditDate > timestamp '" + datetime.fromtimestamp(since_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + "'")
         if newer_than:
             where.append(f"{newer_than[0]} >= '{newer_than[1]}'")
-        feats = self.layer(layer).query(where=" AND ".join(where) or "1=1", out_fields="*", return_geometry=d.geometry is not None, out_sr=4326).features
+        clause = " AND ".join(where) or "1=1"
+        fl = self.layer(layer)
+        feats = fl.query(where=clause, out_fields="*", return_geometry=d.geometry is not None, out_sr=4326).features
+        if not since_ms:                      # a full read must be complete: starting on part of a layer would look like data loss
+            expected = fl.query(where=clause, return_count_only=True)
+            if isinstance(expected, int) and expected != len(feats):
+                raise RuntimeError(f"{self.title(layer)}: ArcGIS Online reports {expected} rows but {len(feats)} were returned; the layer was not read completely")
         fields = set(d.fields)
         out = []
         for f in feats:

@@ -78,7 +78,7 @@ def test_report_for_an_unknown_work_order_is_left_alone(platform):
 
 
 def test_investigator_form_is_disabled_by_default(tmp_path):
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="")
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="")
     assert s.field_form is False
     p = Platform(settings=s)
     c = TestClient(create_app(p, GeoAIAgent(p)))
@@ -91,7 +91,7 @@ def test_investigator_form_is_disabled_by_default(tmp_path):
 
 
 def test_assignment_is_sent_to_field_maps_with_the_investigators_login(tmp_path):
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="", field_users={"WRK-001": "nawaf.harbi", "WRK-002": "khalid.otaibi", "WRK-003": "saad.qahtani", "WRK-004": "hamad.ghamdi", "WRK-005": "yousef.dosari", "WRK-006": "ibrahim.shehri", "WRK-007": "majed.mutairi"})
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="", field_users={"WRK-001": "nawaf.harbi", "WRK-002": "khalid.otaibi", "WRK-003": "saad.qahtani", "WRK-004": "hamad.ghamdi", "WRK-005": "yousef.dosari", "WRK-006": "ibrahim.shehri", "WRK-007": "majed.mutairi"})
     platform = Platform(settings=s)
     pushed = []
     platform.apply_field_users()
@@ -123,7 +123,7 @@ def test_field_maps_acceptance_notifies_the_operator(platform):
 
 def test_task_fields_follow_the_work_order_lifecycle(tmp_path):
     from backend.services import tasks
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="",
                  field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
     p = Platform(settings=s)
     iid, wo = _assigned_work_order(p)
@@ -140,7 +140,7 @@ def test_task_fields_follow_the_work_order_lifecycle(tmp_path):
 
 
 def test_starting_the_task_in_field_maps_accepts_the_assignment(tmp_path):
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="",
                  field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
     p = Platform(settings=s)
     iid, wo = _assigned_work_order(p)

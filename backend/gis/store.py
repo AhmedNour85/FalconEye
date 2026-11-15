@@ -316,6 +316,7 @@ class ArcGISStore(Store):
     LOCK_STALE_S = 60.0          # a heartbeat older than this belongs to a server that is gone
     RECONCILE_EVERY = 4          # every fourth refresh also looks for rows deleted outside the app, and renews the lock
     NEW_ROW_PREFIX = {"Riyadh_Field_Verification": "VER"}      # rows created in Field Maps arrive without an id
+    FIELD_LAYERS = ("Riyadh_Work_Orders", "Riyadh_Field_Verification")   # what investigators edit: always refreshed
 
     def __init__(self, gateway, audit_days: int = 7, lock: bool = True):
         super().__init__()
@@ -438,9 +439,12 @@ class ArcGISStore(Store):
         self._refreshes += 1
         reconcile = self._refreshes % self.RECONCILE_EVERY == 0
         changed: dict[str, list[str]] = {}
+        tracked = getattr(self.gw, "tracks_edits", None)
         for layer in LAYERS:
             if layer == self.AUDIT_LAYER:     # written only by this app
                 continue
+            if tracked and not tracked(layer) and not reconcile and layer not in self.FIELD_LAYERS:
+                continue                      # no EditDate on this layer: it can only be read in full, so that is done on every fourth call
             fetched = self.gw.rows(layer, since_ms=self._since.get(layer, 0))
             hosted = self.gw.ids(layer) if reconcile else None
             ids: list[str] = []

@@ -17,6 +17,10 @@
   const AR = {
     /* ---- shared / navigation */
     "Riyadh City View": "منظور مدينة الرياض",
+    "Records: {s}": "السجلات: {s}",
+    "Your report was saved, but the photo was not. You can send the photo again later.": "تم حفظ تقريرك، لكن الصورة لم تُحفظ. يمكنك إرسال الصورة مرة أخرى لاحقًا.",
+    "ArcGIS Online did not accept a change: {m}": "لم يقبل ArcGIS Online التغيير: {m}",
+    "The layers in ArcGIS Online hold no demo data yet. Run scripts/initialize_demo.py.": "طبقات ArcGIS Online لا تحتوي على بيانات العرض بعد. شغّل scripts/initialize_demo.py.",
     "City services and mobility in one command center. Select your role to enter.": "خدمات المدينة والتنقل في مركز قيادة واحد. اختر دورك للدخول.",
     "GeoAI Operations Center": "مركز عمليات الذكاء الاصطناعي المكاني",
     "GeoAI Operations Center | Riyadh": "مركز عمليات الذكاء الاصطناعي المكاني | الرياض",

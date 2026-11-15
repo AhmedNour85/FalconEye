@@ -184,6 +184,7 @@ function renderForm(t) {
       if (F.photo) fd.set("photo", F.photo);
       const r = await api("field/submit", { method: "POST", body: fd });
       closePop(); toast(T("Report sent. The operator can see it now ({o}).", { o: TV(r.outcome) }), "Low");
+      if (r.photo_saved === false) toast(T("Your report was saved, but the photo was not. You can send the photo again later."), "High");
     } catch (err) { $("#perr").hidden = false; $("#perr").textContent = err.message; btn.disabled = false; btn.textContent = T("Send report"); }
     finally { F.busy = false; poll(); }
   };

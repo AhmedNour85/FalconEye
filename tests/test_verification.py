@@ -71,7 +71,7 @@ def test_calibration_drops_when_predictions_fail(platform):
 def test_gps_far_from_site_requires_further_inspection(platform, ctx):
     iid, wo = _assigned(platform, ctx)
     w = wo["attrs"]["Assigned_Worker"]
-    res = field.submit(platform.store, platform.audit, platform.settings.evidence_dir, wo["id"], w, "Confirmed", "Looks wet over here", 24.60, 46.60)
+    res = field.submit(platform.store, platform.audit, wo["id"], w, "Confirmed", "Looks wet over here", 24.60, 46.60)
     assert res["outcome"] == "Requires Further Inspection"
     assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Status"] == "Requires Further Inspection"
 
@@ -79,14 +79,52 @@ def test_gps_far_from_site_requires_further_inspection(platform, ctx):
 def test_field_submission_validation_and_photo(platform, ctx, tmp_path):
     iid, wo = _assigned(platform, ctx)
     w = wo["attrs"]["Assigned_Worker"]
-    ev = platform.settings.evidence_dir
     with pytest.raises(field.FieldError):
-        field.submit(platform.store, platform.audit, ev, wo["id"], "WRK-099", "Confirmed", "valid text here", 24.69, 46.68)
+        field.submit(platform.store, platform.audit, wo["id"], "WRK-099", "Confirmed", "valid text here", 24.69, 46.68)
     with pytest.raises(field.FieldError):
-        field.submit(platform.store, platform.audit, ev, wo["id"], w, "Maybe", "valid text here", 24.69, 46.68)
+        field.submit(platform.store, platform.audit, wo["id"], w, "Maybe", "valid text here", 24.69, 46.68)
     with pytest.raises(field.FieldError):
-        field.submit(platform.store, platform.audit, ev, wo["id"], w, "Confirmed", "x", 24.69, 46.68)
+        field.submit(platform.store, platform.audit, wo["id"], w, "Confirmed", "x", 24.69, 46.68)
     pt = platform.store.get(S.INCIDENTS, iid)["geom"]["coordinates"]
-    res = field.submit(platform.store, platform.audit, ev, wo["id"], w, "Confirmed", "Water on the road surface", pt[1], pt[0], b"\x89PNG fake", "x.png")
+    res = field.submit(platform.store, platform.audit, wo["id"], w, "Confirmed", "Water on the road surface", pt[1], pt[0], b"\x89PNG fake", "x.png")
     v = platform.store.get(S.VERIFICATION, res["verification_id"])["attrs"]
-    assert v["Photo_URL"].startswith("/api/evidence/") and v["Simulated_Worker"] == "No"
+    vid = res["verification_id"]
+    assert v["Photo_URL"] == f"/api/evidence/{vid}/{vid}.png" and v["Simulated_Worker"] == "No"
+    assert platform.store.attachment(S.VERIFICATION, vid, f"{vid}.png") == b"\x89PNG fake"      # kept with the row, not in a folder
+
+
+def test_a_photo_goes_to_arcgis_online_as_an_attachment_and_is_served_from_there():
+    from fastapi.testclient import TestClient
+
+    from backend.agent.agent import GeoAIAgent
+    from backend.api.app import create_app
+    from backend.gis.store import StoreWriteError
+    from backend.platform import Platform
+    from backend.tools.common import ToolContext
+    from config.settings import Settings
+    from tests.fakes import FakeGateway
+    gw = FakeGateway()
+    p = Platform(settings=Settings(store="arcgis", arcgis_username="u", arcgis_password="p", field_sync_seconds=0, field_form=True), gateway=gw)
+    p.reset()
+    iid, wo = _assigned(p, ToolContext(p, "test"))
+    w, pt = wo["attrs"]["Assigned_Worker"], p.store.get(S.INCIDENTS, iid)["geom"]["coordinates"]
+    res = field.submit(p.store, p.audit, wo["id"], w, "Confirmed", "Water on the road surface", pt[1], pt[0], b"\xff\xd8 jpeg", "leak.jpg")
+    vid = res["verification_id"]
+    assert res["photo_saved"] is True and "warning" not in res
+    assert gw.attachments[(S.VERIFICATION, vid)] == {f"{vid}.jpg": b"\xff\xd8 jpeg"}
+    r = TestClient(create_app(p, GeoAIAgent(p))).get(f"/api/evidence/{vid}/{vid}.jpg")
+    assert r.status_code == 200 and r.content == b"\xff\xd8 jpeg" and r.headers["content-type"] == "image/jpeg"
+
+
+def test_a_report_is_kept_when_arcgis_online_refuses_only_the_photo(platform, ctx):
+    from backend.gis.store import StoreWriteError
+    iid, wo = _assigned(platform, ctx)
+    w, pt = wo["attrs"]["Assigned_Worker"], platform.store.get(S.INCIDENTS, iid)["geom"]["coordinates"]
+
+    def refuse(layer, fid, name, data):
+        raise StoreWriteError("attachments are switched off on this layer", layer=layer, fid=fid)
+    platform.store.add_attachment = refuse
+    res = field.submit(platform.store, platform.audit, wo["id"], w, "Confirmed", "Water on the road surface", pt[1], pt[0], b"\xff\xd8 jpeg", "leak.jpg")
+    assert res["outcome"] == "Confirmed" and res["photo_saved"] is False
+    assert res["warning"].startswith("Your report was saved, but the photo was not") and "attachments are switched off" in res["warning"]
+    assert platform.store.get(S.VERIFICATION, res["verification_id"])["attrs"]["Photo_URL"] == ""

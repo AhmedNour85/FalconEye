@@ -29,11 +29,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from backend.gis import schema as S  # noqa: E402
-from backend.gis.agol import ArcGISOnlineMirror  # noqa: E402
+from backend.gis.agol import ArcGISGateway  # noqa: E402
+from scripts._guard import own_item_or_exit  # noqa: E402
 from backend.services import i18n  # noqa: E402
 from config.settings import load_settings  # noqa: E402
 
-DEFAULT_WEBMAPS = ["e1e83bef0e2247de9dafac88d5a1031b", "07fb979378b94c91ab463d8c17601bd0"]
+# No default web map: an id must be given, and only a web map titled with this project's prefix is accepted.
 REQUIRED = "expr/geoai-required"
 
 
@@ -127,18 +128,18 @@ def find_layers(data: dict, service_url: str, item_id: str):
     return out
 
 
-def main() -> int:
+def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true", help="make the changes (default is a dry run)")
-    ap.add_argument("--webmap", action="append", help="web map item id (repeatable)")
+    ap.add_argument("--webmap", action="append", required=True, help="web map item id (repeatable, required)")
     ap.add_argument("--lang", choices=["en", "ar", "both"], help="choice labels (default: GEOAI_FIELD_LANG)")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     s = load_settings()
     if not s.arcgis_enabled:
         sys.exit("Set ARCGIS_USERNAME / ARCGIS_PASSWORD in .env first (see .env.example).")
     lang = args.lang or s.field_lang
-    mirror = ArcGISOnlineMirror(s)
+    mirror = ArcGISGateway(s)
     fl = mirror.layer(S.WORK_ORDERS)
     svc = fl.container.url if hasattr(fl, "container") else fl.url.rsplit("/", 1)[0]
     item_id = fl.container.properties.get("serviceItemId", "") if hasattr(fl, "container") else ""
@@ -177,8 +178,8 @@ def main() -> int:
     vitem = vl.container.properties.get("serviceItemId", "") if hasattr(vl, "container") else ""
 
     # ---- 2. the web map forms
-    for wid in args.webmap or DEFAULT_WEBMAPS:
-        item = mirror.gis.content.get(wid)
+    for wid in args.webmap:
+        item = own_item_or_exit(mirror.gis.content.get(wid), s.arcgis_layer_prefix, wid, mirror.owner)
         print(f"\nWeb map {wid}:")
         if item is None:
             print("  not found or not visible to this account; skipped")

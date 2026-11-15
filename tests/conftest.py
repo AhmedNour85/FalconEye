@@ -13,14 +13,14 @@ from config.settings import Settings  # noqa: E402
 
 @pytest.fixture()
 def platform(tmp_path):
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="", citizen_reports=True, field_form=True)
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="", citizen_reports=True, field_form=True)
     return Platform(settings=s)
 
 
 @pytest.fixture()
 def platform_default(tmp_path):
     """The shipped default: the citizen-report feed is disabled."""
-    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="")
+    s = Settings(anthropic_api_key="", arcgis_username="", arcgis_password="")
     return Platform(settings=s)
 
 

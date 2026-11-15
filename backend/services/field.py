@@ -6,7 +6,7 @@ from pathlib import Path
 
 from backend.gis import geo
 from backend.gis import schema as S
-from backend.gis.store import Store, utcnow
+from backend.gis.store import Store, StoreWriteError, utcnow
 from backend.services import learning
 from backend.services.audit import Audit
 
@@ -56,8 +56,9 @@ def accept(store: Store, audit: Audit, work_order_id: str, worker_id: str) -> di
     return {"ok": True, "already": False, "work_order_id": work_order_id, "incident_id": wo["attrs"]["Incident_ID"], "accepted_at": when}
 
 
-def submit(store: Store, audit: Audit, evidence_dir: str, work_order_id: str, worker_id: str, status: str, observation: str,
+def submit(store: Store, audit: Audit, work_order_id: str, worker_id: str, status: str, observation: str,
            lat: float, lon: float, photo: bytes | None = None, filename: str = "", simulated: bool = False) -> dict:
+    """An investigator's report. A photo is kept as an attachment on the report's row in the system of record, never as a file on this computer."""
     if status not in STATUSES:
         raise FieldError(f"status must be one of {STATUSES}")
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
@@ -75,24 +76,33 @@ def submit(store: Store, audit: Audit, evidence_dir: str, work_order_id: str, wo
     pt = geo.centroid(inc["geom"])
     dist = geo.haversine_m((lon, lat), pt)
     vid = store.next_id("VER")
-    url = ""
+    safe = ""
     if photo:
         ext = Path(filename).suffix.lower()
         if ext not in (".jpg", ".jpeg", ".png", ".webp"):
             raise FieldError("photo must be jpg/png/webp")
         if len(photo) > 8_000_000:
             raise FieldError("photo too large (8 MB max)")
-        Path(evidence_dir).mkdir(parents=True, exist_ok=True)
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{vid}{ext}")
-        (Path(evidence_dir) / safe).write_bytes(photo)
-        url = f"/api/evidence/{safe}"
     store.upsert(S.VERIFICATION, {"Verification_ID": vid, "Work_Order_ID": work_order_id, "Incident_ID": inc["id"], "Worker_ID": worker_id, "Investigator_Name": investigator_name(store, worker_id), "Observation": observation.strip(),
-                                  "Verification_Status": status, "GPS_Location": f"{lat:.6f},{lon:.6f}", "Photo_URL": url, "Timestamp": utcnow(),
+                                  "Verification_Status": status, "GPS_Location": f"{lat:.6f},{lon:.6f}", "Photo_URL": "", "Timestamp": utcnow(),
                                   "Distance_To_Detection_M": round(dist, 1), "Agent_Assessment": "", "Simulated_Worker": "Yes" if simulated else "No",
                                   "Data_Classification": S.SIMULATED if simulated else S.OPERATIONAL}, geo.point(lon, lat))
+    photo_warning = ""
+    if photo:                                # the attachment needs its row to exist first
+        try:
+            store.add_attachment(S.VERIFICATION, vid, safe, photo)
+            store.update(S.VERIFICATION, vid, Photo_URL=f"/api/evidence/{vid}/{safe}")
+        except StoreWriteError as exc:       # the report itself is saved and is valid without a photo: carry on, and say so
+            photo_warning = f"Your report was saved, but the photo was not: {exc}"
     audit.log("field", "FIELD SUBMISSION", "field_portal", inc["id"], {"wo": work_order_id, "status": status}, {"verification": vid, "distance_m": round(dist)},
               actor=worker_id)
-    return assess(store, audit, vid)
+    res = assess(store, audit, vid)
+    if photo:
+        res["photo_saved"] = not photo_warning
+    if photo_warning:
+        res["warning"] = photo_warning
+    return res
 
 
 def assess(store: Store, audit: Audit, verification_id: str) -> dict:

@@ -6,13 +6,14 @@ import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.agent import providers
 from backend.agent.agent import GeoAIAgent
 from backend.gis import schema as S
+from backend.gis.store import StoreWriteError
 from backend.orchestration import crew as crewmod
 from backend.platform import Platform
 from backend.services import field, i18n, imagery, learning
@@ -94,6 +95,12 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-type")}
         return Response(content=data, status_code=resp.status_code, headers=headers, media_type="application/json")
 
+    @app.exception_handler(StoreWriteError)
+    async def record_refused(request, exc: StoreWriteError):
+        """The system of record did not take a change. Nothing was changed; the operator is told why."""
+        logging.getLogger("geoai.api").warning("refused by the system of record: %s", exc)
+        return JSONResponse(status_code=503, content={"detail": f"ArcGIS Online did not accept the change, so nothing was changed. {exc}", "layer": exc.layer, "id": exc.fid})
+
     def role(minimum: str):
         """Demo-grade RBAC via X-Role header (default: operator). Production: derive the role from the OAuth/OIDC identity."""
         def dep(x_role: str = Header(default="operator")):
@@ -106,7 +113,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
     @app.get("/api/health")
     def health():
         return {"status": "ok", "agent_mode": ag.mode, "model": (ag.cfg.model if ag.uses_llm else "offline rule-based planner"), "planner": ag.cfg.label,
-                "arcgis": p.mirror_status, "field_form": p.settings.field_form, "field_reports": "ArcGIS Field Maps" if p.mirror else "simulated crew only (no ArcGIS Online connection)", "data_mode": "SYNTHETIC-DEMO", "counts": {k: p.store.count(k) for k in PUBLIC_LAYERS + [S.WORKERS]}}
+                "arcgis": p.mirror_status, "store": p.mirror_status, "data_ready": p.data_ready, "last_refresh": getattr(p.store, "last_refresh", None), "field_form": p.settings.field_form, "field_reports": "ArcGIS Field Maps" if p.mirror else "simulated crew only (no ArcGIS Online connection)", "data_mode": "SYNTHETIC-DEMO", "counts": {k: p.store.count(k) for k in PUBLIC_LAYERS + [S.WORKERS]}}
 
     @app.get("/api/config")
     def config():
@@ -196,7 +203,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         return {"crew": {**p.crew.status(), "agents": p.crew.roster(), "activity": list(p.crew.activity)[:25]}, "feeds": p.crew.feed_status(),
                 "kpis": {"open_incidents": k["open_incidents"], "critical": k["critical_incidents"], "pending_approvals": len(pend), "resolved": sum(1 for f in p.store.all(S.INCIDENTS) if f["attrs"]["Status"] in executive.CLOSED and not (f["attrs"]["Description"] or "").startswith("Historical")),
                          "unread": sum(1 for n in notes if n["Status"] == "New")},
-                "notifications": notes, "approvals": pend, "agent_mode": ag.mode, "planner": ag.cfg.label}
+                "notifications": notes, "approvals": pend, "agent_mode": ag.mode, "planner": ag.cfg.label, "store": p.mirror_status, "data_ready": p.data_ready}
 
     @app.get("/api/nccc/imagery/{area}")
     def nccc_imagery(area: str):
@@ -381,7 +388,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             raise HTTPException(410, FORM_OFF)
         data = await photo.read() if photo is not None and photo.filename else None
         try:
-            res = field.submit(p.store, p.audit, p.settings.evidence_dir, work_order_id, worker_id, status, observation, lat, lon, data, photo.filename if photo else "")
+            res = field.submit(p.store, p.audit, work_order_id, worker_id, status, observation, lat, lon, data, photo.filename if photo else "")
         except field.FieldError as exc:
             raise HTTPException(422, str(exc))
         p.crew.field_update()                         # the operator sees the report straight away
@@ -399,12 +406,14 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             p.crew.field_accepted(work_order_id, worker_id)
         return res
 
-    @app.get("/api/evidence/{name}")
-    def evidence(name: str):
-        f = Path(p.settings.evidence_dir) / Path(name).name
-        if not f.is_file():
+    @app.get("/api/evidence/{vid}/{name}")
+    def evidence(vid: str, name: str):
+        """A photo an investigator attached to a report. It is read from the report's row in the system of record."""
+        data = p.store.attachment(S.VERIFICATION, vid, Path(name).name)
+        if data is None:
             raise HTTPException(404)
-        return FileResponse(f)
+        kind = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(Path(name).suffix.lower(), "application/octet-stream")
+        return Response(content=data, media_type=kind)
 
     # ---------------------------------------------------------------- simulation
     @app.get("/api/sim/status")

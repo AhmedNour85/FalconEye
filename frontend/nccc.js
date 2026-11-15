@@ -44,7 +44,11 @@ function render(st) {
   $("#k-pend").textContent = k.pending_approvals; $("#k-open").textContent = k.open_incidents; $("#k-crit").textContent = k.critical; $("#k-res").textContent = k.resolved;
   const u = $("#unread"); u.hidden = !k.unread; u.textContent = k.unread; document.title = (k.unread ? `(${k.unread}) ` : "") + T("NCCC | National Command & Control Center");
   if (document.activeElement !== $("#autopilot")) $("#autopilot").checked = st.crew.autopilot;
-  $("#mode").textContent = T("Planner: {p}", { p: plannerName(st.planner) });
+  $("#mode").textContent = T("Planner: {p}", { p: plannerName(st.planner) }) + " · " + T("Records: {s}", { s: st.store || "" });
+  { const e = st.crew.record_error, key = e ? e.at : "";        // an automatic scan that ArcGIS Online refused: say so once per failure
+    if (key && key !== S.recordError) toast(T("ArcGIS Online did not accept a change: {m}", { m: e.message }), "Critical");
+    S.recordError = key; }
+  if (st.data_ready === false && !S.warnedEmpty) { S.warnedEmpty = true; toast(T("The layers in ArcGIS Online hold no demo data yet. Run scripts/initialize_demo.py."), "High"); }
   { const b = $("#planner-open"), t = T("Planner: {p}", { p: plannerName(st.planner) }); b.title = t; b.setAttribute("aria-label", t); b.classList.toggle("on", st.agent_mode !== "rules"); }
   $("#now").textContent = st.crew.autopilot ? T("AI Agents on · every {s}s · {n} scans", { s: st.crew.interval_s, n: st.crew.cycles }) : T("AI Agents off");
   $("#now").classList.toggle("live", st.crew.autopilot);

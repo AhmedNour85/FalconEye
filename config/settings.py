@@ -35,7 +35,6 @@ class Settings:
     field_sync_seconds: float = 15.0   # how often reports made in Field Maps are pulled from ArcGIS Online
     citizen_reports: bool = False      # the citizen-report feed is disabled unless GEOAI_CITIZEN_REPORTS=1
     field_lang: str = "en"             # language of the task text on the phone: en | ar | both (GEOAI_FIELD_LANG)
-    evidence_dir: str = str(ROOT / "data" / "evidence")
 
     @property
     def arcgis_enabled(self) -> bool:
@@ -84,5 +83,4 @@ def load_settings() -> Settings:
         field_users={k.strip(): v.strip() for k, _, v in (p.partition("=") for p in e("GEOAI_FIELD_USERS", "").split(",")) if k.strip() and v.strip()},
         field_sync_seconds=float(e("GEOAI_FIELD_SYNC_SECONDS", "15")),
         field_lang=(e("GEOAI_FIELD_LANG", "en").strip().lower() if e("GEOAI_FIELD_LANG", "en").strip().lower() in ("en", "ar", "both") else "en"),
-        evidence_dir=str(ROOT / "data" / "evidence"),
     )

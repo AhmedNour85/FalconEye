@@ -36,6 +36,55 @@ def test_the_server_uses_its_own_port():
     assert main.PORT == 8020
 
 
+def on_fake():
+    """The app running on ArcGIS Online, with a stand-in for the hosted layers."""
+    from backend.platform import Platform
+    from config.settings import Settings
+    from tests.fakes import FakeGateway
+    gw = FakeGateway()
+    p = Platform(settings=Settings(store="arcgis", arcgis_username="u", arcgis_password="p", field_sync_seconds=0, field_form=True), gateway=gw)
+    p.reset()
+    return client(p), p, gw
+
+
+def test_health_names_the_system_of_record(platform):
+    h = client(platform).get("/api/health").json()
+    assert h["store"].startswith("memory only") and h["data_ready"] is True and "arcgis_pending_writes" not in h
+    c, p, gw = on_fake()
+    h = c.get("/api/health").json()
+    assert h["store"] == "ArcGIS Online (CityView)" and "last_refresh" in h
+    assert c.get("/api/nccc/state").json()["store"] == "ArcGIS Online (CityView)"
+
+
+def test_a_refused_write_is_a_503_with_a_plain_message_and_the_approval_stays_proposed():
+    from backend.gis import schema as S
+    from backend.gis.store import StoreWriteError
+    c, p, gw = on_fake()
+    c.post("/api/nccc/events/olaya_leak")
+    apr = p.approvals.pending()[0]["Approval_ID"]
+    gw.fail_next = StoreWriteError("the network is down")
+    r = c.post(f"/api/approvals/{apr}/approve")
+    assert r.status_code == 503 and "ArcGIS Online did not accept the change, so nothing was changed" in r.json()["detail"] and "the network is down" in r.json()["detail"]
+    assert p.store.get(S.APPROVALS, apr)["attrs"]["Status"] == "Proposed" and not p.store.all(S.WORK_ORDERS)[-1:] or p.store.get(S.APPROVALS, apr)["attrs"]["Status"] == "Proposed"
+    assert c.post(f"/api/approvals/{apr}/approve").status_code == 200          # the same approval works once ArcGIS Online is back
+    assert p.store.get(S.APPROVALS, apr)["attrs"]["Status"] == "Executed"
+
+
+def test_an_automatic_scan_that_arcgis_refuses_is_reported_and_the_loop_survives():
+    from backend.gis.store import StoreWriteError
+    c, p, gw = on_fake()
+    p.crew.autopilot, p.crew.interval = True, 0.0
+
+    def one_pass_then_stop(*a, **k):
+        p.crew.autopilot = False                                                 # one pass only
+        gw.fail_after(1, StoreWriteError("the network is down"))                 # ArcGIS Online is gone: even the error note cannot be stored
+        raise StoreWriteError("the network is down")
+    p.crew.run_cycle = one_pass_then_stop
+    p.crew._loop()                                                               # must return, not raise
+    gw.fail_after(None)
+    assert "the network is down" in c.get("/api/nccc/state").json()["crew"]["record_error"]["message"]
+
+
 def test_rbac_blocks_viewer(platform):
     c = client(platform)
     assert c.post("/api/approvals/APR-0001/approve", headers={"X-Role": "viewer"}).status_code == 403

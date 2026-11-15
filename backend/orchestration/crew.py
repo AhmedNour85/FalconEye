@@ -98,6 +98,7 @@ class Crew:
         self._seen_reports: set = set()
         self._known_reports: dict = {}        # incident id -> citizen reports already mentioned in an alert
         self._counts: dict | None = None
+        self.record_error: dict | None = None  # the last automatic scan that the system of record refused: {"at", "message"}; cleared by the next good scan
 
     # ---- bookkeeping ---------------------------------------------------------------------------------------
     def reset(self) -> None:
@@ -659,16 +660,22 @@ class Crew:
                     self.p.feeds.tick()                             # ... and the odd citizen report
                     ev = self.random_event() if n % 3 == 0 else {}  # city activity: a new fault or change somewhere, favouring quiet areas
                     self.run_cycle(deep=bool(ev.get("deep")) or n % 8 == 0)
-            except Exception as exc:  # pragma: no cover
+                self.record_error = None
+            except Exception as exc:
                 log.exception("autopilot cycle failed")
-                self.p.sim.event("error", f"autopilot cycle failed: {exc}")
+                self.record_error = {"at": utcnow(), "message": str(exc)}     # kept in memory: the system of record may be what failed
+                try:
+                    self.p.sim.event("error", f"autopilot cycle failed: {exc}")
+                except Exception:
+                    pass                                                      # the next cycle tries again
             for _ in range(int(self.interval * 2)):
                 if not self.autopilot:
                     return
                 time.sleep(0.5)
 
     def status(self) -> dict:
-        return {"autopilot": self.autopilot, "interval_s": self.interval, "cycles": self.cycles, "simulate_field": self.simulate_field, "last_cycle": self.last_cycle}
+        return {"autopilot": self.autopilot, "interval_s": self.interval, "cycles": self.cycles, "simulate_field": self.simulate_field, "last_cycle": self.last_cycle,
+                "record_error": self.record_error}
 
     def roster(self) -> list[dict]:
         out = []

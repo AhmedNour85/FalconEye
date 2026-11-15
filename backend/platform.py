@@ -80,13 +80,8 @@ class Platform:
             self.feeds.seed()
             self.apply_field_users()
         self.sim.event("control", "Environment regenerated from seed")
-        # imagery change layer is regenerated on demand by the agent
-        for f in Path(self.settings.evidence_dir).glob("*"):
-            if f.is_file() and f.suffix in (".jpg", ".png", ".jpeg"):
-                try:
-                    f.unlink()
-                except OSError:
-                    pass
+        self.data_ready = True
+        # the imagery change layer is regenerated on demand by the agent; photos went with the rows they were attached to
         return counts
 
     def simulate_field_response(self, work_order_id: str, repair: bool = False) -> dict:
@@ -100,7 +95,7 @@ class Platform:
         status, text = obs["status"], "[SIMULATED WORKER] " + obs["observation"]
         if repair and status == "Confirmed":
             status, text = "Repaired", "[SIMULATED WORKER] Fault repaired and tested; area made safe."
-        res = field.submit(self.store, self.audit, self.settings.evidence_dir, work_order_id, obs["worker_id"], status, text, gps[1], gps[0], simulated=True)
+        res = field.submit(self.store, self.audit, work_order_id, obs["worker_id"], status, text, gps[1], gps[0], simulated=True)
         self.sim.event("field", f"Simulated worker {obs['worker_id']} submitted '{status}' for {work_order_id}", work_order_id)
         return res
 
@@ -129,7 +124,7 @@ class Platform:
             raise ValueError(f"incident {incident_id} has no active work order with an assigned worker")
         wo = wos[-1]
         lon, lat = geo.offset(geo.centroid(inc["geom"]), random.uniform(-15, 15), random.uniform(-15, 15))
-        res = field.submit(self.store, self.audit, self.settings.evidence_dir, wo["id"], wo["attrs"]["Assigned_Worker"], "Repaired",
+        res = field.submit(self.store, self.audit, wo["id"], wo["attrs"]["Assigned_Worker"], "Repaired",
                            "[SIMULATED WORKER] Fault repaired and tested; area made safe.", lat, lon, simulated=True)
         self.sim.event("field", f"Simulated crew reported the repair of {incident_id} ({wo['id']})", wo["id"])
         follow = self.crew.field_update()                      # raises the "ready to close" alert for the operator
