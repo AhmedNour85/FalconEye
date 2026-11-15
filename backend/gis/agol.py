@@ -98,6 +98,7 @@ class ArcGISGateway:
         self.owner = gis.properties.user.username
         self._layers: dict[str, Any] = {}
         self._fields: dict[str, dict] = {}
+        self._items: dict[str, Any] | None = None
         log.info("Connected to ArcGIS Online as %s", self.owner)
 
     def title(self, layer: str) -> str:
@@ -106,9 +107,16 @@ class ArcGISGateway:
     # -- items -------------------------------------------------------------------
     def _item(self, layer: str):
         """The hosted feature service of this layer: exact title, and owned by the signed-in account. Never anyone else's item."""
-        title = self.title(layer)
-        found = self.gis.content.search(f'title:"{title}" AND type:"Feature Service" AND owner:{self.owner}', max_items=10)
-        return next((i for i in found if i.title == title and i.owner == self.owner), None)
+        return self.warm().get(self.title(layer))
+
+    def warm(self, again: bool = False) -> dict:
+        """title -> item for every hosted feature service of this project: one search, kept for the life of the gateway.
+        Only titles that start with <prefix>_ and are owned by the signed-in account are kept."""
+        if self._items is None or again:
+            head = self.prefix + "_"
+            found = self.gis.content.search(f'title:"{head}" AND type:"Feature Service" AND owner:{self.owner}', max_items=200)
+            self._items = {i.title: i for i in found if i.title.startswith(head) and i.owner == self.owner}
+        return self._items
 
     def _collection(self, item):
         from arcgis.features import FeatureLayerCollection
@@ -131,6 +139,7 @@ class ArcGISGateway:
                     item = self.gis.content.create_service(self.title(name), service_type="featureService", has_static_data=False, wkid=4326,
                                                            capabilities="Query,Create,Update,Delete,Editing,Uploads", tags=TAGS, snippet=SNIPPET)
                     step["item_id"] = item.id
+                    self.warm()[self.title(name)] = item      # a new item is not in the search index straight away: remember it here
                     self._define(item, d)
                 continue
             if not (item.layers or item.tables):         # a service left empty by an interrupted earlier run

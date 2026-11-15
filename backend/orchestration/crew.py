@@ -176,8 +176,9 @@ class Crew:
         """One pass of the whole crew. Idempotent: running it twice without new data changes nothing.
         deep=True also scans satellite imagery for the next area in rotation; deep='<area>' scans that area.
         scope limits the WATCH and TRIAGE steps to some use cases ({"water"}, {"lighting"}, {"distortion"}, {"land_use"}, {"change"}); None watches everything.
-        A simulated event passes its own use case, so only that feed reacts. Findings of other use cases wait for the next full scan."""
-        with self.lock:
+        A simulated event passes its own use case, so only that feed reacts. Findings of other use cases wait for the next full scan.
+        The whole scan is one batch: the system of record gets one request per layer at the end, and a refusal undoes the whole scan."""
+        with self.lock, self.p.store.batch():
             self.cycles += 1
             if self.epoch is None:
                 self.epoch = utcnow()

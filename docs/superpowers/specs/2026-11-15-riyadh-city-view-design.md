@@ -386,9 +386,10 @@ Every new label, alert sentence and crew answer gets an English and an Arabic ve
 
 | Operation | Expected time |
 |---|---|
-| Loading all layers from ArcGIS Online at start-up | Estimated 10 to 30 s; not measured |
-| One write to ArcGIS Online | Estimated a fraction of a second; a crew scan makes tens of writes; not measured |
-| Reset demo | Estimated 1 to 2 min; not measured |
+| Loading all layers from ArcGIS Online at start-up | Measured 12 s, plus 8 to 10 s to sign in (2026-11-15; see `docs/arcgis_checks.md`) |
+| One write to ArcGIS Online | Measured 0.25 s. A crew scan is sent as one request per layer |
+| Refresh of outside edits, every 15 s | Measured about 3 s; 5 s on every fourth one |
+| Loading the demo data (the work Reset demo does) | Measured 135 s |
 | First build of the road model at start-up | About 10 s from files, about 25 s from hosted layers, in the background |
 | 24 hourly traffic baselines | 30 to 60 s after start-up, in the background |
 | One closure or event scenario | 10 to 25 s |

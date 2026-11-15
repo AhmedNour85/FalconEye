@@ -9,7 +9,7 @@ It is built from two earlier projects, `Agentic_AI_City` (concept, workflow, cre
 | Part | State |
 |---|---|
 | The four city-service use cases (water leak, streetlights and poles, visual distortion, land use) | Working. Carried over from `Agentic_AI_City`. |
-| ArcGIS Online as the system of record | Code and tests complete. **Not yet connected to an ArcGIS Online account**: no hosted layer has been created. |
+| ArcGIS Online as the system of record | Working. 22 hosted layers titled `CityView_*` exist in the account and hold the demo data; the app runs on them. Measurements and live checks: `docs/arcgis_checks.md`. |
 | Mobility (traffic, closures, events), the three new crew members, the cross-domain link | Not started. |
 | ArcGIS Field Maps tasks on the new layers | Not started. The City project's scripts are carried over and now refuse any web map without the `CityView` prefix. |
 

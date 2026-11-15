@@ -72,7 +72,8 @@ class FakeGIS:
 
     def _search(self, query, max_items=10):
         self.searches.append(query)
-        return [i for i in self.items if f'"{i.title}"' in query]
+        head = query.split('title:"', 1)[1].split('"', 1)[0]            # ArcGIS Online matches titles that contain the quoted text
+        return [i for i in self.items if head in i.title]
 
     def _create(self, title, **kw):
         self.created.append(title)
@@ -107,7 +108,10 @@ def test_only_items_owned_by_the_signed_in_account_are_used():
     gw = gateway(gis)
     with pytest.raises(RuntimeError, match="not found"):
         gw.layer(S.WORKERS)
-    assert "owner:city.owner" in gis.searches[-1] and 'title:"CityView_Riyadh_Field_Workers"' in gis.searches[-1]
+    assert "owner:city.owner" in gis.searches[-1] and 'title:"CityView_"' in gis.searches[-1]
+    assert len(gis.searches) == 1                                       # one search finds every layer of the project
+    gis.add_item("NotCityView_Riyadh_Field_Workers", "city.owner", S.WORKERS)
+    assert "NotCityView_Riyadh_Field_Workers" not in gw.warm(again=True)   # contains the text but does not start with the prefix
 
 
 def test_rows_keep_only_the_data_model_fields_and_turn_null_text_into_empty_text():

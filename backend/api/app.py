@@ -101,6 +101,13 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         logging.getLogger("geoai.api").warning("refused by the system of record: %s", exc)
         return JSONResponse(status_code=503, content={"detail": f"ArcGIS Online did not accept the change, so nothing was changed. {exc}", "layer": exc.layer, "id": exc.fid})
 
+    @app.on_event("shutdown")
+    def give_the_lock_back():
+        """A clean stop frees the one-server lock at once, so the next start does not have to wait for it to go stale."""
+        release = getattr(p.store, "release", None)
+        if release:
+            release()
+
     def role(minimum: str):
         """Demo-grade RBAC via X-Role header (default: operator). Production: derive the role from the OAuth/OIDC identity."""
         def dep(x_role: str = Header(default="operator")):

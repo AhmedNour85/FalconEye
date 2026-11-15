@@ -110,21 +110,22 @@ class Store:
     def batch(self):
         """Group writes: the working copy changes straight away (so the code inside can read what it wrote), and the system of
         record gets one request per layer when the outermost batch ends. If it refuses, the working copy is rolled back."""
-        with self._lock:
-            self._batch_depth += 1
+        self._lock.acquire()          # held to the end: another thread's write must never be swept into this batch or rolled back with it
+        self._batch_depth += 1
         try:
-            yield
-        except BaseException:
-            with self._lock:
+            try:
+                yield
+            except BaseException:
                 self._batch_depth -= 1
                 if self._batch_depth == 0:
                     self._rollback()
-            raise
-        else:
-            with self._lock:
+                raise
+            else:
                 self._batch_depth -= 1
                 if self._batch_depth == 0:
                     self._flush()
+        finally:
+            self._lock.release()
 
     def _rollback(self) -> list[str]:
         layers = []
@@ -182,6 +183,8 @@ class Store:
                 attrs = self.write_hooks[layer](dict(attrs))
             self._validate(layer, attrs, geom)
             fid = str(fid)
+            if existing is not None and existing["attrs"] == attrs and existing["geom"] == geom:
+                return {"id": fid, "attrs": attrs, "geom": geom}        # nothing changes: nothing is sent to the system of record
             row = {"attrs": dict(attrs), "geom": geom, "bbox": self._bbox(geom), "oid": existing["oid"] if existing else None}
             if self._batch_depth:
                 self._journal.append((layer, fid, existing, persist))
@@ -301,6 +304,31 @@ log = logging.getLogger("geoai.store")
 _ID = re.compile(r"^([A-Za-z]+)-(\d+)$")
 
 
+def _gone_from_this_computer(owner: str) -> bool:
+    """True when the lock's owner ("host:pid:tag") was a process on this computer that is no longer running (a server that was killed)."""
+    host, _, rest = owner.partition(":")
+    pid = rest.partition(":")[0]
+    if host != socket.gethostname() or not pid.isdigit():
+        return False
+    pid = int(pid)
+    if os.name == "nt":
+        import ctypes
+
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return True
+        code = ctypes.c_ulong()
+        k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return code.value != 259                      # 259 = STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+        return False
+    except OSError:
+        return True
+
+
 def _same(a: dict, b: dict) -> bool:
     """Two attribute sets say the same thing (ArcGIS Online returns an empty text as null)."""
     return all(a.get(k) == b.get(k) or (a.get(k) in ("", None) and b.get(k) in ("", None)) for k in set(a) | set(b))
@@ -313,7 +341,7 @@ class ArcGISStore(Store):
     is_hosted = True
     LOCK_LAYER, LOCK_ID = "Riyadh_Learning_Config", "server.lock"
     AUDIT_LAYER = "Riyadh_Agent_Audit_Log"
-    LOCK_STALE_S = 60.0          # a heartbeat older than this belongs to a server that is gone
+    LOCK_STALE_S = 150.0         # a heartbeat older than this belongs to a server that is gone (the heartbeat is renewed about every 60 s)
     RECONCILE_EVERY = 4          # every fourth refresh also looks for rows deleted outside the app, and renews the lock
     NEW_ROW_PREFIX = {"Riyadh_Field_Verification": "VER"}      # rows created in Field Maps arrive without an id
     FIELD_LAYERS = ("Riyadh_Work_Orders", "Riyadh_Field_Verification")   # what investigators edit: always refreshed
@@ -337,6 +365,20 @@ class ArcGISStore(Store):
             cutoff = (datetime.now(timezone.utc) - timedelta(days=self.audit_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
             return self.gw.rows(layer, newer_than=("Timestamp", cutoff))
         return self.gw.rows(layer)
+
+    WORKERS = 8                  # reads of different layers are independent requests: they are sent side by side
+
+    def _parallel(self, fn, names: list[str]) -> dict:
+        """fn(layer) for every layer, several at a time. The first failure is raised."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        warm = getattr(self.gw, "warm", None)
+        if warm:
+            warm()                            # one search finds every hosted layer, before the threads start
+        if len(names) < 2:
+            return {n: fn(n) for n in names}
+        with ThreadPoolExecutor(max_workers=min(self.WORKERS, len(names)), thread_name_prefix="arcgis-read") as pool:
+            return dict(zip(names, pool.map(fn, names)))
 
     def _seed(self, fid: str | None) -> None:
         m = _ID.match(fid or "")
@@ -362,8 +404,10 @@ class ArcGISStore(Store):
     def load(self, layers: Iterable[str] | None = None) -> dict[str, int]:
         """Read these layers (default: all) from ArcGIS Online into the working copy. Returns the row count per layer."""
         counts = {}
-        for layer in (list(layers) if layers is not None else list(LAYERS)):
-            fetched = self._fetch(layer)
+        names = list(layers) if layers is not None else list(LAYERS)
+        got = self._parallel(self._fetch, names)
+        for layer in names:
+            fetched = got[layer]
             with self._lock:
                 rows, pending = {}, []
                 for r in fetched:
@@ -440,13 +484,11 @@ class ArcGISStore(Store):
         reconcile = self._refreshes % self.RECONCILE_EVERY == 0
         changed: dict[str, list[str]] = {}
         tracked = getattr(self.gw, "tracks_edits", None)
-        for layer in LAYERS:
-            if layer == self.AUDIT_LAYER:     # written only by this app
-                continue
-            if tracked and not tracked(layer) and not reconcile and layer not in self.FIELD_LAYERS:
-                continue                      # no EditDate on this layer: it can only be read in full, so that is done on every fourth call
-            fetched = self.gw.rows(layer, since_ms=self._since.get(layer, 0))
-            hosted = self.gw.ids(layer) if reconcile else None
+        names = [n for n in LAYERS if n != self.AUDIT_LAYER                     # the audit log is written only by this app
+                 and not (tracked and not tracked(n) and not reconcile and n not in self.FIELD_LAYERS)]   # no EditDate: read in full, on every fourth call only
+        got = self._parallel(lambda n: (self.gw.rows(n, since_ms=self._since.get(n, 0)), self.gw.ids(n) if reconcile else None), names)
+        for layer in names:
+            fetched, hosted = got[layer]
             ids: list[str] = []
             with self._lock:
                 rows = self._rows.setdefault(layer, {})
@@ -484,7 +526,8 @@ class ArcGISStore(Store):
                 held = json.loads(cur["attrs"].get("Value") or "{}")
             except ValueError:
                 held = {}
-            if held.get("owner") != self._owner and time.time() - float(held.get("heartbeat") or 0) < self.LOCK_STALE_S:
+            fresh = time.time() - float(held.get("heartbeat") or 0) < self.LOCK_STALE_S
+            if held.get("owner") != self._owner and fresh and not _gone_from_this_computer(str(held.get("owner") or "")):
                 raise StoreLockedError(f"another Riyadh City View server ({held.get('owner')}) is already running against the {self.gw.title('')}* layers. "
                                        f"Stop it first, or wait {int(self.LOCK_STALE_S)} seconds if it has already stopped.")
         self._write_lock()

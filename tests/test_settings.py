@@ -100,3 +100,28 @@ def test_arcgis_dropping_mid_scan_stops_the_scan_and_the_next_one_runs():
         p.crew.run_cycle()
     gw.fail_after(None)
     assert p.crew.run_cycle()["new_incidents"]           # nothing was half-done in a way that blocks the next scan
+
+
+def test_a_crew_scan_reaches_arcgis_online_as_one_request_per_layer():
+    gw = FakeGateway()
+    p = Platform(settings=Settings(**HOSTED), gateway=gw)
+    p.reset()
+    p.sim.scenario("olaya_leak")
+    n = len(gw.writes)
+    res = p.crew.run_cycle()
+    scan = gw.writes[n:]
+    assert res["new_incidents"] and scan and all(w[0] == "many" for w in scan), scan
+    assert len({w[1] for w in scan}) == len(scan)        # each layer once: not one request per row
+
+
+def test_a_scan_arcgis_refuses_is_undone_as_a_whole():
+    gw = FakeGateway()
+    p = Platform(settings=Settings(**HOSTED), gateway=gw)
+    p.reset()
+    p.sim.scenario("olaya_leak")
+    before = (p.store.count(S.INCIDENTS), p.store.count(S.NOTIFICATIONS))
+    gw.fail_after(1)                                     # the very first request of the scan's batch is refused
+    with pytest.raises(StoreWriteError):
+        p.crew.run_cycle()
+    gw.fail_after(None)
+    assert (p.store.count(S.INCIDENTS), p.store.count(S.NOTIFICATIONS)) == before

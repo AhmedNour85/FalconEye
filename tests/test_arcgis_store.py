@@ -166,3 +166,33 @@ def test_a_photo_is_kept_as_an_attachment():
     s.add_attachment(S.VERIFICATION, "VER-0001", "leak.jpg", b"\xff\xd8jpeg")
     assert gw.attachments[(S.VERIFICATION, "VER-0001")] == {"leak.jpg": b"\xff\xd8jpeg"}
     assert store(gw).attachment(S.VERIFICATION, "VER-0001", "leak.jpg") == b"\xff\xd8jpeg"
+
+
+def test_a_lock_left_by_a_killed_server_on_this_computer_is_taken_over_at_once():
+    import socket
+    import time
+    gw = FakeGateway()
+    dead = f"{socket.gethostname()}:999999:abc123"          # no such process
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": dead, "heartbeat": time.time()})})
+    ArcGISStore(gw)
+
+
+def test_a_live_server_on_this_computer_still_blocks_a_second_one():
+    import os
+    import socket
+    import time
+    gw = FakeGateway()
+    alive = f"{socket.gethostname()}:{os.getpid()}:other1"   # this very process: certainly running
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": alive, "heartbeat": time.time()})})
+    with pytest.raises(StoreLockedError, match="already running"):
+        ArcGISStore(gw)
+
+
+def test_a_fresh_lock_from_another_computer_blocks_and_an_old_one_does_not():
+    import time
+    gw = FakeGateway()
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "another-host:4321:zzz", "heartbeat": time.time() - 100})})
+    with pytest.raises(StoreLockedError):
+        ArcGISStore(gw)                                      # 100 s old: the heartbeat comes about every 60 s, so the server may well be alive
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "another-host:4321:zzz", "heartbeat": time.time() - 200})})
+    ArcGISStore(gw)

@@ -2,7 +2,7 @@
 
 What was checked against Esri documentation before the code relied on it, and what still needs a live run.
 
-Checked on 2026-11-15 by web search of Esri's own sites. The Esri documentation server (MCP) was not connected in the session, so this is the fallback the plan allows. Nothing here has been run against ArcGIS Online yet.
+Checked on 2026-11-15 by web search of Esri's own sites. The Esri documentation server (MCP) was not connected in the session, so this is the fallback the plan allows. The live results are further down.
 
 ## Checked against documentation
 
@@ -38,14 +38,47 @@ This shows the calls are spelled correctly. It does not show what ArcGIS Online 
 | Long text length | `Notifications.Trail` and `Approvals.Payload` are 16,000 characters; ordinary text fields are 255. |
 | Attachments | Switched on for the 13 feature layers; off for the 9 tables, as defined. |
 
+## Measured timings
+
+Measured on 2026-11-15 from this computer against the live `CityView` layers (5,442 demo rows). One run each unless a range is given, so treat them as indications, not benchmarks.
+
+| Operation | First version | After the fixes below |
+|---|---|---|
+| Sign in | 8 to 10 s | same |
+| Load all 22 layers at start-up | 77 s | 12 s |
+| Server answering after a restart | not measured | about 17 to 20 s |
+| One add, update or delete | 0.25 s (first one 0.45 s) | same |
+| Refresh with nothing changed | 11 to 16 s | 2.7 to 2.9 s (first one 6 s) |
+| Refresh with the deletion check (every fourth) | 24 s | 5 s |
+| Crew scan that opens 4 incidents | 25 s, 88 requests | not re-measured; a scan now sends one request per layer |
+| Crew scan with nothing new | 7.7 s, 28 requests | 0.9 to 3.2 s, 1 to 2 requests |
+| Load the demo data (5,442 rows) | 135 s | not re-measured |
+| An edit made outside the app shows in the app | | 6 s and 14 s in two tries |
+
+The first version was too slow to use: a refresh meant to run every 15 s took 11 to 24 s. Four changes fixed it:
+
+1. One search finds all the project's hosted layers; before, each layer was searched for separately.
+2. Reads of different layers are sent side by side (8 at a time) at start-up and on every refresh.
+3. A crew scan is one batch: one request per layer at the end. If ArcGIS Online refuses it, the whole scan is undone in the working copy.
+4. A write that changes nothing is not sent.
+
+A batch holds the store until it ends, so a write from another thread waits and is never swept into someone else's batch. A side effect: the page's requests wait while a scan's batch is being sent (about 1 to 3 s), and for about two minutes during Reset demo.
+
+## Live checks passed
+
+- An approval in the page (`APR-0004`) created work order `WO-0023`; read directly from ArcGIS Online, the work order, the approval (`Executed`) and the incident (`Work Order Created`) were all there.
+- A facility name changed directly in ArcGIS Online appeared in the app after 6 s; changed back, after 14 s.
+- The server was killed and started again: the same 4 open incidents, 4 pending approvals and 6 alerts came back, and the lock left by the killed server was taken over at once.
+
+Not checked live: cutting the network during a write (covered by tests on the stand-in only), and a photo attachment.
+
 ## Not confirmed yet
 
 | Item | Why it matters | When it is settled |
 |---|---|---|
 | Attachments accepted and read back by ArcGIS Online | Investigator photos | Task 10, step 9: one photo sent and read back |
 | An API key in place of the stored password | The toolkit's sign-in guidance prefers it | Task 10, step 2, before the running server is switched |
-| Real timings: start-up load, one write, one crew scan, Reset demo | The plan's figures are estimates | Task 10, step 8 |
-| Batched edits of 200 rows being accepted for the largest layers | Reset demo | Task 10, step 7 |
+| Reset demo from the page, timed | It holds the store while it runs | Next session |
 
 ## Known limits
 

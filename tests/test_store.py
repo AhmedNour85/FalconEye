@@ -143,3 +143,42 @@ def test_clear_removes_rows_and_counters_and_tells_the_persist_hook():
 
 def test_the_plain_store_is_not_hosted():
     assert Store().is_hosted is False
+
+
+def test_an_upsert_that_changes_nothing_is_not_sent():
+    seen = []
+
+    class Spy(Store):
+        def _persist(self, layer, op, fid, attrs, geom):
+            seen.append(op)
+
+    s = Spy()
+    s.upsert(S.WORKERS, worker("WRK-001", Name="Nawaf"), geo.point(46.7, 24.7))
+    s.upsert(S.WORKERS, worker("WRK-001", Name="Nawaf"), geo.point(46.7, 24.7))
+    s.update(S.WORKERS, "WRK-001", Name="Nawaf")
+    assert seen == ["add"]
+    s.update(S.WORKERS, "WRK-001", Name="Khalid")
+    assert seen == ["add", "update"]
+
+
+def test_another_threads_write_waits_for_an_open_batch():
+    """A write from another thread must never be swept into someone else's batch, or rolled back with it."""
+    import threading
+    import time
+
+    s, order, started = Store(), [], threading.Event()
+
+    def other():
+        started.set()
+        s.upsert(S.WORKERS, worker("WRK-002"))
+        order.append("other")
+
+    with s.batch():
+        t = threading.Thread(target=other)
+        t.start()
+        started.wait(2)
+        time.sleep(0.2)
+        s.upsert(S.WORKERS, worker("WRK-001"))
+        order.append("batch")
+    t.join(2)
+    assert order == ["batch", "other"] and s.count(S.WORKERS) == 2
