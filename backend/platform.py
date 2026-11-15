@@ -59,6 +59,9 @@ class Platform:
         from backend.services.feeds import FeedEngine
 
         self.feeds = FeedEngine(self.store, self.settings.seed, self.settings.citizen_reports)
+        from backend.mobility.jobs import Jobs
+
+        self.jobs = Jobs(self, inline=self.settings.mobility_jobs_inline)   # long simulations: one background worker
         from backend.orchestration.crew import Crew  # local import: the crew depends on the tool layer
 
         self.crew = Crew(self)

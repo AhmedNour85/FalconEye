@@ -38,6 +38,8 @@ class Settings:
     mobility_network: str = "skeleton" # road network of the traffic model: "auto" (hosted road layer, else data/mobility/network.json.gz, else the skeleton), "file" or "skeleton".
                                        # load_settings() defaults to "auto" (GEOAI_MOBILITY_NETWORK); a Settings() built by hand, as the tests do, is the 73-segment skeleton.
     mobility_warm: bool = False        # build the traffic model in the background at start-up (GEOAI_MOBILITY_WARM=0 switches it off); off for a Settings() built by hand
+    mobility_jobs_inline: bool = True  # run each simulation in the caller's thread (the tests). load_settings() switches it off: simulations then run on one background
+                                       # worker and the crew scan never waits for them (GEOAI_MOBILITY_JOBS_INLINE=1 turns it back on)
 
     @property
     def arcgis_enabled(self) -> bool:
@@ -90,5 +92,6 @@ def load_settings() -> Settings:
         field_sync_seconds=float(e("GEOAI_FIELD_SYNC_SECONDS", "15")),
         mobility_network=net,
         mobility_warm=e("GEOAI_MOBILITY_WARM", "1").lower() in ("1", "true", "yes"),
+        mobility_jobs_inline=e("GEOAI_MOBILITY_JOBS_INLINE", "0").lower() in ("1", "true", "yes"),
         field_lang=(e("GEOAI_FIELD_LANG", "en").strip().lower() if e("GEOAI_FIELD_LANG", "en").strip().lower() in ("en", "ar", "both") else "en"),
     )
