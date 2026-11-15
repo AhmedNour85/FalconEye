@@ -13,12 +13,25 @@ Checked on 2026-11-15 by web search of Esri's own sites. The Esri documentation 
 | Does a query return every row of a layer larger than one page? | `FeatureLayer.query` has `return_all_records`, which defaults to true and pages to the end. An old release (1.7.0) had a report of an incomplete result. | The default is used. A full read is also compared with the row count ArcGIS Online reports; if they differ the app stops and says so. | [arcgis.features module](https://developers.arcgis.com/python/latest/api-reference/arcgis.features.toc.html) |
 | Which Python versions does the ArcGIS API for Python support? | Releases 2.4.2 and later list Python 3.10 to 3.13. | The project's environment is Python 3.10.11. | [System requirements](https://developers.arcgis.com/python/latest/guide/system-requirements/) |
 
+## Checked against the installed package
+
+ArcGIS API for Python 2.4.2 is installed in `.venv` (Python 3.10.11). Without signing in, the gateway's calls were compared with the package's own function signatures on 2026-11-15. All of these exist with the argument names the gateway uses:
+
+- `FeatureLayer.query`: `where`, `out_fields`, `return_geometry`, `out_sr`, `return_count_only`, `order_by_fields`, `result_record_count`, `return_all_records`.
+- `FeatureLayer.edit_features`: `adds`, `updates`, `deletes`. `FeatureLayer.delete_features`: `where`.
+- `AttachmentManager.add(oid, file_path)`, `.get_list(oid)`, `.download(oid, attachment_id, save_path)`.
+- `FeatureLayerManager.add_to_definition` and `.update_definition`; the service-level manager has both too.
+- `ContentManager.create_service`: `name`, `service_type`, `has_static_data`, `wkid`, `capabilities`, `tags`, `snippet`.
+- `GIS(url, username, password)` and `FeatureLayerCollection.fromitem`.
+
+This shows the calls are spelled correctly. It does not show what ArcGIS Online answers; that needs the live run.
+
 ## Not confirmed yet
 
 | Item | Why it matters | When it is settled |
 |---|---|---|
 | Editor tracking actually taking effect on a service created by script | Without it every refresh reads whole layers | Plan 1, task 10, step 6: read back after the layers are created |
-| `AttachmentManager.add` and `.download` call shapes | Investigator photos | Task 10, step 9: one photo sent and read back |
+| Attachments accepted and read back by ArcGIS Online | Investigator photos | Task 10, step 9: one photo sent and read back |
 | An API key in place of the stored password | The toolkit's sign-in guidance prefers it | Task 10, step 2, before the running server is switched |
 | Real timings: start-up load, one write, one crew scan, Reset demo | The plan's figures are estimates | Task 10, step 8 |
 | Batched edits of 200 rows being accepted for the largest layers | Reset demo | Task 10, step 7 |
