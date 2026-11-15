@@ -5,3 +5,4 @@ __pycache__/
 data/evidence/
 data/backups/
 *.sqlite
+.superpowers/

@@ -42,7 +42,13 @@ BUS_ROUTES = "Riyadh_Bus_Routes"
 BUS_STOPS = "Riyadh_Bus_Stops"
 EMERGENCY = "Riyadh_Emergency_Facilities"
 
-OSM_CREDIT = "(c) OpenStreetMap contributors, ODbL. Main roads only."
+# Mobility operations (Plan 3). Demo data like the incident layers: emptied by Reset demo, part of the refresh.
+TRAFFIC_REPORTS = "Riyadh_Traffic_Incidents"   # blocked-lane reports from the road (SYNTHETIC); the incident itself lives in INCIDENTS
+CLOSURES = "Riyadh_Planned_Closures"           # closure requests and approved closure plans. A record only: nothing closes a road.
+EVENT_NOTICES = "Riyadh_Event_Notices"         # major-event notices: venue, attendance, hours
+SCENARIOS = "Riyadh_Mobility_Scenarios"        # one row per simulation: summary numbers and the recommended strategy (MODELLED)
+
+OSM_CREDIT ="(c) OpenStreetMap contributors, ODbL. Main roads only."
 RCRC_CREDIT = "Source: Royal Commission for Riyadh City (RCRC) open data, KSA Open Data License"
 APPROX_CREDIT = "Approximate reference positions; bed counts are placeholders. Not official data."
 
@@ -51,6 +57,7 @@ SIMULATED = "SIMULATED-PROCESSING"
 REFERENCE = "REFERENCE-APPROXIMATE"
 OSM_REAL = "OSM-REAL (c) OpenStreetMap contributors, ODbL"
 OPERATIONAL = "DEMO-OPERATIONAL"
+MODELLED = "MODELLED-ESTIMATE"     # calculated by the traffic model from the road network and synthetic demand; nothing is measured
 
 
 @dataclass(frozen=True)
@@ -118,7 +125,16 @@ LAYERS: dict[str, LayerDef] = {
         _l(BUS_ROUTES, "Polyline", "Route_ID", ["Route_No", "Direction", "Origin", "Destination", "Origin_AR", "Destination_AR", "Data_Classification"], static=True, credit=RCRC_CREDIT),
         _l(BUS_STOPS, "Point", "Stop_ID", ["Name", "Name_AR", "Shelter", "Route_ID", "Direction", "Sequence", "Data_Classification"], static=True, credit=RCRC_CREDIT),
         _l(EMERGENCY, "Point", "Facility_ID", ["Name", "Kind", "Beds", "Note", "Data_Classification"], static=True, credit=APPROX_CREDIT),
+        _l(TRAFFIC_REPORTS, "Point", "Report_ID", ["Report_Type", "Segment_ID", "Corridor", "Road_Class", "Lanes", "Lanes_Blocked", "Reported_At", "Source", "Status",
+                                                   "Detection_ID", "Description", "Data_Classification"]),
+        _l(CLOSURES, "Polyline", "Closure_ID", ["Corridor", "Section", "Segment_IDs", "Lanes_Closed", "Full_Closure", "Start_Time", "End_Time", "Reason", "Status", "Strategy",
+                                                "Incident_ID", "Work_Order_ID", "Scenario_ID", "Requested_By", "Created", "Updated", "Data_Classification"]),
+        _l(EVENT_NOTICES, "Point", "Event_ID", ["Name", "Venue", "Attendance", "Start_Time", "End_Time", "Status", "Detection_ID", "Incident_ID", "Source", "Created",
+                                                "Data_Classification"]),
+        _l(SCENARIOS, None, "Scenario_ID", ["Scenario_Type", "Name", "Params", "Status", "Summary", "Recommended", "Verdict", "Subject_ID", "Requested_By", "Created",
+                                            "Completed", "Runtime_S", "Network_Fingerprint", "Error", "Data_Classification"]),
     ]
 }
 
-CATEGORY_OF_TYPE = {"water": "Water Leak", "lighting": "Streetlight", "change": "Urban Change", "distortion": "Visual Distortion", "land_use": "Land-Use Management"}
+CATEGORY_OF_TYPE = {"water": "Water Leak", "lighting": "Streetlight", "change": "Urban Change", "distortion": "Visual Distortion", "land_use": "Land-Use Management",
+                    "mobility": "Mobility"}

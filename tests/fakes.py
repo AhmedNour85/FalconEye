@@ -150,4 +150,4 @@ class FakeGateway:
 
 
 LONG_TEXT = {"Evidence", "Payload", "Result", "Instructions", "Observation", "Description", "Summary", "Input_Summary", "Output_Summary", "Notes", "Detection_IDs", "Value",
-             "Field_Comment", "Trail", "Message", "esritask_description", "esritask_notes"}
+             "Field_Comment", "Trail", "Message", "esritask_description", "esritask_notes", "Params", "Segment_IDs", "Verdict"}

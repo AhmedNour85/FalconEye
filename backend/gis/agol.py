@@ -28,9 +28,11 @@ NUMERIC = {
     "Area_Sqm", "Mean_Magnitude", "Indicator_Value", "Distance_To_Detection_M", "Open_Tasks", "Rated_Power_W",
     "Avg_Power_W", "Power_Trend_Pct", "Flicker_30d", "Comm_Loss_Pct", "Faults_12m", "Days_Since_Maintenance", "Age_Years", "Lon", "Lat",
     "Lanes", "Speed_Limit", "Length_Km", "Beds", "Sequence",
+    "Lanes_Blocked", "Lanes_Closed", "Attendance", "Runtime_S",
 }
 LONG_TEXT = {"Evidence", "Payload", "Result", "Instructions", "Observation", "Description", "Summary", "Input_Summary",
-             "Output_Summary", "Notes", "Detection_IDs", "Value", "Field_Comment", "Trail", "Message"}
+             "Output_Summary", "Notes", "Detection_IDs", "Value", "Field_Comment", "Trail", "Message",
+             "Params", "Segment_IDs", "Verdict"}
 LONG_LENGTH, SHORT_LENGTH = 16000, 255      # ArcGIS Online allows far longer text; 4,000 is only the limit for an indexed field, and these are not indexed
 TRACKING = {"enableEditorTracking": True, "enableOwnershipAccessControl": False, "allowOthersToUpdate": True, "allowOthersToDelete": True, "allowOthersToQuery": True,
             "allowAnonymousToUpdate": False, "allowAnonymousToDelete": False}
