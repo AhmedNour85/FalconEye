@@ -86,7 +86,24 @@ Checked in the browser on the development server without ArcGIS Online (`GEOAI_S
 | Pages and languages | Operation page and Executive Hub, English and Arabic (right-to-left), at 1440 px wide; Operation page also at 375 px wide. |
 | Console errors | None in six page loads with every layer switched on and off and the slider moved. |
 
-Not checked: the same layers read from ArcGIS Online. The six `CityView_Riyadh_*` reference layers do not exist in the account yet; until they do, the app reads the files in `data/mobility`, in both store modes. Start-up time with the 14,226 extra hosted rows is therefore not measured.
+### Reference layers in ArcGIS Online (2026-11-16)
+
+Created and filled after the account owner's yes, each step shown as a dry run first. One run each.
+
+| Item | Result |
+|---|---|
+| Creating the six layers (`create_feature_layers.py --apply`) | 229 s. `CityView_Riyadh_Roads`, `_Metro_Lines`, `_Metro_Stations`, `_Bus_Routes`, `_Bus_Stops`, `_Emergency_Facilities`. All private. The 22 existing layers were reported "exists, no change". |
+| Filling them (`publish_reference_layers.py --apply`) | 113 s in all; 14,226 rows added, none deleted. Roads 10,986 rows in 56 s; bus stops 3,010 in 19 s; the other four 2 to 4 s each. |
+| Read back | A second dry run reads the counts from ArcGIS Online: 10,986 / 6 / 94 / 117 / 3,010 / 13, every layer "up to date, no change". |
+| Start-up with 28 layers (19,668 rows) | 17 s from sign-in to the server answering (it was 12 s for 22 layers and 5,442 rows). With sign-in, roughly 27 s; the moment the process started was not logged, so that figure is an estimate. |
+| Traffic model after start-up | Ready 22.8 s later, built from the hosted roads layer (`source: arcgis`, 10,986 road sections, 7,939 junctions). |
+| Same result as from the files | 03:00: 2 road sections slow or worse, 79.8 km/h. 08:00: 597, 48.2 km/h. Identical to the run on the files. |
+| Map layers | Each answer reports `read_from: arcgis`: 6 metro lines, 94 stations, 117 bus routes, 3,010 stops, 8 hospitals. Both pages draw them; no page errors. |
+| Operational record | Unchanged: the same 4 open incidents and 4 pending approvals as before. |
+
+Seen in the log during start-up: two `urllib3` warnings "Connection pool is full, discarding connection". The reads still completed; the side-by-side reads briefly open more connections than the pool keeps.
+
+Not re-measured: the 15-second refresh. Reference layers are left out of it by design, so it should be unchanged, but that was not timed again.
 
 ## ArcGIS Maps SDK for JavaScript version (checked 2026-11-16)
 
@@ -115,8 +132,6 @@ Steps 1 to 3 are enough for 5.x. Step 4 is the larger piece of work and is only 
 | Attachments accepted and read back by ArcGIS Online | Investigator photos | Task 10, step 9: one photo sent and read back |
 | An API key in place of the stored password | The toolkit's sign-in guidance prefers it | Task 10, step 2, before the running server is switched |
 | Reset demo from the page, timed | It holds the store while it runs | Next session |
-| The six reference layers created and filled in ArcGIS Online; start-up time with them | Roads, metro, bus and emergency facilities are meant to be read from the system of record | After the account owner's yes to `create_feature_layers.py --apply` and `publish_reference_layers.py --apply` |
-
 ## Known limits
 
 - ArcGIS Online rolls back inside one edit request, not across requests. A batch that fails part-way leaves the earlier requests applied. The error says how many changes had been written, and the app then reloads the affected layers from ArcGIS Online so its working copy matches the record.

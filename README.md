@@ -9,9 +9,9 @@ It is built from two earlier projects, `Agentic_AI_City` (concept, workflow, cre
 | Part | State |
 |---|---|
 | The four city-service use cases (water leak, streetlights and poles, visual distortion, land use) | Working. Carried over from `Agentic_AI_City`. |
-| ArcGIS Online as the system of record | Working. 22 hosted layers titled `CityView_*` exist in the account and hold the demo data; the app runs on them. Measurements and live checks: `docs/arcgis_checks.md`. |
+| ArcGIS Online as the system of record | Working. 22 hosted layers titled `CityView_*` hold the operational demo data and 6 more hold the mobility reference data; the app runs on them. Measurements and live checks: `docs/arcgis_checks.md`. |
 | Mobility engine and map layers | Working. The traffic model from `Agentic_AI_Transportation` runs on the Riyadh road network (10,986 road sections) and both pages show Traffic by hour, Metro, Bus and Hospitals as map layers, off until ticked. Traffic is **modelled**, not measured, and the map says so. |
-| Reference layers in ArcGIS Online (roads, metro lines and stations, bus routes and stops, emergency facilities) | Defined, not created yet. Until the six `CityView_Riyadh_*` layers exist and are filled (`scripts/publish_reference_layers.py`), the app reads the same data from `data/mobility`. |
+| Reference layers in ArcGIS Online (roads, metro lines and stations, bus routes and stops, emergency facilities) | Working. Six more hosted layers titled `CityView_Riyadh_*` hold 14,226 rows, filled by `scripts/publish_reference_layers.py`; the app reads them at start-up (28 layers in all). Where a reference layer is missing, the app reads the same data from `data/mobility`. |
 | Mobility events (closures, congestion, events), the three new crew members, the cross-domain link | Not started. |
 | ArcGIS Field Maps tasks on the new layers | Not started. The City project's scripts are carried over and now refuse any web map without the `CityView` prefix. |
 

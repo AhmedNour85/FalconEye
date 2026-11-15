@@ -38,10 +38,10 @@
     box.innerHTML = LAYERS.map(([k, label]) => `<label><input type="checkbox" data-mob="${k}"> <span>${T(label)}</span></label>`).join("") +
       `<div class="mob-hour" hidden><label for="mob-h">${T("Hour")}</label><input id="mob-h" type="range" min="0" max="23" step="1" value="${st.hour}" aria-describedby="mob-hv"><output id="mob-hv" dir="ltr">${pad(st.hour)}</output></div>`;
     panel.appendChild(box);
-    /* Legend and credits: a box the user can fold. Open on a wide screen; folded on a phone, where it would cover the map.
-       The folded line still says the traffic is modelled. */
+    /* Legend and credits: a box the user can fold. Open on a tall map; folded on a short one (a phone, a small window),
+       where it would cover the map and the layer box. The folded line still says the traffic is modelled. */
     const info = document.createElement("details");
-    info.className = "mob-info"; info.hidden = true; info.open = !matchMedia("(max-width:640px)").matches;
+    info.className = "mob-info"; info.hidden = true; info.open = host.clientHeight >= 500;
     info.innerHTML = `<summary></summary><div class="mob-body" role="status"></div>`;
     host.appendChild(info);
     const infoHead = info.querySelector("summary"), infoBody = info.querySelector(".mob-body");
