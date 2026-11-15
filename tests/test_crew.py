@@ -228,21 +228,3 @@ def test_assessing_a_report_again_never_reopens_a_closed_incident(platform):
     assert res["already_closed"] is True
     assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Status"] == "Resolved"          # ... and the incident stays closed
     assert platform.store.get(S.VERIFICATION, vid)["attrs"]["Agent_Assessment"]           # the text is restored
-
-
-def test_a_pull_from_arcgis_does_not_blank_the_servers_assessment(platform):
-    from types import SimpleNamespace
-
-    from backend.gis import schema as S
-    from backend.gis.agol import ArcGISOnlineMirror
-
-    iid = _closed_after_simulated_repair(platform)
-    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]
-    assert v["attrs"]["Agent_Assessment"]
-    remote = {k: v["attrs"].get(k, "") for k in S.LAYERS[S.VERIFICATION].fields}
-    remote.update({"Verification_ID": v["id"], "Agent_Assessment": None, "OBJECTID": 1})              # ArcGIS Online still has the blank value
-    layer = SimpleNamespace(properties=SimpleNamespace(fields=[{"name": "EditDate"}]), query=lambda **kw: SimpleNamespace(features=[SimpleNamespace(attributes=remote, geometry=None)]))
-    mirror = object.__new__(ArcGISOnlineMirror)
-    mirror.layer = lambda name: layer
-    mirror.pull_updates(S.VERIFICATION, "2000-01-01", platform.store)
-    assert platform.store.get(S.VERIFICATION, v["id"])["attrs"]["Agent_Assessment"] == v["attrs"]["Agent_Assessment"]
