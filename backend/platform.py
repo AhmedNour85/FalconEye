@@ -16,21 +16,11 @@ log = logging.getLogger("geoai.platform")
 
 
 class Platform:
-    def __init__(self, settings: Settings | None = None, db_path: str | None = None, init: bool = True):
+    def __init__(self, settings: Settings | None = None, init: bool = True):
         self.settings = settings or load_settings()
-        self.store = Store(db_path or self.settings.db_path)
+        self.store = Store()                 # working copy in memory; the ArcGIS Online store replaces it in plan 1, task 6
         self.mirror = None
-        self.mirror_status = "disabled (local demo mode)"
-        if self.settings.arcgis_enabled:
-            try:
-                from backend.gis.agol import ArcGISOnlineMirror
-
-                self.mirror = ArcGISOnlineMirror(self.settings)
-                self.store.attach_mirror(self.mirror, background=True)
-                self.mirror_status = f"connected to {self.settings.arcgis_url}"
-            except Exception as exc:
-                self.mirror_status = f"connection failed: {exc}"
-                log.warning("ArcGIS Online unavailable: %s", exc)
+        self.mirror_status = "memory only (tests and development; nothing is stored)"
         from backend.services import tasks
 
         tasks.LANG = self.settings.field_lang
@@ -59,11 +49,10 @@ class Platform:
     def reset(self) -> dict:
         self.sim.pause()
         self.crew.reset()
-        with self.store.muted():  # generate locally in one go; mirroring thousands of single edits is slow and can be interrupted
+        with self.store.batch():  # one request per layer to the system of record, not thousands of single edits
             counts = synthetic.generate(self.store, self.settings.seed)
             self.feeds.seed()
-        self.apply_field_users()
-        self.sync_mirror()
+            self.apply_field_users()
         self.sim.event("control", "Environment regenerated from seed")
         # imagery change layer is regenerated on demand by the agent
         for f in Path(self.settings.evidence_dir).glob("*"):
@@ -131,13 +120,11 @@ class Platform:
         if not self.mirror:
             return {"pulled": 0, "assessed": 0}
         try:
-            self.store.flush_mirror(30.0)          # our own queued edits must reach ArcGIS Online first, or the pull would bring back stale values
             pulled = 0
             accepted_before = {w["id"] for w in self.store.all(S.WORK_ORDERS) if w["attrs"].get("Accepted_At")}
             done_before = {w["id"] for w in self.store.all(S.WORK_ORDERS) if w["attrs"].get("esritask_status") == 3}
-            with self.store.mirror_lock:
-                for layer in (S.WORK_ORDERS, S.VERIFICATION):
-                    pulled += self.mirror.pull_updates(layer, "", self.store)
+            for layer in (S.WORK_ORDERS, S.VERIFICATION):
+                pulled += self.mirror.pull_updates(layer, "", self.store)
             for w in self.store.all(S.WORK_ORDERS):         # the worker started the task in Field Maps (task status In Progress) = accepted the assignment
                 a = w["attrs"]
                 if a.get("esritask_status") == 2 and a["Status"] == "Assigned" and a.get("Assigned_Worker"):
@@ -242,7 +229,7 @@ class Platform:
                 if inc:
                     self.store.upsert(S.WORK_ORDERS, {**a, "Assigned_Worker_Name": wk["attrs"]["Name"], "Assigned_To_Username": wk["attrs"].get("ArcGIS_Username", ""),
                                                       "Incident_Type": inc["attrs"]["Incident_Type"], "Area_Name": inc["attrs"]["Area_Name"],
-                                                      "Assigned_At": a.get("Assigned_At") or a["Created_Date"], "Field_Maps_Status": a.get("Field_Maps_Status") or ("Sent to ArcGIS Field Maps" if self.store.has_mirror else "")}, w["geom"])
+                                                      "Assigned_At": a.get("Assigned_At") or a["Created_Date"], "Field_Maps_Status": a.get("Field_Maps_Status") or ("Sent to ArcGIS Field Maps" if self.store.is_hosted else "")}, w["geom"])
                     n += 1
         from backend.services import tasks
 
@@ -328,19 +315,3 @@ class Platform:
 
         self._field_sync = threading.Thread(target=loop, daemon=True, name="field-maps-sync")
         self._field_sync.start()
-
-
-    def sync_mirror(self) -> None:
-        """Bulk-push the local store to ArcGIS Online (replaces hosted layer contents). Failures never break the local app."""
-        if not self.mirror:
-            return
-        try:
-            self.store.flush_mirror(30.0)
-            with self.store.mirror_lock:
-                for name, d in S.LAYERS.items():
-                    if not d.internal and self.store.count(name):
-                        self.mirror.bulk_push(name, self.store.all(name))
-            self.mirror_status = f"connected to {self.settings.arcgis_url} (synced)"
-        except Exception as exc:
-            self.mirror_status = f"connected, but bulk sync failed: {exc}"
-            log.warning("ArcGIS Online bulk sync failed: %s", exc)

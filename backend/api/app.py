@@ -106,7 +106,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
     @app.get("/api/health")
     def health():
         return {"status": "ok", "agent_mode": ag.mode, "model": (ag.cfg.model if ag.uses_llm else "offline rule-based planner"), "planner": ag.cfg.label,
-                "arcgis": p.mirror_status, "arcgis_pending_writes": p.store.mirror_pending, "field_form": p.settings.field_form, "field_reports": "ArcGIS Field Maps" if p.mirror else "simulated crew only (no ArcGIS Online connection)", "data_mode": "SYNTHETIC-DEMO", "counts": {k: p.store.count(k) for k in PUBLIC_LAYERS + [S.WORKERS]}}
+                "arcgis": p.mirror_status, "field_form": p.settings.field_form, "field_reports": "ArcGIS Field Maps" if p.mirror else "simulated crew only (no ArcGIS Online connection)", "data_mode": "SYNTHETIC-DEMO", "counts": {k: p.store.count(k) for k in PUBLIC_LAYERS + [S.WORKERS]}}
 
     @app.get("/api/config")
     def config():

@@ -25,7 +25,7 @@ class FakeFieldMaps:
                 attrs = {**attrs, "Verification_ID": fid}
                 self.rows[i] = (attrs, geom)              # like the real adapter, the id is written back to ArcGIS Online
                 if not store.get(layer, fid):
-                    store.upsert(layer, attrs, geom, mirror=False)
+                    store.upsert(layer, attrs, geom, persist=False)
                     n += 1
         return n
 
@@ -78,9 +78,9 @@ def test_report_for_an_unknown_work_order_is_left_alone(platform):
 
 
 def test_investigator_form_is_disabled_by_default(tmp_path):
-    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="")
+    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="")
     assert s.field_form is False
-    p = Platform(settings=s, db_path=":memory:")
+    p = Platform(settings=s)
     c = TestClient(create_app(p, GeoAIAgent(p)))
     r = c.post("/api/field/submit", data={"work_order_id": "WO-1", "worker_id": "WRK-001", "status": "Confirmed", "observation": "anything", "lat": 24.7, "lon": 46.7})
     assert r.status_code == 410 and "Field Maps" in r.json()["detail"]
@@ -91,15 +91,13 @@ def test_investigator_form_is_disabled_by_default(tmp_path):
 
 
 def test_assignment_is_sent_to_field_maps_with_the_investigators_login(tmp_path):
-    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="", field_users={"WRK-001": "nawaf.harbi", "WRK-002": "khalid.otaibi", "WRK-003": "saad.qahtani", "WRK-004": "hamad.ghamdi", "WRK-005": "yousef.dosari", "WRK-006": "ibrahim.shehri", "WRK-007": "majed.mutairi"})
-    platform = Platform(settings=s, db_path=":memory:")
+    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="", field_users={"WRK-001": "nawaf.harbi", "WRK-002": "khalid.otaibi", "WRK-003": "saad.qahtani", "WRK-004": "hamad.ghamdi", "WRK-005": "yousef.dosari", "WRK-006": "ibrahim.shehri", "WRK-007": "majed.mutairi"})
+    platform = Platform(settings=s)
     pushed = []
-
-    class Spy:
-        def apply(self, layer, op, fid, attrs, geom):
-            pushed.append((layer, fid, dict(attrs)))
     platform.apply_field_users()
-    platform.store.attach_mirror(Spy())
+    platform.store.is_hosted = True                                           # as when the rows live in ArcGIS Online
+    platform.store._persist_many = lambda layer, rows: pushed.extend((layer, fid, dict(attrs)) for _op, fid, attrs, _g in rows)
+    platform.store._persist = lambda layer, op, fid, attrs, geom: pushed.append((layer, fid, dict(attrs)))
     iid, wo = _assigned_work_order(platform)
     wo = platform.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
     last = [a for layer, fid, a in pushed if layer == S.WORK_ORDERS and a.get("Work_Order_ID") == wo["Work_Order_ID"]][-1]
@@ -125,9 +123,9 @@ def test_field_maps_acceptance_notifies_the_operator(platform):
 
 def test_task_fields_follow_the_work_order_lifecycle(tmp_path):
     from backend.services import tasks
-    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
                  field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
-    p = Platform(settings=s, db_path=":memory:")
+    p = Platform(settings=s)
     iid, wo = _assigned_work_order(p)
     a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
     assert tasks.TASK_TYPES[a["esritask_type"]] == a["Incident_Type"] or a["esritask_type"] == tasks.TASK_TYPES.index("Other")     # the title Field Maps shows
@@ -142,16 +140,16 @@ def test_task_fields_follow_the_work_order_lifecycle(tmp_path):
 
 
 def test_starting_the_task_in_field_maps_accepts_the_assignment(tmp_path):
-    s = Settings(db_path=":memory:", evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
+    s = Settings(evidence_dir=str(tmp_path / "ev"), anthropic_api_key="", arcgis_username="", arcgis_password="",
                  field_users={f"WRK-{i:03d}": "story_viewer" for i in range(1, 8)})
-    p = Platform(settings=s, db_path=":memory:")
+    p = Platform(settings=s)
     iid, wo = _assigned_work_order(p)
 
     class Starting(FakeFieldMaps):
         def pull_updates(self, layer, since, store):
             if layer == S.WORK_ORDERS:
                 cur = store.get(S.WORK_ORDERS, wo["id"])
-                store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 2}, cur["geom"], mirror=False)      # the worker tapped Start on the task
+                store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 2}, cur["geom"], persist=False)      # the worker tapped Start on the task
                 return 1
             return 0
     p.mirror = Starting([])
@@ -181,7 +179,7 @@ class _Finishing(FakeFieldMaps):
     def pull_updates(self, layer, since, store):
         if layer == S.WORK_ORDERS:
             cur = store.get(S.WORK_ORDERS, self.wo_id)
-            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, "esritask_notes": self.notes}, cur["geom"], mirror=False)      # Note, then Finish
+            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, "esritask_notes": self.notes}, cur["geom"], persist=False)      # Note, then Finish
             return 1
         return 0
 
@@ -230,7 +228,7 @@ class _FinishingWithForm(FakeFieldMaps):
     def pull_updates(self, layer, since, store):
         if layer == S.WORK_ORDERS:
             cur = store.get(S.WORK_ORDERS, self.wo_id)
-            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, **self.fields}, cur["geom"], mirror=False)
+            store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, **self.fields}, cur["geom"], persist=False)
             return 1
         return 0
 
@@ -251,7 +249,7 @@ def test_the_radio_answer_wins_over_a_note_and_the_note_still_works_alone(platfo
     platform.pull_field_updates()
     v = platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]
     assert v["Verification_Status"] == "Escalate" and "something else" in v["Observation"]        # no comment: the note is the text
-    p2 = type(platform)(settings=platform.settings, db_path=":memory:")
+    p2 = type(platform)(settings=platform.settings)
     iid2, wo2 = _assigned_work_order(p2)
     p2.mirror = _FinishingWithForm(wo2["id"], Field_Verdict="not a real code", esritask_notes="Not found: nothing there")
     p2.pull_field_updates()

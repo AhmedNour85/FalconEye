@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from backend.gis import schema as S
-from backend.gis.store import Store, utcnow
+from backend.gis.store import Store, StoreWriteError, utcnow
 from backend.services.audit import Audit
 from backend.workflows.actions import HANDLERS
 
@@ -44,13 +44,13 @@ class ApprovalService:
         if a["Status"] != "Proposed":
             return {"ok": False, "error": f"approval {approval_id} is already {a['Status']}"}
         payload = json.loads(a["Payload"])
-        self.store.mirror_errors.clear()
         try:
-            res = HANDLERS[a["Action_Type"]](self.store, payload)
+            with self.store.batch():      # the handler's writes go to the system of record together, one request per layer
+                res = HANDLERS[a["Action_Type"]](self.store, payload)
+        except StoreWriteError:   # the system of record refused the change: nothing was done, the approval stays Proposed and the operator is told
+            raise
         except Exception as exc:  # structured failure, never a silent success
             res = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-        if res.get("ok") and self.store.mirror_errors:
-            res["warning"] = "saved locally; ArcGIS Online sync reported: " + "; ".join(self.store.mirror_errors[:2])
         status = "Executed" if res.get("ok") else "Failed"
         self.store.update(S.APPROVALS, approval_id, Status=status, Decided=utcnow(), Decided_By=actor, Result=json.dumps(res))
         self.audit.log(a["Session_ID"], f"{'EXECUTED' if res.get('ok') else 'FAILED'} {a['Action_Type']}", "approval_gate", a["Incident_ID"], payload, res,

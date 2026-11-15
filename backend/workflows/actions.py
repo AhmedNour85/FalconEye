@@ -53,7 +53,7 @@ def assign_worker(store: Store, p: dict) -> dict:
         store.update(S.WORKERS, prev, Open_Tasks=max(0, store.get(S.WORKERS, prev)["attrs"]["Open_Tasks"] - 1))
     if prev != p["worker_id"]:
         store.update(S.WORKERS, p["worker_id"], Open_Tasks=wk["attrs"]["Open_Tasks"] + 1, Status="Assigned", Last_Update=utcnow())
-    sent = "Sent to ArcGIS Field Maps" if store.has_mirror else "Not sent: no ArcGIS Online connection"
+    sent = "Sent to ArcGIS Field Maps" if store.is_hosted else "Not sent: no ArcGIS Online connection"
     store.update(S.WORK_ORDERS, p["work_order_id"], Assigned_Worker=p["worker_id"], Status="Assigned", Assigned_Team=wk["attrs"]["Team"],
                  Assigned_Worker_Name=wk["attrs"]["Name"], Assigned_To_Username=wk["attrs"].get("ArcGIS_Username", ""), Assigned_At=utcnow(), Field_Maps_Status=sent,
                  Incident_Type=wo["attrs"].get("Incident_Type") or _incident(store, wo["attrs"]["Incident_ID"])["attrs"]["Incident_Type"],
@@ -61,7 +61,7 @@ def assign_worker(store: Store, p: dict) -> dict:
                  **({"Accepted_At": ""} if prev != p["worker_id"] else {}))
     store.update(S.INCIDENTS, wo["attrs"]["Incident_ID"], Status="Assigned", Assigned_Team=wk["attrs"]["Team"], Last_Updated=utcnow())
     ok = store.get(S.WORK_ORDERS, p["work_order_id"])["attrs"]["Assigned_Worker"] == p["worker_id"]
-    return {"ok": ok, "work_order_id": p["work_order_id"], "worker_id": p["worker_id"], "worker": wk["attrs"]["Name"], "field_maps_sent": store.has_mirror,
+    return {"ok": ok, "work_order_id": p["work_order_id"], "worker_id": p["worker_id"], "worker": wk["attrs"]["Name"], "field_maps_sent": store.is_hosted,
             "field_maps_user": wk["attrs"].get("ArcGIS_Username", "")}
 
 

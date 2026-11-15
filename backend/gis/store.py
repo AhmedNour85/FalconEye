@@ -1,25 +1,31 @@
-"""SQLite-backed feature store: the local system of record in demo mode.
+"""The feature store: a working copy in memory, with every write sent to the system of record first.
 
-Mirrors the ArcGIS Online hosted-layer model (one logical table per layer). When an
-ArcGIS Online mirror is attached, every write is forwarded to it (write-through).
+There is no local database. `Store` on its own keeps nothing beyond the life of the process: it is what the tests and
+development use. `ArcGISStore` (below, added with the ArcGIS Online gateway) overrides the three persist hooks, so a
+change is made in ArcGIS Online first and reaches the working copy only when ArcGIS Online has confirmed it.
+
+Geometry objects are shared between the working copy and the rows handed out: treat them as read-only.
 """
 from __future__ import annotations
 
-import json
-import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterable, Protocol
+from typing import Any, Callable, Iterable
 
 from .schema import LAYERS
 
 
-class Mirror(Protocol):
-    def apply(self, layer: str, op: str, fid: str, attrs: dict, geom: dict | None) -> None: ...
-
-
 class ValidationError(ValueError):
     pass
+
+
+class StoreWriteError(RuntimeError):
+    """The system of record did not accept a change. The working copy is left as it was."""
+
+    def __init__(self, message: str, layer: str = "", fid: str = ""):
+        super().__init__(message)
+        self.layer, self.fid = layer, fid
 
 
 def utcnow() -> str:
@@ -27,164 +33,32 @@ def utcnow() -> str:
 
 
 class Store:
-    def __init__(self, path: str = ":memory:"):
-        self.path = path
-        self._db = sqlite3.connect(path, check_same_thread=False)
+    is_hosted = False            # True when the rows live in ArcGIS Online (ArcGISStore)
+
+    def __init__(self):
+        self._rows: dict[str, dict[str, dict]] = {}          # layer -> id -> {"attrs", "geom", "bbox", "oid"}
+        self._counters: dict[str, int] = {}
+        self._files: dict[tuple[str, str], dict[str, bytes]] = {}
         self._lock = threading.RLock()
-        self._mirrors: list[Mirror] = []
-        self.mirror_errors: list[str] = []
-        self._muted = False
-        self.mirror_lock = threading.RLock()                 # one thread at a time talks to the mirror (background writer, pulls, bulk pushes)
-        self._mq: dict | None = None                         # (layer, id) -> latest pending write; None = write-through (synchronous)
-        self._mq_cv = threading.Condition()
-        self.write_hooks: dict = {}                          # layer -> fn(attrs) -> attrs, applied to LOCAL writes only (not to rows pulled from ArcGIS)
-        self._mq_busy = 0
-        with self._lock:
-            self._db.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS features(layer TEXT, id TEXT, attrs TEXT, geom TEXT, PRIMARY KEY(layer,id));
-                CREATE TABLE IF NOT EXISTS counters(prefix TEXT PRIMARY KEY, n INTEGER);
-                CREATE INDEX IF NOT EXISTS ix_layer ON features(layer);
-                """
-            )
-            cols = {r[1] for r in self._db.execute("PRAGMA table_info(features)")}
-            for c in ("minx", "miny", "maxx", "maxy"):
-                if c not in cols:
-                    self._db.execute(f"ALTER TABLE features ADD COLUMN {c} REAL")
-            self._db.execute("CREATE INDEX IF NOT EXISTS ix_bbox ON features(layer,minx,maxx,miny,maxy)")
-            self._db.commit()
-        self._defer = 0
+        self.write_hooks: dict[str, Callable[[dict], dict]] = {}   # layer -> fn(attrs) -> attrs, applied to the app's own writes (not to rows read from the record)
+        self._batch_depth = 0
+        self._journal: list[tuple] = []                      # (layer, fid, row before or None, persist) for every write made inside a batch
 
-    def batch(self):
-        """Context manager: defer commits (one transaction) for bulk writes."""
-        from contextlib import contextmanager
+    # -- hooks a subclass overrides ----------------------------------------------
+    def _persist(self, layer: str, op: str, fid: str, attrs: dict, geom: dict | None) -> int | None:
+        """Make one change in the system of record. op is "add", "update" or "delete". Raise StoreWriteError to refuse it.
+        May return the record's own row number (OBJECTID), which is kept with the row."""
+        return None
 
-        @contextmanager
-        def cm():
-            self._defer += 1
-            try:
-                yield
-            finally:
-                self._defer -= 1
-                if self._defer == 0:
-                    with self._lock:
-                        self._db.commit()
-        return cm()
+    def _persist_many(self, layer: str, rows: list[tuple[str, str, dict, dict | None]]) -> dict[str, int] | None:
+        """Make several changes to one layer at once: rows are (op, id, attrs, geom). May return {id: row number} for the adds."""
+        return None
 
-    def _commit(self):
-        if not self._defer:
-            self._db.commit()
+    def _persist_clear(self, layers: list[str] | None) -> None:
+        """Remove every row of these layers (None = all layers) from the system of record."""
 
-    @staticmethod
-    def _bbox(geom):
-        if not geom:
-            return (None, None, None, None)
-        c = geom["coordinates"]
-        pts = [c] if geom["type"] == "Point" else c if geom["type"] == "LineString" else c[0]
-        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-        return (min(xs), min(ys), max(xs), max(ys))
-
-    def bbox_query(self, layer: str, xmin: float, ymin: float, xmax: float, ymax: float, limit: int = 5000) -> list[dict]:
-        with self._lock:
-            rows = self._db.execute("SELECT id,attrs,geom FROM features WHERE layer=? AND maxx>=? AND minx<=? AND maxy>=? AND miny<=? LIMIT ?",
-                                    (layer, xmin, xmax, ymin, ymax, limit)).fetchall()
-        return [self._row(r) for r in rows]
-
-    # -- mirrors -----------------------------------------------------------------
-    def attach_mirror(self, m: Mirror, background: bool = False) -> None:
-        """background=True sends writes to the mirror from a worker thread, so the caller never waits for ArcGIS Online.
-        Repeated writes to the same feature collapse into the latest one; errors still land in mirror_errors."""
-        self._mirrors.append(m)
-        if background and self._mq is None:
-            import atexit
-            self._mq = {}
-            threading.Thread(target=self._mirror_worker, daemon=True, name="mirror-writer").start()
-            atexit.register(self.flush_mirror, 10.0)
-
-    @property
-    def has_mirror(self) -> bool:
-        return bool(self._mirrors)
-
-    @property
-    def mirror_pending(self) -> int:
-        return (len(self._mq) + self._mq_busy) if self._mq is not None else 0
-
-    def flush_mirror(self, timeout: float = 30.0) -> bool:
-        """Wait until every queued write has reached the mirror. True when the queue is empty."""
-        if self._mq is None:
-            return True
-        import time
-        end = time.monotonic() + timeout
-        with self._mq_cv:
-            while self._mq or self._mq_busy:
-                left = end - time.monotonic()
-                if left <= 0:
-                    return False
-                self._mq_cv.wait(left)
-        return True
-
-    def _mirror_worker(self) -> None:
-        while True:
-            with self._mq_cv:
-                while not self._mq:
-                    self._mq_cv.wait()
-                key = next(iter(self._mq))
-                op, attrs, geom = self._mq.pop(key)
-                self._mq_busy = 1
-            try:
-                with self.mirror_lock:
-                    self._apply_to_mirrors(key[0], op, key[1], attrs, geom)
-            finally:
-                with self._mq_cv:
-                    self._mq_busy = 0
-                    self._mq_cv.notify_all()
-
-    def _apply_to_mirrors(self, layer, op, fid, attrs, geom) -> None:
-        for m in self._mirrors:
-            try:
-                m.apply(layer, op, fid, attrs, geom)
-            except Exception as exc:  # mirror failures must never corrupt local state
-                import logging
-                logging.getLogger("geoai.mirror").warning("mirror failed for %s/%s: %s", layer, fid, exc)
-                self.mirror_errors.append(f"{layer}/{fid}: {exc}")
-
-    # high-volume / internal layers are bulk-loaded by scripts/populate_feature_layers.py, not mirrored write-by-write
-    MIRROR_SKIP = frozenset({"Riyadh_Reference_Buildings", "Riyadh_Sensor_Readings", "Riyadh_Streetlight_Telemetry", "Riyadh_Maintenance_History", "Riyadh_Learning_Config",
-                             "Riyadh_Sim_Events", "Riyadh_Approvals", "Riyadh_Executive_Indicators", "Riyadh_Notifications", "Riyadh_Citizen_Reports", "Riyadh_Weather_Feed"})
-
-    def muted(self):
-        """Context manager: suspend mirror forwarding (used for bulk regeneration, followed by an explicit bulk push)."""
-        from contextlib import contextmanager
-
-        @contextmanager
-        def cm():
-            prev, self._muted = self._muted, True
-            try:
-                yield
-            finally:
-                self._muted = prev
-        return cm()
-
-    def _notify(self, layer, op, fid, attrs, geom):
-        if self._muted or layer in self.MIRROR_SKIP:
-            return
-        if self._mq is not None:
-            with self._mq_cv:
-                self._mq.pop((layer, fid), None)                       # re-insert so the newest write for a feature is the one sent
-                self._mq[(layer, fid)] = (op, dict(attrs) if attrs else attrs, geom)
-                self._mq_cv.notify_all()
-            return
-        with self.mirror_lock:
-            self._apply_to_mirrors(layer, op, fid, attrs, geom)
-
-    # -- ids ---------------------------------------------------------------------
-    def next_id(self, prefix: str, width: int = 4) -> str:
-        with self._lock:
-            row = self._db.execute("SELECT n FROM counters WHERE prefix=?", (prefix,)).fetchone()
-            n = (row[0] if row else 0) + 1
-            self._db.execute("INSERT OR REPLACE INTO counters VALUES(?,?)", (prefix, n))
-            self._commit()
-        return f"{prefix}-{n:0{width}d}"
+    def _after_failed_batch(self, layers: list[str]) -> None:
+        """Called after a batch was refused and the working copy was rolled back."""
 
     # -- validation --------------------------------------------------------------
     @staticmethod
@@ -203,29 +77,108 @@ class Store:
         if want is not None and geom is not None and geom.get("type") != want:
             raise ValidationError(f"{layer}: geometry must be {want}, got {geom.get('type')}")
 
-    # -- CRUD --------------------------------------------------------------------
-    def upsert(self, layer: str, attrs: dict, geom: dict | None = None, *, merge: bool = False, mirror: bool = True) -> dict:
-        d = LAYERS.get(layer)
-        if d is None:
+    @staticmethod
+    def _bbox(geom):
+        if not geom:
+            return None
+        c = geom["coordinates"]
+        pts = [c] if geom["type"] == "Point" else c if geom["type"] == "LineString" else c[0]
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+    @staticmethod
+    def _out(fid: str, r: dict) -> dict:
+        return {"id": fid, "attrs": dict(r["attrs"]), "geom": r["geom"]}
+
+    # -- ids ---------------------------------------------------------------------
+    def next_id(self, prefix: str, width: int = 4) -> str:
+        with self._lock:
+            n = self._counters.get(prefix, 0) + 1
+            self._counters[prefix] = n
+        return f"{prefix}-{n:0{width}d}"
+
+    # -- batches -----------------------------------------------------------------
+    @contextmanager
+    def batch(self):
+        """Group writes: the working copy changes straight away (so the code inside can read what it wrote), and the system of
+        record gets one request per layer when the outermost batch ends. If it refuses, the working copy is rolled back."""
+        with self._lock:
+            self._batch_depth += 1
+        try:
+            yield
+        except BaseException:
+            with self._lock:
+                self._batch_depth -= 1
+                if self._batch_depth == 0:
+                    self._rollback()
+            raise
+        else:
+            with self._lock:
+                self._batch_depth -= 1
+                if self._batch_depth == 0:
+                    self._flush()
+
+    def _rollback(self) -> list[str]:
+        layers = []
+        for layer, fid, before, _persist in reversed(self._journal):
+            if before is None:
+                self._rows.get(layer, {}).pop(fid, None)
+            else:
+                self._rows.setdefault(layer, {})[fid] = before
+            if layer not in layers:
+                layers.append(layer)
+        self._journal = []
+        return layers
+
+    def _flush(self) -> None:
+        first: dict[tuple[str, str], dict | None] = {}        # (layer, id) -> the row before the batch touched it
+        order: list[tuple[str, str]] = []
+        for layer, fid, before, persist in self._journal:
+            if persist and (layer, fid) not in first:
+                first[(layer, fid)] = before
+                order.append((layer, fid))
+        per_layer: dict[str, list] = {}
+        for layer, fid in order:
+            before, now = first[(layer, fid)], self._rows.get(layer, {}).get(fid)
+            if before is None and now is None:
+                continue                                       # added and removed again inside the batch
+            op = "add" if before is None else "delete" if now is None else "update"
+            per_layer.setdefault(layer, []).append((op, fid, dict(now["attrs"]) if now else {}, now["geom"] if now else None))
+        try:
+            for layer, rows in per_layer.items():
+                oids = self._persist_many(layer, rows) or {}
+                for fid, oid in oids.items():
+                    if fid in self._rows.get(layer, {}):
+                        self._rows[layer][fid]["oid"] = oid
+        except Exception:
+            self._after_failed_batch(self._rollback())
+            raise
+        self._journal = []
+
+    # -- writes ------------------------------------------------------------------
+    def upsert(self, layer: str, attrs: dict, geom: dict | None = None, *, merge: bool = False, persist: bool = True) -> dict:
+        """persist=False stores a row that came from the system of record: it is not sent back and the write hooks do not run."""
+        if LAYERS.get(layer) is None:
             raise ValidationError(f"unknown layer {layer}")
         with self._lock:
-            fid = attrs.get(d.id_field)
-            existing = self.get(layer, fid) if fid else None
+            fid = attrs.get(LAYERS[layer].id_field)
+            existing = self._rows.get(layer, {}).get(str(fid)) if fid else None
             if merge and existing:
                 attrs = {**existing["attrs"], **attrs}
                 geom = geom or existing["geom"]
-            if mirror and layer in self.write_hooks:
+            if persist and layer in self.write_hooks:
                 attrs = self.write_hooks[layer](dict(attrs))
             self._validate(layer, attrs, geom)
-            bb = self._bbox(geom)
-            self._db.execute(
-                "INSERT OR REPLACE INTO features(layer,id,attrs,geom,minx,miny,maxx,maxy) VALUES(?,?,?,?,?,?,?,?)",
-                (layer, str(fid), json.dumps(attrs, default=str), json.dumps(geom) if geom else None, *bb),
-            )
-            self._commit()
-        if mirror:
-            self._notify(layer, "update" if existing else "add", str(fid), attrs, geom)
-        return {"id": str(fid), "attrs": attrs, "geom": geom}
+            fid = str(fid)
+            row = {"attrs": dict(attrs), "geom": geom, "bbox": self._bbox(geom), "oid": existing["oid"] if existing else None}
+            if self._batch_depth:
+                self._journal.append((layer, fid, existing, persist))
+            elif persist:
+                oid = self._persist(layer, "update" if existing else "add", fid, dict(attrs), geom)   # may raise: nothing has changed yet
+                if oid is not None:
+                    row["oid"] = oid
+            self._rows.setdefault(layer, {})[fid] = row
+        return {"id": fid, "attrs": attrs, "geom": geom}
 
     def update(self, layer: str, fid: str, **changes) -> dict:
         cur = self.get(layer, fid)
@@ -235,24 +188,51 @@ class Store:
 
     def upsert_many(self, layer: str, rows: Iterable[tuple[dict, dict | None]]) -> int:
         n = 0
-        for attrs, geom in rows:
-            self.upsert(layer, attrs, geom)
-            n += 1
+        with self.batch():
+            for attrs, geom in rows:
+                self.upsert(layer, attrs, geom)
+                n += 1
         return n
 
-    @staticmethod
-    def _row(r) -> dict:
-        return {"id": r[0], "attrs": json.loads(r[1]), "geom": json.loads(r[2]) if r[2] else None}
+    def delete(self, layer: str, fid: str, *, persist: bool = True) -> None:
+        with self._lock:
+            fid = str(fid)
+            existing = self._rows.get(layer, {}).get(fid)
+            if existing is None:
+                return
+            if self._batch_depth:
+                self._journal.append((layer, fid, existing, persist))
+            elif persist:
+                self._persist(layer, "delete", fid, dict(existing["attrs"]), existing["geom"])
+            del self._rows[layer][fid]
+            self._files.pop((layer, fid), None)
 
+    def clear(self, layers: Iterable[str] | None = None) -> None:
+        """Remove every row of these layers (None = everything, and the id counters). Not undone by a batch rollback."""
+        names = list(layers) if layers is not None else None
+        with self._lock:
+            self._persist_clear(names)
+            if names is None:
+                self._rows.clear()
+                self._counters.clear()
+                self._files.clear()
+                self._journal = []
+            else:
+                for name in names:
+                    self._rows.pop(name, None)
+                self._journal = [j for j in self._journal if j[0] not in names]
+                self._files = {k: v for k, v in self._files.items() if k[0] not in names}
+
+    # -- reads -------------------------------------------------------------------
     def get(self, layer: str, fid: str) -> dict | None:
         with self._lock:
-            r = self._db.execute("SELECT id,attrs,geom FROM features WHERE layer=? AND id=?", (layer, str(fid))).fetchone()
-        return self._row(r) if r else None
+            r = self._rows.get(layer, {}).get(str(fid))
+            return self._out(str(fid), r) if r else None
 
     def all(self, layer: str) -> list[dict]:
         with self._lock:
-            rows = self._db.execute("SELECT id,attrs,geom FROM features WHERE layer=? ORDER BY id", (layer,)).fetchall()
-        return [self._row(r) for r in rows]
+            rows = self._rows.get(layer, {})
+            return [self._out(fid, rows[fid]) for fid in sorted(rows)]
 
     def query(self, layer: str, where: Callable[[dict], bool] | None = None, **eq: Any) -> list[dict]:
         out = []
@@ -267,35 +247,20 @@ class Store:
 
     def count(self, layer: str) -> int:
         with self._lock:
-            return self._db.execute("SELECT COUNT(*) FROM features WHERE layer=?", (layer,)).fetchone()[0]
+            return len(self._rows.get(layer, {}))
 
-    def delete(self, layer: str, fid: str) -> None:
+    def bbox_query(self, layer: str, xmin: float, ymin: float, xmax: float, ymax: float, limit: int = 5000) -> list[dict]:
+        out = []
         with self._lock:
-            self._db.execute("DELETE FROM features WHERE layer=? AND id=?", (layer, str(fid)))
-            self._commit()
-        self._notify(layer, "delete", str(fid), {}, None)
+            rows = self._rows.get(layer, {})
+            for fid in sorted(rows):
+                b = rows[fid]["bbox"]
+                if b and b[2] >= xmin and b[0] <= xmax and b[3] >= ymin and b[1] <= ymax:
+                    out.append(self._out(fid, rows[fid]))
+                    if len(out) >= limit:
+                        break
+        return out
 
-    def clear(self, layers: Iterable[str] | None = None) -> None:
-        with self._lock:
-            if layers is None:
-                self._db.execute("DELETE FROM features")
-                self._db.execute("DELETE FROM counters")
-            else:
-                for l in layers:
-                    self._db.execute("DELETE FROM features WHERE layer=?", (l,))
-            self._db.commit()
-        if self._mq is not None:                                          # pending writes belong to data that no longer exists
-            with self._mq_cv:
-                self._mq.clear()
-            self.flush_mirror(15.0)
-        for m in ([] if self._muted else self._mirrors):
-            if hasattr(m, "clear"):
-                try:
-                    m.clear(list(layers) if layers else None)  # type: ignore[attr-defined]
-                except Exception:
-                    pass
-
-    # -- GeoJSON -----------------------------------------------------------------
     def geojson(self, layer: str, where: Callable[[dict], bool] | None = None) -> dict:
         feats = []
         for f in self.all(layer):
@@ -303,3 +268,14 @@ class Store:
                 continue
             feats.append({"type": "Feature", "id": f["id"], "geometry": f["geom"], "properties": f["attrs"]})
         return {"type": "FeatureCollection", "features": feats}
+
+    # -- files attached to a row (investigator photos) ---------------------------
+    def add_attachment(self, layer: str, fid: str, name: str, data: bytes) -> None:
+        with self._lock:
+            if self.get(layer, fid) is None:
+                raise KeyError(f"{layer}/{fid} not found")
+            self._files.setdefault((layer, str(fid)), {})[name] = data
+
+    def attachment(self, layer: str, fid: str, name: str) -> bytes | None:
+        with self._lock:
+            return self._files.get((layer, str(fid)), {}).get(name)

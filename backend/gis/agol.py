@@ -227,7 +227,7 @@ class ArcGISOnlineMirror:
     def pull_updates(self, layer: str, since: str, store: Any) -> int:
         """Pull features created or edited in ArcGIS (for example by workers in Field Maps) into the local store.
         Returns how many rows actually changed. Rows created in Field Maps have no id yet: one is assigned here and written back.
-        Pulled rows are stored with mirror=False so they are not echoed back to ArcGIS Online."""
+        Pulled rows are stored with persist=False so they are not echoed back to ArcGIS Online."""
         d = LAYERS[layer]
         if d.internal:
             return 0
@@ -259,7 +259,7 @@ class ArcGISOnlineMirror:
                         attrs.pop(k, None)
             if local and all(local["attrs"].get(k, "") == v or (v in ("", None) and not local["attrs"].get(k)) for k, v in attrs.items()):
                 continue                                   # unchanged since the last pull
-            store.upsert(layer, {**(local["attrs"] if local else {}), **attrs}, geom or (local["geom"] if local else None), mirror=False)
+            store.upsert(layer, {**(local["attrs"] if local else {}), **attrs}, geom or (local["geom"] if local else None), persist=False)
             count += 1
         return count
 

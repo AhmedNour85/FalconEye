@@ -27,7 +27,6 @@ class Settings:
     arcgis_password: str = ""
     arcgis_js_api_key: str = ""
     arcgis_layer_prefix: str = "GeoAIOps"
-    db_path: str = str(ROOT / "data" / "geoai.sqlite")
     seed: int = 20260101
     field_form: bool = False           # the in-app investigator form is disabled; field teams use ArcGIS Field Maps (GEOAI_FIELD_FORM=1 re-enables it)
     field_users: dict | None = None    # worker id -> ArcGIS Online username used in Field Maps, e.g. GEOAI_FIELD_USERS=WRK-001=nawaf.harbi,WRK-002=khalid.otaibi
@@ -47,9 +46,6 @@ class Settings:
 
 def load_settings() -> Settings:
     e = os.environ.get
-    db = e("GEOAI_DB_PATH") or str(ROOT / "data" / "geoai.sqlite")
-    if not os.path.isabs(db):
-        db = str(ROOT / db)
     offline = e("GEOAI_OFFLINE", "").lower() in ("1", "true", "yes")  # ignore ArcGIS Online + Claude credentials (safe local testing)
     return Settings(
         anthropic_api_key="" if offline else e("ANTHROPIC_API_KEY", ""),
@@ -62,7 +58,6 @@ def load_settings() -> Settings:
         arcgis_password="" if offline else e("ARCGIS_PASSWORD", ""),
         arcgis_js_api_key=e("ARCGIS_JS_API_KEY", ""),
         arcgis_layer_prefix=e("ARCGIS_LAYER_PREFIX", "GeoAIOps"),
-        db_path=db,
         seed=int(e("GEOAI_SEED", "20260101")),
         citizen_reports=e("GEOAI_CITIZEN_REPORTS", "").lower() in ("1", "true", "yes"),
         field_form=e("GEOAI_FIELD_FORM", "").lower() in ("1", "true", "yes"),

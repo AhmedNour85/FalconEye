@@ -72,7 +72,7 @@ def test_a_simulated_event_wakes_only_its_own_feed(platform):
 
     expect = {"olaya_leak": "water", "streetlight_pole": "lighting", "distortion_event": "distortion", "landuse_violation": "land_use"}
     for event, cat in expect.items():
-        p = type(platform)(settings=platform.settings, db_path=":memory:")
+        p = type(platform)(settings=platform.settings)
         res = p.crew.inject(event)
         raised = [p.store.get(S.NOTIFICATIONS, n)["attrs"] for n in res["scan"]["new_notifications"]]
         faults = [n for n in raised if n["Kind"] in ("fault", "change")]

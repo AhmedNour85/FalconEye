@@ -7,7 +7,7 @@ from backend.services import synthetic
 
 
 def test_generation_is_reproducible_and_populated():
-    a, b = Store(":memory:"), Store(":memory:")
+    a, b = Store(), Store()
     from datetime import datetime, timezone
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     ca = synthetic.generate(a, seed=5, now=now)
@@ -16,7 +16,7 @@ def test_generation_is_reproducible_and_populated():
     assert [f["geom"] for f in a.all(S.WATER)] == [f["geom"] for f in b.all(S.WATER)]
     assert 300 <= ca[S.INFRA] <= 500 and 100 <= ca[S.WATER] <= 200 and ca[S.SENSORS] >= 1000
     assert 20 <= ca[S.DETECTIONS] <= 35 and ca[S.WORK_ORDERS] >= 10 and ca[S.WORKERS] >= 5
-    c = synthetic.generate(Store(":memory:"), seed=6, now=now)  # different seed -> different data
+    c = synthetic.generate(Store(), seed=6, now=now)  # different seed -> different data
     assert c is not None
 
 
@@ -52,7 +52,7 @@ def test_streetlights_follow_corridor(platform):
 
 
 def test_store_validation():
-    s = Store(":memory:")
+    s = Store()
     with pytest.raises(ValidationError):
         s.upsert(S.WORKERS, {"Worker_ID": "W1", "Bogus": 1}, {"type": "Point", "coordinates": [46, 24]})
     with pytest.raises(ValidationError):
@@ -74,36 +74,21 @@ def test_reset_regenerates(platform):
     assert platform.store.get(S.WORKERS, "WRK-001")["attrs"]["Open_Tasks"] == 0
 
 
-def test_incomplete_database_is_regenerated(tmp_path):
-    from backend.platform import Platform
-    from config.settings import Settings
-    db = str(tmp_path / "x.sqlite")
-    s = Settings(db_path=db, evidence_dir=str(tmp_path / "ev"))
-    p = Platform(settings=s, db_path=db)
-    n0 = p.store.count(S.TELEMETRY)
-    assert n0 > 150
-    for f in p.store.all(S.TELEMETRY):  # simulate an interrupted generation: assets present, telemetry gone, no completion marker
-        p.store.delete(S.TELEMETRY, f["id"])
-    p.store.delete(S.CONFIG, "meta.complete")
-    p2 = Platform(settings=s, db_path=db)
-    assert p2.store.count(S.TELEMETRY) == n0
+def test_generation_reaches_the_system_of_record_as_one_request_per_layer():
+    """Thousands of rows are generated; the record gets them layer by layer, never row by row."""
+    single, many = [], []
 
+    class Spy(Store):
+        def _persist(self, layer, op, fid, attrs, geom):
+            single.append(layer)
 
-def test_mirror_is_muted_during_generation_and_skips_bulk_layers(tmp_path):
-    from backend.gis.store import Store
-    calls = []
-
-    class Spy:
-        def apply(self, layer, op, fid, attrs, geom):
-            calls.append(layer)
-    st = Store(":memory:")
-    st.attach_mirror(Spy())
-    with st.muted():
-        synthetic.generate(st, 3)
-    assert calls == []
-    st.upsert(S.SENSORS, {"Reading_ID": "R1"}, None) if False else None
-    st.upsert(S.WORKERS, {"Worker_ID": "WRK-900"}, {"type": "Point", "coordinates": [46.7, 24.7]})
-    assert calls == [S.WORKERS]
+        def _persist_many(self, layer, rows):
+            many.append(layer)
+    st = Spy()
+    with st.batch():
+        counts = synthetic.generate(st, 3)
+    assert single == [] and len(many) == len(set(many))                 # one request per layer
+    assert S.SENSORS in many and S.INFRA in many and counts[S.SENSORS] >= 1000
 
 
 def test_tools_report_empty_data_clearly(ctx, platform):
@@ -111,40 +96,3 @@ def test_tools_report_empty_data_clearly(ctx, platform):
     platform.store.clear([S.TELEMETRY])
     r = R.execute(ctx, "predict_streetlight_failures", {})
     assert not r["ok"] and "reset the demo" in r["error"]
-
-
-def test_background_mirror_does_not_block_and_collapses_repeated_writes():
-    import threading
-    import time
-    from backend.gis.store import Store
-    gate = threading.Event()
-    sent = []
-
-    class Slow:
-        def apply(self, layer, op, fid, attrs, geom):
-            gate.wait(5)
-            sent.append((layer, fid, attrs.get("Open_Tasks")))
-    st = Store(":memory:")
-    st.attach_mirror(Slow(), background=True)
-    t0 = time.perf_counter()
-    st.upsert(S.WORKERS, {"Worker_ID": "WRK-900", "Open_Tasks": 0}, {"type": "Point", "coordinates": [46.7, 24.7]})
-    for n in range(1, 6):
-        st.update(S.WORKERS, "WRK-900", Open_Tasks=n)
-    assert time.perf_counter() - t0 < 0.5 and sent == []          # the caller never waited for the (blocked) mirror
-    assert st.get(S.WORKERS, "WRK-900")["attrs"]["Open_Tasks"] == 5
-    gate.set()
-    assert st.flush_mirror(5) and st.mirror_pending == 0
-    assert sent[-1] == (S.WORKERS, "WRK-900", 5) and len(sent) <= 3   # repeated edits collapsed; the newest value is what arrives
-
-
-def test_background_mirror_reports_failures_without_breaking_local_state():
-    from backend.gis.store import Store
-
-    class Broken:
-        def apply(self, *a):
-            raise RuntimeError("offline")
-    st = Store(":memory:")
-    st.attach_mirror(Broken(), background=True)
-    st.upsert(S.WORKERS, {"Worker_ID": "WRK-901"}, {"type": "Point", "coordinates": [46.7, 24.7]})
-    assert st.flush_mirror(5)
-    assert st.get(S.WORKERS, "WRK-901") and any("offline" in e for e in st.mirror_errors)
