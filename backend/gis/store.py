@@ -228,7 +228,9 @@ class Store:
         with self._lock:
             self._persist_clear(names)
             if names is None:
+                keep = {n: r for n, r in self._rows.items() if n in LAYERS and LAYERS[n].static}   # reference layers are not demo data
                 self._rows.clear()
+                self._rows.update(keep)
                 self._counters.clear()
                 self._files.clear()
                 self._journal = []
@@ -361,6 +363,11 @@ class ArcGISStore(Store):
 
     # -- loading -----------------------------------------------------------------
     def _fetch(self, layer: str) -> list[dict]:
+        if LAYERS[layer].static:
+            exists = getattr(self.gw, "exists", None)
+            if exists and not exists(layer):   # reference layers are optional: without them the app reads the files in data/mobility
+                log.warning("the reference layer %s is not in ArcGIS Online yet (scripts/create_feature_layers.py, then scripts/publish_reference_layers.py)", self.gw.title(layer))
+                return []
         if layer == self.AUDIT_LAYER:        # the audit log only grows: the working copy holds the recent part, the counter still follows the highest id
             cutoff = (datetime.now(timezone.utc) - timedelta(days=self.audit_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
             return self.gw.rows(layer, newer_than=("Timestamp", cutoff))
@@ -459,7 +466,7 @@ class ArcGISStore(Store):
         return dict(zip(add_ids, oids))
 
     def _persist_clear(self, layers):
-        for layer in (layers if layers is not None else list(LAYERS)):
+        for layer in (layers if layers is not None else [n for n, d in LAYERS.items() if not d.static]):
             try:
                 self.gw.truncate(layer)
             except Exception as exc:
@@ -485,6 +492,7 @@ class ArcGISStore(Store):
         changed: dict[str, list[str]] = {}
         tracked = getattr(self.gw, "tracks_edits", None)
         names = [n for n in LAYERS if n != self.AUDIT_LAYER                     # the audit log is written only by this app
+                 and not LAYERS[n].static                                       # reference layers are read once, at start-up
                  and not (tracked and not tracked(n) and not reconcile and n not in self.FIELD_LAYERS)]   # no EditDate: read in full, on every fourth call only
         got = self._parallel(lambda n: (self.gw.rows(n, since_ms=self._since.get(n, 0)), self.gw.ids(n) if reconcile else None), names)
         for layer in names:

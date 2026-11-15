@@ -4,6 +4,7 @@
     python scripts/initialize_demo.py --apply    # DELETES every row of the CityView layers, then loads the demo data
 
 --apply has the same effect as the Reset demo button. It removes rows; it never removes a layer, a field or an item.
+The mobility reference layers (roads, metro, bus, emergency facilities) are not touched.
 Stop the app first: only one server may work on the layers at a time.
 """
 import argparse
@@ -18,11 +19,14 @@ from backend.services import synthetic  # noqa: E402
 from config.settings import load_settings  # noqa: E402
 
 
+DEMO_LAYERS = [n for n, d in S.LAYERS.items() if not d.static]   # the mobility reference layers are filled by publish_reference_layers.py and never emptied here
+
+
 def planned_counts(seed: int) -> dict[str, int]:
     """Row count per layer of the demo data, worked out in memory. Nothing is sent anywhere."""
     st = Store()
     synthetic.generate(st, seed)
-    return {name: st.count(name) for name in S.LAYERS}
+    return {name: st.count(name) for name in DEMO_LAYERS}
 
 
 def main(argv=None, gateway=None, settings=None) -> int:
@@ -42,7 +46,7 @@ def main(argv=None, gateway=None, settings=None) -> int:
     if not args.apply:
         print(f"  {'layer':46s} {'rows now':>9s} {'rows after':>11s}")
         total_now = 0
-        for name in S.LAYERS:
+        for name in DEMO_LAYERS:
             now = len(gateway.ids(name))
             total_now += now
             print(f"  {gateway.title(name):46s} {now:9d} {want[name]:11d}")
@@ -61,7 +65,7 @@ def main(argv=None, gateway=None, settings=None) -> int:
     try:
         p.reset()
         print(f"  {'layer':46s} {'rows in ArcGIS Online':>22s}")
-        for name in S.LAYERS:
+        for name in DEMO_LAYERS:
             n = len(gateway.ids(name))                     # read back from the record, not from memory
             if n:
                 print(f"  {gateway.title(name):46s} {n:22d}")

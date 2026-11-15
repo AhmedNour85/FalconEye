@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
+from backend.gis import schema as S
 from backend.mobility import sources
 
-ROADS, METRO_LINES, METRO_STATIONS = "Riyadh_Roads", "Riyadh_Metro_Lines", "Riyadh_Metro_Stations"
-BUS_ROUTES, BUS_STOPS, FACILITIES = "Riyadh_Bus_Routes", "Riyadh_Bus_Stops", "Riyadh_Emergency_Facilities"
+ROADS, METRO_LINES, METRO_STATIONS = S.ROADS, S.METRO_LINES, S.METRO_STATIONS
+BUS_ROUTES, BUS_STOPS, FACILITIES = S.BUS_ROUTES, S.BUS_STOPS, S.EMERGENCY
 STATIC_LAYERS = (ROADS, METRO_LINES, METRO_STATIONS, BUS_ROUTES, BUS_STOPS, FACILITIES)
 
 OSM = "OSM-REAL (c) OpenStreetMap contributors, ODbL"

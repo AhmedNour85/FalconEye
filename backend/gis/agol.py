@@ -27,6 +27,7 @@ NUMERIC = {
     "Diameter", "Length_M", "Pressure", "Flow", "Power_Consumption", "Confidence", "Risk_Score", "Base_Risk_Score",
     "Area_Sqm", "Mean_Magnitude", "Indicator_Value", "Distance_To_Detection_M", "Open_Tasks", "Rated_Power_W",
     "Avg_Power_W", "Power_Trend_Pct", "Flicker_30d", "Comm_Loss_Pct", "Faults_12m", "Days_Since_Maintenance", "Age_Years", "Lon", "Lat",
+    "Lanes", "Speed_Limit", "Length_Km", "Beds", "Sequence",
 }
 LONG_TEXT = {"Evidence", "Payload", "Result", "Instructions", "Observation", "Description", "Summary", "Input_Summary",
              "Output_Summary", "Notes", "Detection_IDs", "Value", "Field_Comment", "Trail", "Message"}
@@ -37,6 +38,7 @@ GEOM = {"Point": "esriGeometryPoint", "Polyline": "esriGeometryPolyline", "Polyg
 BATCH = 200
 TAGS = ["CityView-Riyadh", "SYNTHETIC-DEMO"]
 SNIPPET = "Riyadh City View demo layer. Synthetic or modelled data, not real government data."
+REFERENCE_TAGS = ["CityView-Riyadh", "REFERENCE"]
 
 
 def _field_def(name: str) -> dict:
@@ -73,7 +75,7 @@ def definition(d: LayerDef) -> dict:
     """The hosted layer (or table) definition for one layer of the data model. Editor tracking is a setting of the service, not of the
     layer: it is switched on with an update of the service definition after the layer exists (see ArcGISGateway._define)."""
     base = {
-        "name": d.name, "objectIdField": "OBJECTID", "hasAttachments": d.geometry is not None,
+        "name": d.name, "objectIdField": "OBJECTID", "hasAttachments": d.geometry is not None and not d.static,
         "fields": [{"name": "OBJECTID", "type": "esriFieldTypeOID", "alias": "OBJECTID", "nullable": False}]
         + [_field_def(f) for f in d.fields if not f.startswith("esritask_")],
         "capabilities": "Query,Create,Update,Delete,Editing,Uploads",
@@ -137,8 +139,14 @@ class ArcGISGateway:
                 plan.append(step)
                 if not dry_run:
                     item = self.gis.content.create_service(self.title(name), service_type="featureService", has_static_data=False, wkid=4326,
-                                                           capabilities="Query,Create,Update,Delete,Editing,Uploads", tags=TAGS, snippet=SNIPPET)
+                                                           capabilities="Query,Create,Update,Delete,Editing,Uploads", tags=REFERENCE_TAGS if d.static else TAGS,
+                                                           snippet=f"Riyadh City View reference layer. {d.credit}" if d.static else SNIPPET)
                     step["item_id"] = item.id
+                    if d.credit and hasattr(item, "update"):
+                        try:                               # the credit line of the item; the layer works without it
+                            item.update(item_properties={"accessInformation": d.credit})
+                        except Exception as exc:
+                            log.warning("could not set the credit on %s: %s", self.title(name), exc)
                     self.warm()[self.title(name)] = item      # a new item is not in the search index straight away: remember it here
                     self._define(item, d)
                 continue
@@ -175,6 +183,11 @@ class ArcGISGateway:
         self._collection(item).manager.update_definition({"editorTrackingInfo": dict(TRACKING)})
         self._forget(name)
         return self.tracks_edits(name)
+
+    def exists(self, name: str) -> bool:
+        """Whether the hosted service of this layer is there and has its layer or table."""
+        item = self._item(name)
+        return item is not None and bool(item.layers or item.tables)
 
     def layer(self, name: str):
         if name not in self._layers:

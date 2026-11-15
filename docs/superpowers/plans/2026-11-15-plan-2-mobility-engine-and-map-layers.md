@@ -18,7 +18,7 @@
 - Every number on screen comes from the engine, never from a language model.
 - Traffic is labelled "Modelled". Metro and bus data carry the RCRC credit. Hospital positions are labelled approximate.
 - Tests use the 73-segment skeleton network and never contact ArcGIS Online.
-- Reference layers are static: Reset demo never empties them, and the 15-second refresh does not read them.
+- Reference layers are static: Reset demo never empties them, and the 15-second refresh does not read them. They are read once, at start-up. The app starts without them and then reads the files in `data/mobility`.
 - Each account change is a dry run first and is applied only after the user says yes.
 - ArcGIS Maps SDK for JavaScript stays at 4.30 in this plan (see Task 7, step 1 for the version check the spec asks for).
 
@@ -124,7 +124,7 @@ def new_id(prefix: str) -> str; def upsert_many(kind: str, rows: list[dict]) -> 
 **Interfaces:**
 - Produces: layers `Riyadh_Roads`, `Riyadh_Metro_Lines`, `Riyadh_Metro_Stations`, `Riyadh_Bus_Routes`, `Riyadh_Bus_Stops`, `Riyadh_Emergency_Facilities`; `LayerDef.static: bool`; `python scripts/publish_reference_layers.py [--apply]`.
 
-- [ ] **Step 1:** Write the failing tests: Reset demo on the stand-in leaves the six static layers untouched; a refresh sends no request for a static layer except on the fourth call; the publish script's dry run writes nothing and prints the row count per layer; with the hosted road layer filled, `sources.load_network()` reports `source == "arcgis"` and the same segment count.
+- [ ] **Step 1:** Write the failing tests: Reset demo on the stand-in leaves the six static layers untouched; a refresh never sends a request for a static layer (changed while building: reading 11,000 road ids every minute to notice an edit to reference data is not worth it; a restart reads them); the publish script's dry run writes nothing and prints the row count per layer; with the hosted road layer filled, `sources.load_network()` reports `source == "arcgis"` and the same segment count.
 - [ ] **Step 2:** Implement, run the tests, commit.
 - [ ] **Step 3:** Run `scripts/create_feature_layers.py` and `scripts/publish_reference_layers.py` as dry runs, show the user, **stop for a yes**, then apply and read the counts back.
 

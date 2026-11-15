@@ -20,6 +20,7 @@ class FakeGateway:
         self._fail_exc: Exception | None = None
         self._oid = 0
         self.clock_ms = 1_000
+        self.missing: set[str] = set()                        # layers whose hosted service does not exist
 
     # ---- test controls ------------------------------------------------------------------------------------
     def fail_after(self, n: int | None, exc: Exception | None = None) -> None:
@@ -67,6 +68,9 @@ class FakeGateway:
     # ---- the gateway interface ------------------------------------------------------------------------------
     def title(self, layer: str) -> str:
         return f"{self.prefix}_{layer}"
+
+    def exists(self, layer: str) -> bool:
+        return layer not in self.missing
 
     def rows(self, layer: str, since_ms: int | None = None, newer_than: tuple[str, str] | None = None) -> list[dict]:
         self.requests.append(("rows", layer))

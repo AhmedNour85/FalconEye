@@ -33,6 +33,19 @@ CITIZEN = "Riyadh_Citizen_Reports"  # NCCC feed: geotagged reports from resident
 
 NOTIFICATIONS = "Riyadh_Notifications"  # NCCC alert feed raised by the digital crew (local, not mirrored)
 
+# Mobility reference layers. STATIC: published once by scripts/publish_reference_layers.py, read at start-up,
+# never emptied by Reset demo and not part of the 15-second refresh.
+ROADS = "Riyadh_Roads"
+METRO_LINES = "Riyadh_Metro_Lines"
+METRO_STATIONS = "Riyadh_Metro_Stations"
+BUS_ROUTES = "Riyadh_Bus_Routes"
+BUS_STOPS = "Riyadh_Bus_Stops"
+EMERGENCY = "Riyadh_Emergency_Facilities"
+
+OSM_CREDIT = "(c) OpenStreetMap contributors, ODbL. Main roads only."
+RCRC_CREDIT = "Source: Royal Commission for Riyadh City (RCRC) open data, KSA Open Data License"
+APPROX_CREDIT = "Approximate reference positions; bed counts are placeholders. Not official data."
+
 SYNTHETIC = "SYNTHETIC-DEMO"
 SIMULATED = "SIMULATED-PROCESSING"
 REFERENCE = "REFERENCE-APPROXIMATE"
@@ -47,10 +60,12 @@ class LayerDef:
     id_field: str
     fields: tuple[str, ...]
     internal: bool = False
+    static: bool = False   # reference data: loaded once, never emptied by a reset, never refreshed
+    credit: str = ""       # attribution shown on the hosted item
 
 
-def _l(name, geom, id_field, fields, internal=False):
-    return LayerDef(name, geom, id_field, tuple([id_field] + [f for f in fields if f != id_field]), internal)
+def _l(name, geom, id_field, fields, internal=False, static=False, credit=""):
+    return LayerDef(name, geom, id_field, tuple([id_field] + [f for f in fields if f != id_field]), internal, static, credit)
 
 
 LAYERS: dict[str, LayerDef] = {
@@ -96,6 +111,13 @@ LAYERS: dict[str, LayerDef] = {
         _l(CITIZEN, "Point", "Report_ID", ["Category", "Title", "Description", "Channel", "Reported_At", "Status", "Area_Name", "Linked_Incident", "Data_Classification"], internal=True),
         _l(NOTIFICATIONS, None, "Notif_ID", ["Kind", "Severity", "Title", "Message", "Agent", "Trail", "Ref_ID", "Incident_ID", "Approval_ID", "Area_Name",
                                              "Lon", "Lat", "Status", "Created", "Updated"], internal=True),
+        _l(ROADS, "Polyline", "Segment_ID", ["Name", "Corridor", "Road_Class", "Lanes", "Speed_Limit", "Length_Km", "From_Node", "To_Node", "Oneway", "Osm_Name",
+                                             "Data_Classification"], static=True, credit=OSM_CREDIT),
+        _l(METRO_LINES, "Polyline", "Line_ID", ["Name", "Name_AR", "Color", "Terminals", "Terminals_AR", "Data_Classification"], static=True, credit=RCRC_CREDIT),
+        _l(METRO_STATIONS, "Point", "Station_ID", ["Station_Code", "Name", "Name_AR", "Line_ID", "Line_Name", "Station_Type", "Data_Classification"], static=True, credit=RCRC_CREDIT),
+        _l(BUS_ROUTES, "Polyline", "Route_ID", ["Route_No", "Direction", "Origin", "Destination", "Origin_AR", "Destination_AR", "Data_Classification"], static=True, credit=RCRC_CREDIT),
+        _l(BUS_STOPS, "Point", "Stop_ID", ["Name", "Name_AR", "Shelter", "Route_ID", "Direction", "Sequence", "Data_Classification"], static=True, credit=RCRC_CREDIT),
+        _l(EMERGENCY, "Point", "Facility_ID", ["Name", "Kind", "Beds", "Note", "Data_Classification"], static=True, credit=APPROX_CREDIT),
     ]
 }
 

@@ -27,7 +27,7 @@ from config.settings import ROOT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-PUBLIC_LAYERS = [n for n, d in S.LAYERS.items() if not d.internal and d.geometry]
+PUBLIC_LAYERS = [n for n, d in S.LAYERS.items() if not d.internal and d.geometry and not d.static]   # the mobility reference layers have their own routes
 
 
 class ChatIn(BaseModel):
