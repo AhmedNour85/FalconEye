@@ -95,7 +95,7 @@ Created and filled after the account owner's yes, each step shown as a dry run f
 | Creating the six layers (`create_feature_layers.py --apply`) | 229 s. `CityView_Riyadh_Roads`, `_Metro_Lines`, `_Metro_Stations`, `_Bus_Routes`, `_Bus_Stops`, `_Emergency_Facilities`. All private. The 22 existing layers were reported "exists, no change". |
 | Filling them (`publish_reference_layers.py --apply`) | 113 s in all; 14,226 rows added, none deleted. Roads 10,986 rows in 56 s; bus stops 3,010 in 19 s; the other four 2 to 4 s each. |
 | Read back | A second dry run reads the counts from ArcGIS Online: 10,986 / 6 / 94 / 117 / 3,010 / 13, every layer "up to date, no change". |
-| Start-up with 28 layers (19,668 rows) | 17 s from sign-in to the server answering (it was 12 s for 22 layers and 5,442 rows). With sign-in, roughly 27 s; the moment the process started was not logged, so that figure is an estimate. |
+| Start-up with 28 layers (about 19,700 rows) | 17 s from sign-in to the server answering (it was 12 s for 22 layers and 5,442 rows). With sign-in, roughly 27 s; the moment the process started was not logged, so that figure is an estimate. |
 | Traffic model after start-up | Ready 22.8 s later, built from the hosted roads layer (`source: arcgis`, 10,986 road sections, 7,939 junctions). |
 | Same result as from the files | 03:00: 2 road sections slow or worse, 79.8 km/h. 08:00: 597, 48.2 km/h. Identical to the run on the files. |
 | Map layers | Each answer reports `read_from: arcgis`: 6 metro lines, 94 stations, 117 bus routes, 3,010 stops, 8 hospitals. Both pages draw them; no page errors. |
