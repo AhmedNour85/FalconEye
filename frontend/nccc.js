@@ -410,6 +410,10 @@ function initMap() {
     let three = false; try { three = localStorage.getItem("geoai.map3d") === "1"; } catch (e) { /* 2D by default */ }
     const view = makeView(three);
     M = { view, map, layer, rep, sel, chg, Graphic, MapView, SceneView, makeView, wire, three };
+    if (window.Mobility) {                                  // traffic (modelled), metro, bus and hospitals: off until switched on
+      if (matchMedia("(max-width:640px)").matches) $("#maplayers").open = false;
+      M.mob = Mobility.attach({ map, GraphicsLayer, Graphic, panel: $("#maplayers"), host: document.querySelector(".mapbox") });
+    }
     wire(view); showMapMode();
     let on = false; try { on = localStorage.getItem("geoai.layer.change") === "1"; } catch (e) { /* off by default */ }
     $("#l-change").checked = on; chg.visible = on;

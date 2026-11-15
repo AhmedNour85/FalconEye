@@ -181,7 +181,17 @@
     "Water sensors": "حسّاسات المياه", "Streetlights & poles": "إنارة الشوارع والأعمدة", "Satellite imagery": "صور الأقمار الصناعية", "Visual distortion (imagery)": "التشوّه البصري (صور)",
     "Land use / zoning": "استخدام الأراضي / التقسيم", "Citizen reports": "بلاغات المواطنين",
     "Water": "مياه", "Streetlight": "إنارة", "Distortion": "تشوّه", "Land use": "استخدام الأراضي",
-    "fault": "عطل", "change": "تغيّر", "dispatch": "تكليف", "digest": "موجز", "verified": "تحقق", "closure": "إغلاق", "accepted": "قبول", "field_done": "إنجاز ميداني", "corroboration": "تعزيز"
+    "fault": "عطل", "change": "تغيّر", "dispatch": "تكليف", "digest": "موجز", "verified": "تحقق", "closure": "إغلاق", "accepted": "قبول", "field_done": "إنجاز ميداني", "corroboration": "تعزيز",
+    // mobility map layers (mobility.js)
+    "Mobility layers": "طبقات التنقل", "Traffic": "حركة المرور", "Metro": "المترو", "Bus": "الحافلات", "Hospitals": "المستشفيات", "Hour": "الساعة",
+    "Traffic at {h}": "حركة المرور عند {h}", "Free": "انسيابي", "Slow": "بطيء", "Heavy": "مزدحم", "Stop-and-go": "شبه متوقف",
+    "Modelled": "نموذج محاكاة", "calculated from the road network and synthetic demand, not measured": "محسوبة من شبكة الطرق وطلب افتراضي، وليست قياسات فعلية",
+    "{n} road sections slow or worse": "{n} مقطع طريق بطيء أو أسوأ", "average speed {v} km/h": "متوسط السرعة {v} كم/س",
+    "Roads": "الطرق", "Metro and bus": "المترو والحافلات",
+    "Royal Commission for Riyadh City (RCRC) open data, KSA Open Data License": "البيانات المفتوحة للهيئة الملكية لمدينة الرياض، رخصة البيانات المفتوحة في المملكة العربية السعودية",
+    "Bus stops appear when you zoom in": "تظهر مواقف الحافلات عند تقريب الخريطة", "approximate positions": "مواقع تقريبية", "Map sources": "مصادر الخريطة","approximate position": "موقع تقريبي",
+    "Building the traffic model… {n} of 24 hours ready": "جارٍ بناء نموذج المرور… {n} من 24 ساعة جاهزة", "Could not load this layer: {m}": "تعذّر تحميل هذه الطبقة: {m}",
+    "Metro station": "محطة مترو", "Hospital": "مستشفى"
   };
   AR["change"] = "التغيّر";
 

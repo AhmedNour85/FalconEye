@@ -4,13 +4,15 @@ One command center for Riyadh that covers city services and mobility together: a
 
 It is built from two earlier projects, `Agentic_AI_City` (concept, workflow, crew) and `Agentic_AI_Transportation` (mobility). **ArcGIS Online is the system of record. There is no local database.**
 
-## Status (2026-11-15)
+## Status (2026-11-16)
 
 | Part | State |
 |---|---|
 | The four city-service use cases (water leak, streetlights and poles, visual distortion, land use) | Working. Carried over from `Agentic_AI_City`. |
 | ArcGIS Online as the system of record | Working. 22 hosted layers titled `CityView_*` exist in the account and hold the demo data; the app runs on them. Measurements and live checks: `docs/arcgis_checks.md`. |
-| Mobility (traffic, closures, events), the three new crew members, the cross-domain link | Not started. |
+| Mobility engine and map layers | Working. The traffic model from `Agentic_AI_Transportation` runs on the Riyadh road network (10,986 road sections) and both pages show Traffic by hour, Metro, Bus and Hospitals as map layers, off until ticked. Traffic is **modelled**, not measured, and the map says so. |
+| Reference layers in ArcGIS Online (roads, metro lines and stations, bus routes and stops, emergency facilities) | Defined, not created yet. Until the six `CityView_Riyadh_*` layers exist and are filled (`scripts/publish_reference_layers.py`), the app reads the same data from `data/mobility`. |
+| Mobility events (closures, congestion, events), the three new crew members, the cross-domain link | Not started. |
 | ArcGIS Field Maps tasks on the new layers | Not started. The City project's scripts are carried over and now refuse any web map without the `CityView` prefix. |
 
 Design: `docs/superpowers/specs/2026-11-15-riyadh-city-view-design.md`. Build plan: `docs/superpowers/plans/`. What was checked against Esri documentation: `docs/arcgis_checks.md`.
@@ -22,7 +24,7 @@ Design: `docs/superpowers/specs/2026-11-15-riyadh-city-view-design.md`. Build pl
 - Every change is made in ArcGIS Online first. It counts as done only when ArcGIS Online confirms it. A refused change changes nothing and the operator sees the reason.
 - Edits made in ArcGIS Online itself (Field Maps, Map Viewer) are picked up every 15 seconds; deletions within 60 seconds.
 - One server at a time works on the layers. A second one refuses to start.
-- The app never fills or empties the layers by itself. Only **Reset demo** and `scripts/initialize_demo.py --apply` delete rows.
+- The app never fills or empties the layers by itself. Only **Reset demo** and `scripts/initialize_demo.py --apply` delete rows, and neither touches the reference layers (roads, metro, bus, emergency facilities). Those are filled by `scripts/publish_reference_layers.py --apply`, which only fills an empty layer unless `--replace` is given.
 - The layer prefix `GeoAIOps` (the `Agentic_AI_City` layers) is refused.
 
 ## Set up (Windows, Python 3.10 to 3.13)
@@ -54,6 +56,10 @@ Each script below that changes the account is a **dry run** unless you add `--ap
 ```
 
 ```bash
+.venv\Scripts\python.exe scripts\publish_reference_layers.py
+```
+
+```bash
 .venv\Scripts\python.exe -m backend.main
 ```
 
@@ -71,8 +77,10 @@ Set `GEOAI_STORE=memory`. The app generates demo data in memory and keeps nothin
 
 ## Where things are
 
-`backend/gis/store.py` working copy and the ArcGIS Online store · `backend/gis/agol.py` ArcGIS Online gateway · `backend/orchestration/crew.py` the digital crew · `backend/tools/` the validated tools · `backend/workflows/` approvals and actions · `backend/services/` detection, imagery, simulation, learning · `frontend/` the pages · `scripts/` account setup · `tests/fakes.py` the stand-in for the hosted layers.
+`backend/gis/store.py` working copy and the ArcGIS Online store · `backend/gis/agol.py` ArcGIS Online gateway · `backend/orchestration/crew.py` the digital crew · `backend/tools/` the validated tools · `backend/workflows/` approvals and actions · `backend/services/` detection, imagery, simulation, learning · `backend/mobility/` the traffic model, its data sources and the map layers' data · `data/mobility/` road network and RCRC reference files · `frontend/` the pages (`frontend/mobility.js` the mobility map layers) · `scripts/` account setup · `tests/fakes.py` the stand-in for the hosted layers.
 
 ## Data honesty
 
 Operational data is synthetic and imagery processing is simulated, labelled as such on screen, as in `Agentic_AI_City`. Roads and building footprints come from OpenStreetMap (c) OpenStreetMap contributors, ODbL.
+
+Traffic is calculated by a model from the road network and a synthetic demand profile; nothing is measured, and the map legend says "Modelled". Metro and bus lines, stations and stops come from Royal Commission for Riyadh City (RCRC) open data under the KSA Open Data License. Hospital and ambulance-station positions are approximate and bed counts are placeholders. Sources and licences: `data/mobility/NOTICE.md`.

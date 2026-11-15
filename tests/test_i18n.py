@@ -112,7 +112,7 @@ def test_every_translated_call_has_an_arabic_entry():
     have = _dictionary()
     assert len(have) > 250
     missing = []
-    for f in ("nccc.js", "strategic_dashboard.js", "field.html"):
+    for f in ("nccc.js", "strategic_dashboard.js", "field.html", "mobility.js"):
         src = (ROOT / "frontend" / f).read_text(encoding="utf-8")
         for m in re.finditer(r'\bT\(\s*"((?:[^"\\]|\\.)*)"', src):
             key = m.group(1).replace('\\"', '"')
@@ -122,6 +122,16 @@ def test_every_translated_call_has_an_arabic_entry():
             if m.group(1) not in have:
                 missing.append((f, m.group(1)))
     assert not missing, missing[:10]
+
+
+def test_the_mobility_layer_names_and_static_labels_have_arabic():
+    have = _dictionary()
+    for key in ("Mobility layers", "Traffic", "Metro", "Bus", "Hospitals", "Free", "Slow", "Heavy", "Stop-and-go", "Modelled"):   # passed to T() as variables or written in the HTML
+        assert key in have, key
+    for page in ("index.html", "strategic_dashboard.html"):
+        html = (ROOT / "frontend" / page).read_text(encoding="utf-8")
+        assert "mobility.js" in html and "mobility.css" in html, page
+        assert html.index("mobility.js") < html.index("nccc.js" if page == "index.html" else "strategic_dashboard.js"), page
 
 
 # ---------------------------------------------------------------- the offline planner in Arabic

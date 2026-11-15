@@ -72,6 +72,42 @@ A batch holds the store until it ends, so a write from another thread waits and 
 
 Not checked live: cutting the network during a write (covered by tests on the stand-in only), and a photo attachment.
 
+## Mobility layers on the map (2026-11-16)
+
+Checked in the browser on the development server without ArcGIS Online (`GEOAI_STORE=memory`), with the full road network read from `data/mobility/network.json.gz` (10,986 road sections, 7,939 junctions). One run each.
+
+| Item | Result |
+|---|---|
+| Traffic model built after start-up (24 hours, in the background) | 24.8 s. Until it is ready the page says "Building the traffic model… n of 24 hours ready" and tries again every 3 s. |
+| Traffic layer on the map after the box is ticked | About 1.1 s the first time (roads and one hour are fetched); a new hour redraws in under a second. |
+| What is drawn | One drawing for all roads in the "free" colour, plus at most three more (slow, heavy, stop-and-go) per hour. 4 drawings, not 10,986. |
+| Hour slider | 03:00: 2 road sections slow or worse, average speed 79.8 km/h. 12:00: 428. 08:00 and 17:00: 597, average speed 48.2 km/h (both peaks use the same demand factor, 1.0, so they are equal by design). |
+| Metro, Bus, Hospitals | 6 lines and 94 stations; 117 routes in one drawing and 3,010 stops in one drawing (shown when zoomed in); 8 hospitals. Each loads when first ticked. |
+| Pages and languages | Operation page and Executive Hub, English and Arabic (right-to-left), at 1440 px wide; Operation page also at 375 px wide. |
+| Console errors | None in six page loads with every layer switched on and off and the slider moved. |
+
+Not checked: the same layers read from ArcGIS Online. The six `CityView_Riyadh_*` reference layers do not exist in the account yet; until they do, the app reads the files in `data/mobility`, in both store modes. Start-up time with the 14,226 extra hosted rows is therefore not measured.
+
+## ArcGIS Maps SDK for JavaScript version (checked 2026-11-16)
+
+The pages load version **4.30** from Esri's CDN with `require([...])`. No upgrade was made. Esri's release notes say:
+
+| Fact | Source |
+|---|---|
+| The current release is 5.2 (November 2026). 5.0 came out on 24 February 2026 and is the first release with semantic versioning. | [Release notes for 5.2](https://developers.arcgis.com/javascript/latest/release-notes/), [Release notes for 5.0](https://developers.arcgis.com/javascript/latest/v5-0/) |
+| From 5.0 the CDN address is one module script; the script tag needs `type="module"`. `require()` (AMD) is deprecated in 5.0 and is to be removed in 6.0; `$arcgis.import` replaces it. | [Release notes for 5.0](https://developers.arcgis.com/javascript/latest/v5-0/), [5.0 release announcement](https://community.esri.com/t5/arcgis-javascript-maps-sdk-blog/arcgis-maps-sdk-for-javascript-version-5-0-release/ba-p/1686211) |
+| 5.2 is the last release with widgets and with the view's own popup and UI. 6.0 (planned for Q1 2027) removes them; Esri recommends the `arcgis-map` and `arcgis-scene` components instead of `MapView` and `SceneView`. | [Release notes for 5.2](https://developers.arcgis.com/javascript/latest/release-notes/), [Widget deprecation](https://support.esri.com/en-us/knowledge-base/deprecation-widgets-in-arcgis-maps-sdk-for-javascript-000040437) |
+
+What moving this project from 4.30 would need:
+
+1. Both pages (`frontend/index.html`, `frontend/strategic_dashboard.html`): the 5.x script tag with `type="module"`, and the dark theme stylesheet address for 5.x.
+2. `frontend/nccc.js` and `frontend/strategic_dashboard.js`: `require([...], callback)` replaced by `$arcgis.import`. They use `esri/Map`, `esri/views/MapView`, `esri/views/SceneView`, `esri/layers/GraphicsLayer`, `esri/Graphic`, and the Operation page also `esri/widgets/Search`.
+3. The Search widget replaced by the search component.
+4. To be ready for 6.0: `MapView`/`SceneView` (and the 2D/3D switch built on them) moved to the `arcgis-map` and `arcgis-scene` components, and the popups of incidents, metro stations and hospitals moved to the popup component.
+5. `frontend/mobility.js` uses only `GraphicsLayer` and `Graphic`, which it receives from the page, so it needs no change of its own.
+
+Steps 1 to 3 are enough for 5.x. Step 4 is the larger piece of work and is only forced by 6.0. Version 4.30 keeps working from the CDN in the meantime. This is a major change and will not be made without a review.
+
 ## Not confirmed yet
 
 | Item | Why it matters | When it is settled |
@@ -79,6 +115,7 @@ Not checked live: cutting the network during a write (covered by tests on the st
 | Attachments accepted and read back by ArcGIS Online | Investigator photos | Task 10, step 9: one photo sent and read back |
 | An API key in place of the stored password | The toolkit's sign-in guidance prefers it | Task 10, step 2, before the running server is switched |
 | Reset demo from the page, timed | It holds the store while it runs | Next session |
+| The six reference layers created and filled in ArcGIS Online; start-up time with them | Roads, metro, bus and emergency facilities are meant to be read from the system of record | After the account owner's yes to `create_feature_layers.py --apply` and `publish_reference_layers.py --apply` |
 
 ## Known limits
 

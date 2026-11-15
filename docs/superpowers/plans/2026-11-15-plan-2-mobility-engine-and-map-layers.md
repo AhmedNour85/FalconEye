@@ -137,6 +137,7 @@ def new_id(prefix: str) -> str; def upsert_many(kind: str, rows: list[dict]) -> 
 
 - [ ] **Step 1:** Read how `nccc.js` and `strategic_dashboard.js` create their maps and the Urban change checkbox, and follow that pattern.
 - [ ] **Step 2:** Add the layer checkboxes (Traffic, Metro, Bus, Hospitals, Planned closures), all off at start; an hour slider that shows only while Traffic is on; the traffic legend with the word "Modelled"; the RCRC credit while Metro or Bus is on.
+  - **Changed while building (2026-11-16):** the "Planned closures" checkbox is left out of this plan. No closure records exist until Plan 3 adds the closures layer; a checkbox that shows nothing would mislead. It is added in Plan 3 with the data. Also added: the legend box folds, and starts folded on a phone-width screen, where it covered the map; the folded line still reads "Modelled".
 - [ ] **Step 3:** Bus stops load only when Bus is switched on.
 - [ ] **Step 4:** English and Arabic strings for every new label.
 
