@@ -433,7 +433,7 @@ function initMap() {
     "esri/widgets/Search"
   ], (Map, MapView, SceneView, GraphicsLayer, Graphic, Search) => {
     const chg = new GraphicsLayer(), rep = new GraphicsLayer(), layer = new GraphicsLayer(), sel = new GraphicsLayer();
-    const map = new Map({ basemap: "gray-vector", layers: [chg, rep, layer, sel] });
+    const map = new Map({ basemap: (window.THEME ? THEME.basemap() : "gray-vector"), layers: [chg, rep, layer, sel] });
     const makeView = three => three
       ? new SceneView({ container: "map", map, camera: { position: [46.67, 24.54, 12000], tilt: 45 }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } })
       : new MapView({ container: "map", map, center: [46.68, 24.70], zoom: 11, constraints: { snapToZoom: false }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } });

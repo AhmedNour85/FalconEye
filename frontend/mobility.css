@@ -46,7 +46,7 @@ html.rtl .role .mob-info { left: 14px; }
 .life li i { display: block; height: 4px; border-radius: 2px; background: #d1d5db; margin-bottom: 3px; }
 .life li span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .life li.ls-done i { background: #1b8354; } .life li.ls-done { color: #4b5563; }
-.life li.ls-current i { background: #1570ef; } .life li.ls-current { color: #fff; font-weight: 600; }
+.life li.ls-current i { background: #1570ef; } .life li.ls-current { color: var(--text, #111827); font-weight: 600; }
 .life li.ls-stopped i { background: #d92d20; } .life li.ls-stopped { color: #b42318; font-weight: 600; }
 .life-note { margin: 2px 0 0; }
 @media (max-width: 640px) { .life li { font-size: 9px; } }

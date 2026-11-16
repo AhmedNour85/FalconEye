@@ -4,7 +4,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
   const { T, TV } = I18N;
   const $ = id => document.getElementById(id);
   const layers = { change: new GraphicsLayer(), inc: new GraphicsLayer() };
-  const map = new Map({ basemap: "gray-vector", layers: [layers.change, layers.inc] });
+  const map = new Map({ basemap: (window.THEME ? THEME.basemap() : "gray-vector"), layers: [layers.change, layers.inc] });
   if (window.Mobility) Mobility.attach({ map, GraphicsLayer, Graphic, panel: document.querySelector(".layers"), host: document.querySelector(".mapwrap"), view: () => view });   // traffic (modelled), metro, bus, hospitals
   // 2D map or 3D scene on the same layers; the choice is remembered
   const makeView = three => three

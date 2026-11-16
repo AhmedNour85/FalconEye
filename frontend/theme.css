@@ -1,0 +1,72 @@
+/* Dark mode. Only active when <html data-theme="dark"> (theme.js). Same green brand colour; surfaces turn dark, text turns light. */
+.theme-toggle{min-width:40px;font-size:16px;line-height:1}
+html[data-theme="dark"]{
+  --bg:#0e1511;--bg2:#131c17;--card:#17221c;--card2:#1e2b24;--line:#2d3e35;--tx:#e8f0eb;--mut:#a3b5ab;
+  --acc:#3cb87f;--acc2:#3cb87f;--crit:#ff6b5e;--high:#ff9a3d;--med:#f5b84a;--low:#5aa9ff;--ok:#3cb87f;
+  --sh:0 6px 18px rgba(0,0,0,.45);
+  --surface:#131c17;--surface-2:#17221c;--surface-3:#1e2b24;--border:#2d3e35;--border-strong:#4a6256;
+  --text:#e8f0eb;--muted:#a3b5ab;--on-accent:#04140c;--accent:#3cb87f;--accent-soft:rgba(60,184,127,.18);
+  --warn:#ff9a3d;--bad:#ff6b5e;--info:#5aa9ff;--bad-soft:rgba(255,107,94,.16);--warn-soft:rgba(255,154,61,.16);--info-soft:rgba(90,169,255,.16);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.55);--role-accent:#3cb87f;
+}
+html[data-theme="dark"] body{background:radial-gradient(1200px 500px at 70% -10%,#3cb87f1a,transparent),var(--bg)}
+html[data-theme="dark"] .top,html[data-theme="dark"] .role .top{background:linear-gradient(90deg,#10201a,#131c17 60%)}
+html[data-theme="dark"] .logo,html[data-theme="dark"] .role .brand .logo{stroke:#3cb87f}
+html[data-theme="dark"] .logo circle[fill]{fill:#3cb87f}
+html[data-theme="dark"] .brand span,html[data-theme="dark"] .role .brand span{color:var(--mut)}
+html[data-theme="dark"] .skip,html[data-theme="dark"] .btn.primary{color:#04140c}
+html[data-theme="dark"] .btn:hover,html[data-theme="dark"] select:hover{border-color:#6b8577}
+html[data-theme="dark"] .track{background:#4a6256}
+html[data-theme="dark"] .kpi.hot{border-color:#3cb87f77;background:linear-gradient(135deg,#1b3328,var(--card))}
+html[data-theme="dark"] .kpi.hot b,html[data-theme="dark"] .now.live,html[data-theme="dark"] .c-act .state,html[data-theme="dark"] .ai b,
+html[data-theme="dark"] .bell.on .mm,html[data-theme="dark"] .mapmode.on,html[data-theme="dark"] .activity b{color:#3cb87f}
+html[data-theme="dark"] .bell.on{border-color:#3cb87f}
+html[data-theme="dark"] .bell.on svg{stroke:#3cb87f}
+/* panels that were given fixed light colours */
+html[data-theme="dark"] .mob-info,html[data-theme="dark"] .maplayers,html[data-theme="dark"] .legend,html[data-theme="dark"] .maptoggle,
+html[data-theme="dark"] .mapmode,html[data-theme="dark"] .cmp-view .tag{background:#17221cf0;color:var(--tx)}
+html[data-theme="dark"] .answer,html[data-theme="dark"] .toast,html[data-theme="dark"] .bellmenu,html[data-theme="dark"] .pick{background:var(--card);color:var(--tx)}
+html[data-theme="dark"] .pl-f select,html[data-theme="dark"] .pl-f input,html[data-theme="dark"] .pl-note,html[data-theme="dark"] .tabs,
+html[data-theme="dark"] .agent-detail,html[data-theme="dark"] .ai,html[data-theme="dark"] .mob-clear,
+html[data-theme="dark"] textarea,html[data-theme="dark"] input[type=text],html[data-theme="dark"] input[type=number]{background:var(--card2);color:var(--tx)}
+html[data-theme="dark"] .agent-detail code{background:var(--bg)}
+html[data-theme="dark"] .bellmenu .bm-i{border-bottom-color:var(--line)}
+html[data-theme="dark"] .bellmenu .bm-i:hover{background:var(--card2)}
+html[data-theme="dark"] .updated{background:#17221c99;color:#8fdcb8}
+html[data-theme="dark"] .ask input::placeholder{color:#8da197}
+/* grey body text that was fixed for light backgrounds */
+html[data-theme="dark"] .pl-f>span,html[data-theme="dark"] .c-msg,html[data-theme="dark"] .trail li,html[data-theme="dark"] .fchip span,
+html[data-theme="dark"] .pick p,html[data-theme="dark"] .cmp-tools label,html[data-theme="dark"] .ai,html[data-theme="dark"] .pl-note,
+html[data-theme="dark"] .f-l,html[data-theme="dark"] .who,html[data-theme="dark"] .mob-clear,html[data-theme="dark"] .activity,
+html[data-theme="dark"] .mob-note,html[data-theme="dark"] .mob-credit{color:#cbd8d0}
+html[data-theme="dark"] .life li{color:#8da197}
+html[data-theme="dark"] .life li i{background:#3d5146}
+html[data-theme="dark"] .life li.ls-done{color:#cbd8d0}
+html[data-theme="dark"] .life li.ls-done i{background:#3cb87f}
+html[data-theme="dark"] .life li.ls-stopped{color:#ff8f84}
+html[data-theme="dark"] .life li.ls-stopped i{background:#ff6b5e}
+html[data-theme="dark"] table.strat th{color:#a3b5ab}
+html[data-theme="dark"] table.strat th,html[data-theme="dark"] table.strat td{border-bottom-color:var(--line)}
+html[data-theme="dark"] .mob-mod,html[data-theme="dark"] .mob-note b,html[data-theme="dark"] .mob-wait,html[data-theme="dark"] .fchip.alert span{color:#ffb86b}
+html[data-theme="dark"] .err{color:#ff8f84}
+/* tags and results */
+html[data-theme="dark"] .badge{background:#3d5146;color:#e8f0eb}
+html[data-theme="dark"] .badge.go,html[data-theme="dark"] .pl-res.ok{background:#17382a;color:#7fe0b0}
+html[data-theme="dark"] .badge.bad,html[data-theme="dark"] .pl-res.bad{background:#3d1d1a;color:#ff9a8f}
+html[data-theme="dark"] .badge.wait{background:#3d3015;color:#ffc766}
+html[data-theme="dark"] .d.rep{background:#cbd5e1}
+html[data-theme="dark"] .chg.minor{fill:#94a3b8;stroke:#cbd5e1}
+html[data-theme="dark"] .chg-i{border-left-color:#94a3b8}
+html[data-theme="dark"] .chg-i.on{border-color:#3cb87f;box-shadow:0 0 0 1px #3cb87f}
+html[data-theme="dark"] .opts label:has(input:checked){border-color:#3cb87f;box-shadow:0 0 0 1px #3cb87f}
+html[data-theme="dark"] .av{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--ac,#3cb87f)}
+html[data-theme="dark"] .av.sm{box-shadow:0 0 0 2px var(--bg2),0 0 0 3px var(--ac)}
+html[data-theme="dark"] .modal{background:rgba(0,0,0,.65)}
+html[data-theme="dark"] .card.flash,html[data-theme="dark"] .fchip.fresh{animation-name:none;background:#2d3e35}
+html[data-theme="dark"] .rep-obs{border-left-color:#3cb87f}
+html.rtl[data-theme="dark"] .rep-obs{border-right-color:#3cb87f}
+/* portal */
+html[data-theme="dark"] .role-faisal,html[data-theme="dark"] .role-mansour{border-bottom-color:#3cb87f}
+html[data-theme="dark"] .role-faisal .role-icon,html[data-theme="dark"] .role-mansour .role-icon{color:#3cb87f}
+html[data-theme="dark"] .role-classic{border-bottom-color:#94a3b8}
+html[data-theme="dark"] .role-classic .role-icon{color:#cbd5e1}
