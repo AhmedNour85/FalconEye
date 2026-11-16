@@ -44,8 +44,18 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
       <div><div class="label">${T("Overall city overview")}</div><div class="state" style="color:${color}">${state}</div><div class="why">${esc(why)}</div></div>`;
   }
 
+  // Four mobility numbers from the traffic model (Modelled). Before the model is ready they say so instead of showing zero.
+  function mobilityCards(m) {
+    const na = T("Not available yet"), mod = T("Modelled"), none = !m;
+    const v = x => none || x == null ? "–" : x;
+    return card("clock", "var(--info)", T("Peak delay ratio"), none || m.peak_delay_ratio == null ? "–" : m.peak_delay_ratio + "×", none || m.peak_delay_ratio == null ? na : `${mod} · ${T("busiest hour {h}:00", { h: m.peak_hour })}`) +
+      card("crit", "var(--warn)", T("Severe road segments"), v(m && m.severe_segments), none || m.severe_segments == null ? na : mod) +
+      card("crit", "var(--bad)", T("Worst hospital access"), none || m.worst_hospital_minutes == null ? "–" : m.worst_hospital_minutes + (I18N.rtl ? " د" : " min"), none || m.worst_hospital_minutes == null ? na : mod) +
+      card("gate", "var(--info)", T("Planned closures"), none ? "–" : m.planned_closures, none ? na : T("Open or coming up"));
+  }
+
   function sparkline(t) {
-    const cats = [["water", "#4aa3ff"], ["lighting", "#ff8a2b"], ["distortion", "#e5484d"], ["land_use", "#a78bfa"], ["change", "#1fb36b"]];
+    const cats = [["water", "#4aa3ff"], ["lighting", "#ff8a2b"], ["distortion", "#e5484d"], ["land_use", "#a78bfa"], ["change", "#1fb36b"], ["mobility", "#14b8a6"]];
     const n = t.dates.length;
     if (n < 2) return `<div class="empty">${T("Not enough history yet.")}</div>`;
     const cats0 = cats; cats.splice(0, cats.length, ...cats0.filter(([c]) => Array.isArray(t.series[c])));   // an older server may not send every line
@@ -83,7 +93,8 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
 
   async function refresh() {
     try {
-      const [k, hotspots, st, ap, tr] = await Promise.all([api("/api/kpis"), api("/api/hotspots"), api("/api/nccc/state"), api("/api/approvals?pending=true"), api("/api/trends")]);
+      const [k, hotspots, st, ap, tr, mob] = await Promise.all([api("/api/kpis"), api("/api/hotspots"), api("/api/nccc/state"), api("/api/approvals?pending=true"), api("/api/trends"),
+        api("/api/mobility/numbers").catch(() => null)]);       // an older server, or a model still building, never stops the page
       const e = { hotspots };
       last = { k, ex: e, notes: st.notifications, approvals: ap };
       renderHero(k);
@@ -93,12 +104,13 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
         card("gate", "var(--ok)", T("Resolved"), k.resolved_incidents ?? 0, T("{n}% resolved", { n: k.incident_resolution_rate_pct ?? 0 })) +
         card("crit", "var(--warn)", T("Open incidents"), k.open_incidents ?? 0, T("{n} critical", { n: k.critical_incidents ?? 0 })) +
         card("clock", "var(--info)", T("Avg response"), (k.avg_response_time_hours ?? 0) + (I18N.rtl ? " س" : " h"), T("Per resolved incident")) +
-        card("gate", "var(--warn)", T("Awaiting approval"), ap.length, ap.length ? T("Decisions pending") : T("Nothing pending"));
+        card("gate", "var(--warn)", T("Awaiting approval"), ap.length, ap.length ? T("Decisions pending") : T("Nothing pending")) + mobilityCards(mob && mob.summary);
       $("trend").innerHTML = sparkline(tr);
-      const hs = e.hotspots || [];
-      $("hotspots").innerHTML = hs.length ? hs.slice(0, 5).map(x => {
+      const cong = ((mob && mob.hotspots) || []).slice(0, 2).map(h => ({ area: h.road, score: h.score, lon: h.lon, lat: h.lat, congestion: true }));
+      const hs = (e.hotspots || []).slice(0, 5).concat(cong);
+      $("hotspots").innerHTML = hs.length ? hs.map(x => {
         const c = x.score >= 66 ? "var(--bad)" : x.score >= 33 ? "var(--warn)" : "var(--ok)";
-        return `<div class="card click" tabindex="0" data-lon="${x.lon}" data-lat="${x.lat}"><div class="meta"><span>${T("{o} open · {c} critical", { o: esc(x.open_incidents), c: esc(x.critical) })}</span><span>${Math.round(x.score)}/100</span></div>
+        return `<div class="card click" tabindex="0" data-lon="${x.lon}" data-lat="${x.lat}"><div class="meta"><span>${x.congestion ? T("Congestion now") + " · " + T("Modelled") : T("{o} open · {c} critical", { o: esc(x.open_incidents), c: esc(x.critical) })}</span><span>${Math.round(x.score)}/100</span></div>
           <div class="title">${esc(TV(x.area))}</div><div class="bar"><i style="width:${Math.round(x.score)}%;--c:${c}"></i></div></div>`;
       }).join("") : `<div class="empty">${T("No hotspots.")}</div>`;
       renderBriefs();

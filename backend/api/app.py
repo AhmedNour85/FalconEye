@@ -18,7 +18,7 @@ from backend.gis.store import StoreWriteError
 from backend.mobility import traffic, transit
 from backend.orchestration import crew as crewmod
 from backend.platform import Platform
-from backend.services import field, i18n, imagery, learning
+from backend.services import field, i18n, imagery, learning, mobility_numbers
 from backend.services.filters import make_filter
 from backend.services.synthetic import AREAS, CORRIDORS
 from backend.tools import executive, registry
@@ -203,13 +203,18 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         feats = []
         for f in p.store.all(S.CLOSURES):
             a = f["attrs"]
-            if a.get("Status") not in ("Requested", "Approved", "In Place") or not f.get("geom"):
+            if a.get("Status") not in ("Requested", "Approved", "In Place") or not f.get("geom") or mobility_numbers.window_over(a):
                 continue
             feats.append({"type": "Feature", "id": f["id"], "geometry": f["geom"],
                           "properties": {"id": f["id"], "road": a.get("Section") or a.get("Corridor") or "", "corridor": a.get("Corridor") or "", "lanes_closed": a.get("Lanes_Closed"),
                                          "full_closure": a.get("Full_Closure") == "Yes", "start_time": a.get("Start_Time") or "", "end_time": a.get("End_Time") or "",
                                          "status": a["Status"], "reason": a.get("Reason") or "", "incident_id": a.get("Incident_ID") or ""}})
         return {"type": "FeatureCollection", "features": feats}
+
+    @app.get("/api/mobility/numbers")
+    def mobility_numbers_route():
+        """The four mobility numbers of the Executive Hub and the congestion hotspots. Modelled; None where the model is not ready."""
+        return {"summary": mobility_numbers.summary(p), "hotspots": mobility_numbers.hotspots(p)}
 
     @app.get("/api/mobility/scenarios/{scenario_id}")
     def mobility_scenario(scenario_id: str):

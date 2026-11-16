@@ -32,7 +32,7 @@ from backend.mobility import jobs as mob_jobs
 from backend.mobility import rules as mob_rules
 from backend.mobility import sources as mobility_sources
 from backend.mobility import road_impact, traffic, wording
-from backend.services import learning, lifecycle
+from backend.services import learning, lifecycle, mobility_numbers
 from backend.services.synthetic import AREAS
 from backend.tools import executive, registry
 from backend.tools import mobility as mob
@@ -212,6 +212,10 @@ class Crew:
             out["steps"].extend(self._queue_road_impacts())
             if scope is None or "mobility" in scope:
                 out["steps"].extend(self._mobility_followup())
+                try:
+                    mobility_numbers.expire_closures(self.p)      # a closure whose window has passed becomes "Ended"; the record stays
+                except Exception as exc:  # noqa: BLE001  never stops a scan
+                    log.warning("could not end closures whose window has passed: %s", exc)
             return out
 
     def _scan(self, deep: bool | str, simulate_field: bool | None, scope: set | frozenset | None) -> dict:

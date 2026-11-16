@@ -130,7 +130,7 @@ def test_traffic_state_refuses_a_bad_hour_directly():
 def _closure(platform, cid, status, lanes=1):
     from backend.gis import schema as S
     platform.store.upsert(S.CLOSURES, {"Closure_ID": cid, "Corridor": "King Fahd Road", "Section": "King Fahd Road", "Segment_IDs": "X", "Lanes_Closed": lanes, "Full_Closure": "No",
-                                       "Start_Time": "2026-11-17T08:00:00Z", "End_Time": "2026-11-17T16:00:00Z", "Reason": "Water leak repair", "Status": status,
+                                       "Start_Time": "2099-11-17T08:00:00Z", "End_Time": "2099-11-17T16:00:00Z", "Reason": "Water leak repair", "Status": status,
                                        "Incident_ID": "INC-0001", "Data_Classification": S.OPERATIONAL}, {"type": "LineString", "coordinates": [[46.67, 24.70], [46.68, 24.71]]})
 
 

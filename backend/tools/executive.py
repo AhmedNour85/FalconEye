@@ -113,7 +113,7 @@ def trends(store: Store, days: int = 45, area: str | None = None, category: str 
     for a in _rows(store, S.DETECTIONS, area, category, priority, since):
         by[a["Detection_Date"][:10]]["lighting" if a["Category"] == "pole_health" else a["Category"]] += 1   # poles count with streetlights (one use case)
     dates = sorted(by)[-days:]
-    return {"dates": dates, "series": {c: [by[d][c] for d in dates] for c in ("water", "lighting", "distortion", "land_use", "change")}}
+    return {"dates": dates, "series": {c: [by[d][c] for d in dates] for c in ("water", "lighting", "distortion", "land_use", "change", "mobility")}}
 
 
 def persist_indicators(store: Store, k: dict) -> None:

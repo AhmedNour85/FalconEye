@@ -194,6 +194,8 @@
     "Metro station": "محطة مترو", "Hospital": "مستشفى",
     /* ---- mobility crew, closures and the impact drawing (Plan 3) */
     "City services": "خدمات المدينة", "Mobility": "التنقل", "Traffic incident": "حادثة مرورية", "Road closure": "إغلاق طريق", "Major event": "فعالية كبرى",
+    "mobility": "التنقل", "Not available yet": "غير متاح بعد", "Congestion now": "ازدحام الآن", "Open or coming up": "قائمة أو قادمة", "Peak delay ratio": "نسبة التأخير في الذروة",
+    "busiest hour {h}:00": "ساعة الذروة {h}:00", "Severe road segments": "مقاطع الطرق الشديدة الازدحام", "Worst hospital access": "أسوأ زمن للوصول إلى مستشفى",
     "Compare strategies": "قارن الاستراتيجيات", "Compare response strategies": "مقارنة استراتيجيات الاستجابة", "Loading the comparison…": "جارٍ تحميل المقارنة…",
     "Recommended": "موصى بها", "Not applicable to this closure": "لا تنطبق على هذا الإغلاق", "Strategy": "الاستراتيجية", "Extra trip-hours": "ساعات رحلة إضافية",
     "Hospital access change (min)": "تغيّر زمن الوصول إلى المستشفى (دقيقة)", "Less delay than doing nothing": "تأخير أقل مقارنة بعدم اتخاذ إجراء", "Effort": "الجهد",
