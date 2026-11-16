@@ -116,11 +116,19 @@ class Platform:
         gps = obs["gps"]
         status, text = obs["status"], "[SIMULATED WORKER] " + obs["observation"]
         if repair and status == "Confirmed":
-            status, text = "Repaired", "[SIMULATED WORKER] Fault repaired and tested; area made safe."
+            status, text = "Repaired", "[SIMULATED WORKER] " + self._repair_text(work_order_id)
         res = field.submit(self.store, self.audit, work_order_id, obs["worker_id"], status, text, gps[1], gps[0], simulated=True)
         self.sim.event("field", f"Simulated worker {obs['worker_id']} submitted '{status}' for {work_order_id}", work_order_id)
         return res
 
+
+    def _repair_text(self, work_order_id: str) -> str:
+        """What a simulated crew reports when the work is done: a cleared road for a traffic incident, a repaired fault otherwise."""
+        wo = self.store.get(S.WORK_ORDERS, work_order_id)
+        inc = self.store.get(S.INCIDENTS, wo["attrs"]["Incident_ID"]) if wo else None
+        if inc and inc["attrs"]["Category"] == "mobility":
+            return self.sim.MOBILITY_CLEARED
+        return "Fault repaired and tested; area made safe."
 
     def simulate_repair(self, incident_id: str) -> dict:
         """The repair report from a SIMULATED crew for an incident the field team has confirmed (a real investigator confirmed it, or a simulated one).
@@ -147,7 +155,7 @@ class Platform:
         wo = wos[-1]
         lon, lat = geo.offset(geo.centroid(inc["geom"]), random.uniform(-15, 15), random.uniform(-15, 15))
         res = field.submit(self.store, self.audit, wo["id"], wo["attrs"]["Assigned_Worker"], "Repaired",
-                           "[SIMULATED WORKER] Fault repaired and tested; area made safe.", lat, lon, simulated=True)
+                           "[SIMULATED WORKER] " + self._repair_text(wo["id"]), lat, lon, simulated=True)
         self.sim.event("field", f"Simulated crew reported the repair of {incident_id} ({wo['id']})", wo["id"])
         follow = self.crew.field_update()                      # raises the "ready to close" alert for the operator
         return {"ok": True, "incident_id": incident_id, "work_order_id": wo["id"], "outcome": res.get("outcome"), "incident_status": res.get("incident_status"),

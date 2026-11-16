@@ -9,6 +9,7 @@ from backend.gis.store import utcnow
 from backend.services import learning, visual_types
 from backend.services.workforce import TEAM_FOR, rank_workers
 from backend.tools.common import ToolContext, ToolError, priority_of, severity_of
+from backend.workflows.actions import NO_REPAIR_TYPES
 
 CLOSED = ("Resolved", "Closed - False Positive")
 DUE_HOURS = {"P1": 4, "P2": 12, "P3": 48, "P4": 120}
@@ -231,7 +232,7 @@ def propose_incident_closure(ctx: ToolContext, incident_id: str | None = None) -
     a = f["attrs"]
     if not a["Verification_Outcome"]:
         raise ToolError("incident has no field verification; closing is not allowed")
-    if a["Verification_Outcome"] == "Confirmed" and a["Status"] != "Repair Reported":
+    if a["Verification_Outcome"] == "Confirmed" and a["Status"] != "Repair Reported" and a["Incident_Type"] not in NO_REPAIR_TYPES:
         raise ToolError("fault confirmed but repair not yet reported by the field team; to continue in a demo, report the repair as a simulated crew (the 'Simulate repair' button on the verified alert, or say 'simulate repair for " + f["id"] + "')")
     res = "Resolved" if a["Verification_Outcome"] == "Confirmed" else "Closed - False Positive"
     rec = ctx.p.approvals.propose(ctx.session_id, "close_incident", {"incident_id": f["id"]}, f"Close incident {f['id']} as '{res}'", target=f["id"], location=a["Location"],

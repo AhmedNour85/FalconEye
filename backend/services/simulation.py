@@ -384,6 +384,17 @@ class SimEngine:
                     return t["attrs"]["Is_True"] == "Yes", t["attrs"]["Notes"]
         return False, "no ground truth recorded"
 
+    # incident type -> (what is found when the answer key says it is real, what is found when it is not)
+    MOBILITY_OBS = {
+        "Traffic Incident": ("Crashed vehicles are blocking the reported lanes; traffic is queuing behind them. Scene made safe and traffic directed past. Blockage confirmed.",
+                             "All lanes are open and traffic is flowing normally; no crash or debris found at the reported point."),
+        "Planned Road Closure": ("Signs, barriers and the diversion route are in place as approved; the section is closed to traffic. Closure confirmed.",
+                                 "No closure found on site: no signs or barriers are set up and traffic is using the section."),
+        "Major Event Traffic Plan": ("Approach routes are signed, parking guidance is up and marshals are in position at the venue. Traffic plan confirmed in place.",
+                                     "No traffic plan found on site: no signs, parking guidance or marshals at the venue."),
+    }
+    MOBILITY_CLEARED = "Vehicles removed and debris cleared; all lanes are open again and traffic is back to normal."
+
     def field_observation(self, work_order_id: str) -> dict:
         """Build what a simulated field worker would observe on site (consistent with hidden ground truth)."""
         wo = self.store.get(S.WORK_ORDERS, work_order_id)
@@ -405,6 +416,9 @@ class SimEngine:
                         "status": "Confirmed", "gps": gps, "worker_id": wo["attrs"]["Assigned_Worker"]}
             return {"observation": f"Nothing found on site: the apparent {vt['name'].lower()} was temporary hoarding or a shadow in the imagery.",
                     "status": "Rejected", "gps": gps, "worker_id": wo["attrs"]["Assigned_Worker"]}
+        if cat == "mobility":                                       # a road report, a closure request or an event notice: what is on the road
+            yes, no = self.MOBILITY_OBS.get(inc["attrs"]["Incident_Type"], self.MOBILITY_OBS["Traffic Incident"])
+            return {"observation": yes if truth else no, "status": "Confirmed" if truth else "Rejected", "gps": gps, "worker_id": wo["attrs"]["Assigned_Worker"]}
         if truth:
             obs = {"water": "Visible water seepage and wet asphalt at the indicated location; pipe fitting corroded. Leak confirmed.",
                    "lighting": "Lamp driver failing: intermittent flicker and heat damage observed. Fault confirmed on site.",

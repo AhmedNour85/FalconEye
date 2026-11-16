@@ -37,6 +37,7 @@ from backend.services.synthetic import AREAS
 from backend.tools import executive, registry
 from backend.tools import mobility as mob
 from backend.tools.common import ToolContext, severity_of
+from backend.workflows.actions import NO_REPAIR_TYPES
 
 log = logging.getLogger("geoai.crew")
 
@@ -345,8 +346,8 @@ class Crew:
                     
                     if a["Status"] == "Assigned" and (not vers or last_v == "Requires Further Inspection"):
                         self._visit(steps, f["id"], False)
-                    elif a["Status"] == "In Progress" and (not vers or last_v != "Repaired"):
-                        self._visit(steps, f["id"], True)
+                    elif a["Status"] == "In Progress" and (not vers or last_v != "Repaired") and a.get("Incident_Type") not in NO_REPAIR_TYPES:
+                        self._visit(steps, f["id"], True)                 # a closure or an event plan has nothing to repair: confirmed is enough
             self._field_results(steps, raised)
 
             # 5. BRIEF - Faisal summarises when something important happened

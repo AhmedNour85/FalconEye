@@ -11,6 +11,8 @@ from backend.gis import schema as S
 from backend.gis.store import Store, utcnow
 
 ACTIVE_WO = ("Created", "Assigned", "In Progress")
+# A closure or an event traffic plan has nothing to repair: once the investigator confirms it is in place, the incident can be closed.
+NO_REPAIR_TYPES = ("Planned Road Closure", "Major Event Traffic Plan")
 
 
 def _incident(store: Store, iid: str) -> dict:
@@ -73,10 +75,12 @@ def close_incident(store: Store, p: dict) -> dict:
     outcome = a.get("Verification_Outcome", "")
     if not outcome:
         return {"ok": False, "error": "incident has no field verification; cannot close"}
-    if outcome == "Confirmed" and a["Status"] != "Repair Reported":
+    if outcome == "Confirmed" and a["Status"] != "Repair Reported" and a["Incident_Type"] not in NO_REPAIR_TYPES:
         return {"ok": False, "error": "fault is confirmed but no repair has been reported by the field; cannot resolve yet"}
     new = "Closed - False Positive" if outcome == "Rejected" else "Resolved"
     store.update(S.INCIDENTS, p["incident_id"], Status=new, Last_Updated=utcnow())
+    if a["Category"] == "mobility":
+        _close_mobility_records(store, inc, new)
     for w in store.query(S.WORK_ORDERS, Incident_ID=p["incident_id"]):
         if w["attrs"]["Status"] in ACTIVE_WO + ("Completed",):
             store.update(S.WORK_ORDERS, w["id"], Status="Completed")
@@ -86,6 +90,20 @@ def close_incident(store: Store, p: dict) -> dict:
                 n = max(0, wk["Open_Tasks"] - 1)
                 store.update(S.WORKERS, wid, Open_Tasks=n, Status="Available" if n == 0 else "Assigned")
     return {"ok": store.get(S.INCIDENTS, p["incident_id"])["attrs"]["Status"] == new, "incident_id": p["incident_id"], "status": new}
+
+
+def _close_mobility_records(store: Store, inc: dict, new_status: str) -> None:
+    """Closing a mobility incident moves its own record on: a confirmed closure is In Place; a road report is Cleared either way
+    (the road was cleared, or nothing was there). A closure found not in place stays as it was."""
+    for did in [d for d in (inc["attrs"].get("Detection_IDs") or "").split(",") if d]:
+        det = store.get(S.DETECTIONS, did)
+        ref = det["attrs"].get("Related_Asset_ID") if det else ""
+        if not ref:
+            continue
+        if new_status == "Resolved" and store.get(S.CLOSURES, ref) and store.get(S.CLOSURES, ref)["attrs"].get("Status") == "Approved":
+            store.update(S.CLOSURES, ref, Status="In Place", Updated=utcnow())
+        if store.get(S.TRAFFIC_REPORTS, ref):
+            store.update(S.TRAFFIC_REPORTS, ref, Status="Cleared")
 
 
 def change_asset_status(store: Store, p: dict) -> dict:
