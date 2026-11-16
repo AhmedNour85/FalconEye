@@ -17,7 +17,7 @@ from backend.tools import executive, ops
 from backend.tools.common import ToolContext
 
 TEXT = {   # label: (English, Arabic)
-    "title": ("Riyadh City View - Daily brief", "عرض مدينة الرياض - الملخص اليومي"),
+    "title": ("Falcon Eye - Daily brief", "منظور مدينة الرياض - الملخص اليومي"),
     "label": ("Synthetic and modelled data. Not measured. Nothing here is carried out without a person's approval.",
               "بيانات اصطناعية ومحسوبة وليست قياسات فعلية. لا يُنفَّذ شيء هنا دون موافقة شخص."),
     "city": ("City services", "خدمات المدينة"), "mobility": ("Mobility (modelled)", "التنقل (محسوب)"),
@@ -95,7 +95,7 @@ def build(platform, lang: str = "en") -> bytes:
     lines = content(platform, lang)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm, topMargin=16 * mm, bottomMargin=14 * mm, pageCompression=0,
-                            title=TEXT["title"][1 if rtl else 0], author="Riyadh City View")
+                            title=TEXT["title"][1 if rtl else 0], author="Falcon Eye")
     ink, mute, accent = colors.HexColor("#0b1f3a"), colors.HexColor("#5b6b80"), colors.HexColor("#0b6bcb")
     spec = {"title": (18, True, ink, 8), "sub": (10, False, mute, 6), "label": (9, True, colors.HexColor("#a15c00"), 12), "section": (12, True, accent, 4),
             "row": (10.5, False, ink, 3), "note": (10, False, mute, 3)}

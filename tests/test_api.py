@@ -27,8 +27,8 @@ def test_legacy_pages_are_gone(platform):
 
 def test_home_page_is_named_riyadh_city_view(platform):
     c = client(platform)
-    assert "<h1>Riyadh City View</h1>" in c.get("/home.html").text
-    assert c.get("/openapi.json").json()["info"]["title"] == "Riyadh City View"
+    assert "<h1>Falcon Eye</h1>" in c.get("/home.html").text
+    assert c.get("/openapi.json").json()["info"]["title"] == "Falcon Eye"
 
 
 def test_the_server_uses_its_own_port():

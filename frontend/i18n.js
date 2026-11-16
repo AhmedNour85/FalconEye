@@ -16,7 +16,7 @@
 
   const AR = {
     /* ---- shared / navigation */
-    "Riyadh City View": "منظور مدينة الرياض",
+    "Falcon Eye": "منظور مدينة الرياض",
     "Records: {s}": "السجلات: {s}",
     "Your report was saved, but the photo was not. You can send the photo again later.": "تم حفظ تقريرك، لكن الصورة لم تُحفظ. يمكنك إرسال الصورة مرة أخرى لاحقًا.",
     "ArcGIS Online did not accept a change: {m}": "لم يقبل ArcGIS Online التغيير: {m}",
@@ -32,7 +32,7 @@
     "Portal": "البوابة", "Strategic": "الاستراتيجي", "Operation": "العمليات", "Language": "اللغة", "Switch language": "تغيير اللغة",
     "Executive Hub | GeoAI Riyadh": "المركز التنفيذي | الذكاء الاصطناعي المكاني الرياض",
     "NCCC | National Command & Control Center": "NCCC | المركز الوطني للقيادة والتحكم",
-    "NCCC | Field investigator": "NCCC | المحقق الميداني",
+    "Falcon Eye | Field investigator": "منظور مدينة الرياض | المحقق الميداني",
     "National Command & Control Center · Riyadh": "المركز الوطني للقيادة والتحكم · الرياض",
     "Field investigator": "المحقق الميداني",
     /* ---- operation page: header and KPIs */

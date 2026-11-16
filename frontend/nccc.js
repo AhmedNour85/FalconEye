@@ -42,7 +42,7 @@ function render(st) {
   S.agents = Object.fromEntries(st.crew.agents.map(a => [a.id, a]));
   const k = st.kpis;
   $("#k-pend").textContent = k.pending_approvals; $("#k-open").textContent = k.open_incidents; $("#k-crit").textContent = k.critical; $("#k-res").textContent = k.resolved;
-  const u = $("#unread"); u.hidden = !k.unread; u.textContent = k.unread; document.title = (k.unread ? `(${k.unread}) ` : "") + T("NCCC | National Command & Control Center");
+  const u = $("#unread"); u.hidden = !k.unread; u.textContent = k.unread; document.title = (k.unread ? `(${k.unread}) ` : "") + T("Falcon Eye");
   if (document.activeElement !== $("#autopilot")) $("#autopilot").checked = st.crew.autopilot;
   $("#mode").textContent = T("Planner: {p}", { p: plannerName(st.planner) }) + " · " + T("Records: {s}", { s: st.store || "" });
   { const e = st.crew.record_error, key = e ? e.at : "";        // an automatic scan that ArcGIS Online refused: say so once per failure
