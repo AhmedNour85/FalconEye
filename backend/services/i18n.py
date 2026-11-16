@@ -342,7 +342,7 @@ RULES += [
 RULES += _mob.RULES
 _COMPILED = [(re.compile(p, re.S), r) for p, r in RULES]
 # a road that is not in the vocabulary keeps its name; the word "Road" or "Street" goes before it, as it is written in Arabic
-_ROAD_RE = re.compile(r"(?<![\w-])((?:[A-Z][\w'’.-]*)(?: [A-Z][\w'’.-]*){0,2}) (Road|Street)(?![\w])(?! [A-Z])")
+_ROAD_RE = re.compile(r"(?<![\w-])((?:[A-Z][\w'’.-]*)(?: [A-Z][\w'’.-]*){0,4}) (Road|Street)(?![\w])(?! [A-Z])")
 _ROAD_WORD = {"Road": "طريق", "Street": "شارع"}
 
 

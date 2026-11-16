@@ -77,7 +77,7 @@ class Platform:
         elif init and not self.data_ready:   # the app never fills or empties the system of record by itself
             log.warning("the %s layers in ArcGIS Online hold no demo data yet: run scripts/initialize_demo.py (dry run first)", self.settings.arcgis_layer_prefix)
         if init and self.store.is_hosted:
-            self.setup_field_tasks()
+            self.prepare_field_channel()
             self.start_field_sync()
             self.recover_simulations()
 
@@ -235,6 +235,17 @@ class Platform:
             field.assess(self.store, self.audit, v["id"])
             n += 1
         return n
+
+    def prepare_field_channel(self) -> None:
+        """At start-up: the task lists on the layer, each investigator's login from GEOAI_FIELD_USERS, and the task fields of work orders already assigned.
+        Never stops the start: what fails here is retried at the next start."""
+        self.setup_field_tasks()
+        try:
+            n = self.backfill_investigator_names()
+            if n:
+                log.info("Field Maps: %d record(s) brought up to date with the investigators' logins", n)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("could not bring the Field Maps task fields up to date: %s", exc)
 
     def setup_field_tasks(self) -> bool:
         """Make the hosted work-order layer ready for Field Maps Tasks: task titles (incident types) and the logins a task can be assigned to."""

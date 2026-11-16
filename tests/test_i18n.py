@@ -312,3 +312,9 @@ def test_the_simulate_menu_and_the_mobility_page_labels_have_arabic():
         assert key in have, key
     js = (ROOT / "frontend" / "i18n.js").read_text(encoding="utf-8")
     assert all(a in js for a in ("nasser:", "noura:", "fahad:")) and '"label"' in js           # agent names, and the group labels of the menu
+
+
+def test_a_long_road_name_stays_in_one_piece_in_arabic():
+    from backend.services import i18n
+    ar = i18n.to_ar("Confirm the closure of Abi Saeed Al Khidri Street is set up as approved.")
+    assert "شارع Abi Saeed Al Khidri" in ar and "Abi شارع" not in ar

@@ -385,3 +385,15 @@ def test_the_task_text_of_a_mobility_task_is_bilingual(platform):
         assert not latin_sentences, latin_sentences
     finally:
         tasks.LANG = old
+
+
+def test_start_up_gives_every_investigator_a_login_and_repairs_assigned_tasks(tmp_path):
+    p = Platform(settings=Settings(anthropic_api_key="", arcgis_username="", arcgis_password=""))          # no logins known yet
+    iid, wo = _assigned_work_order(p)
+    a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
+    assert not a["Assigned_To_Username"] and a["esritask_status"] == 0
+    object.__setattr__(p.settings, "field_users", {f"WRK-{i:03d}": "story_viewer" for i in range(1, 10)})                          # the logins arrive in .env, the server restarts
+    p.prepare_field_channel()
+    assert all(w["attrs"]["ArcGIS_Username"] == "story_viewer" for w in p.store.all(S.WORKERS))
+    a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
+    assert a["Assigned_To_Username"] == "story_viewer" and a["esritask_assignee"] == "story_viewer" and a["esritask_status"] == 1
