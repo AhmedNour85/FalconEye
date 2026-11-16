@@ -50,3 +50,11 @@ html.rtl .role .mob-info { left: 14px; }
 .life li.ls-stopped i { background: #e5484d; } .life li.ls-stopped { color: #ff8a8e; font-weight: 600; }
 .life-note { margin: 2px 0 0; }
 @media (max-width: 640px) { .life li { font-size: 9px; } }
+
+/* Strategy comparison table */
+.tablewrap { overflow-x: auto; }
+table.strat { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+table.strat th, table.strat td { padding: 6px 8px; text-align: start; border-bottom: 1px solid #27405f; vertical-align: top; }
+table.strat th { color: #8aa0ba; font-weight: 600; font-size: 12px; }
+table.strat tr.rec td { background: rgba(63, 182, 139, .14); }
+table.strat tr.skip { opacity: .6; }

@@ -218,6 +218,19 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             raise HTTPException(404, f"simulation {scenario_id} not found")
         return {**row, "job": p.jobs.status(scenario_id)}
 
+    @app.get("/api/mobility/scenarios/{scenario_id}/strategies")
+    def mobility_scenario_strategies(scenario_id: str):
+        """The comparison of the response strategies of a closure simulation, as stored with its result. Modelled, with its assumptions."""
+        row = p.jobs.row(scenario_id)
+        if not row:
+            raise HTTPException(404, f"simulation {scenario_id} not found")
+        sm = row.get("summary") or {}
+        if row.get("Status") != "Completed" or not sm.get("strategies"):
+            raise HTTPException(409, f"simulation {scenario_id} has no strategy comparison (status: {row.get('Status') or 'unknown'})")
+        rec = row.get("Recommended") or ""
+        return {"scenario_id": scenario_id, "label": "Modelled", "recommended": rec, "verdict": row.get("Verdict") or "", "assumptions": sm.get("assumptions") or [],
+                "strategies": [{**x, "strategy_name": x["name"], "recommended": x["id"] == rec} for x in sm["strategies"]]}
+
     @app.get("/api/mobility/scenarios/{scenario_id}/map")
     def mobility_scenario_map(scenario_id: str):
         """The drawing of a simulation: the closed section, the road sections that change and the detour routes. When it is no longer held it is

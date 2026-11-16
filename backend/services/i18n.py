@@ -407,7 +407,7 @@ def to_ar(text: str, terms_only: bool = False) -> str:
 # keys whose string values are sentences written by the backend, and keys that hold names or types
 FREE_KEYS = {"detail", "error", "Title", "Message", "did", "action", "detail", "last_action", "summary", "Summary", "expected", "Expected_Result", "Description", "Evidence", "evidence",
              "assessment", "Agent_Assessment", "instructions", "Instructions", "recommended_action", "rationale", "why", "why_suspicious", "message", "Notes", "reply", "finding",
-             "rule_text", "note", "explanation"}
+             "rule_text", "note", "explanation", "verdict", "assumptions", "strategy_name"}
 TERM_KEYS = {"name", "Name", "role", "focus", "team", "Team", "Assigned_Team", "Incident_Type", "Detection_Type", "type", "Change_Type", "Task_Type", "Facility_Type", "Worker_Name",
              "Assigned_Worker_Name", "Investigator_Name", "worker", "Location", "land_use", "Land_Use_Category", "zone", "kind"}
 

@@ -186,3 +186,39 @@ def test_a_notification_about_a_simulated_incident_carries_the_scenario(client, 
     assert n["scenario_id"].startswith("SCN-") and n["scenario_status"] == "Completed"
     assert all("scenario_id" in x and "scenario_status" in x for x in rows)
     assert any(x["scenario_id"] == "" for x in rows) or len(rows) == 1
+
+
+# ---- Plan 5, Task 2: the strategy comparison table ----
+def _closure_scenario(platform):
+    return platform.jobs.submit("closure", {"corridor": "King Fahd Road"}, "INC-0006", "noura")
+
+
+def test_the_strategies_route_lists_every_strategy_with_one_recommended(client, platform):
+    sid = _closure_scenario(platform)
+    r = client.get(f"/api/mobility/scenarios/{sid}/strategies")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["scenario_id"] == sid and d["label"] == "Modelled" and d["assumptions"] and d["verdict"]
+    rows = d["strategies"]
+    assert len(rows) == 5 and [x["id"] for x in rows].count(d["recommended"]) == 1 and sum(x["recommended"] for x in rows) == 1
+    assert next(x for x in rows if x["id"] == "do_nothing")["name"] == "Do nothing"
+    assert all({"id", "name", "effort", "skipped", "recommended"} <= set(x) for x in rows)
+    assert all("extra_trip_hours" in x and "rank" in x for x in rows if not x["skipped"])
+
+
+def test_the_strategies_route_404s_unknown_and_409s_when_there_is_no_comparison(client, platform):
+    assert client.get("/api/mobility/scenarios/SCN-9999/strategies").status_code == 404
+    failed = platform.jobs.submit("closure", {"corridor": "Nonexistent Avenue"}, "INC-0002", "noura")
+    assert client.get(f"/api/mobility/scenarios/{failed}/strategies").status_code == 409
+    one = _scenario(platform)                                                           # an incident simulation has no strategies to compare
+    assert client.get(f"/api/mobility/scenarios/{one}/strategies").status_code == 409
+
+
+def test_the_strategies_route_answers_in_arabic_when_asked(client, platform):
+    import re
+    sid = _closure_scenario(platform)
+    d = client.get(f"/api/mobility/scenarios/{sid}/strategies?lang=ar").json()
+    arabic = re.compile(r"[؀-ۿ]")
+    assert all(arabic.search(x["strategy_name"]) for x in d["strategies"]) and arabic.search(d["verdict"])
+    assert d["assumptions"] and all(arabic.search(a) for a in d["assumptions"]), d["assumptions"]
+    assert d["recommended"] == client.get(f"/api/mobility/scenarios/{sid}/strategies").json()["recommended"]          # codes never change

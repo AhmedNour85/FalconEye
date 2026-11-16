@@ -107,6 +107,7 @@ function card(n) {
   if (n.Kind === "verified" && n.incident_status === "Confirmed" && n.active_work_order) actions += `<button class="btn" data-act="simrepair" data-id="${esc(n.Incident_ID)}" title="${T("Report the repair as a simulated crew so the incident can be closed")}">${T("Simulate repair")}</button>`;
   if (n.Kind === "dispatch" && ap && ap.status === "Executed" && ap.worker_id) actions += `<button class="btn" data-act="investigator" data-id="${esc(ap.worker_id)}" title="${T("Open the page the assigned investigator sees (new tab)")}">${T("Open investigator view")}</button>`;
   if (n.scenario_id && n.scenario_status === "Completed" && n.Lon != null) actions += `<button class="btn" data-act="impact" data-id="${esc(n.scenario_id)}" title="${T("Show the closed road, the worse road sections and the detours (modelled)")}">${T("View impact on map")}</button>`;
+  if (n.scenario_id && n.scenario_type === "closure" && n.scenario_status === "Completed") actions += `<button class="btn" data-act="strategies" data-id="${esc(n.scenario_id)}" title="${T("The five response strategies side by side, with the recommended one highlighted (modelled)")}">${T("Compare strategies")}</button>`;
   if (n.Kind === "change") actions += `<button class="link" data-act="compare" data-id="${esc(n.Notif_ID)}">${T("Compare epochs")}</button>`;
   if (n.Lon != null) actions += `<button class="link" data-act="show" data-id="${esc(n.Notif_ID)}">${T("Show on map")}</button>`;
   const trail = n.Trail.map(t => `<li>${avatar(t.agent, true)}<span><b style="--ac:${(S.agents[t.agent] || {}).color}">${esc(aName(t.agent))}</b> ${esc(t.did)}</span></li>`).join("");
@@ -130,6 +131,7 @@ async function act(kind, id, btn) {
       else toast(T("The impact drawing needs the map, which needs internet access."), "High");
       return;
     }
+    if (kind === "strategies") { openStrategies(id); return; }
     if (kind === "compare") { const n = S.state.notifications.find(x => x.Notif_ID === id); if (n) openCompare(n.Area_Name, n.Incident_ID); return; }
     if (kind === "show") { const n = S.state.notifications.find(x => x.Notif_ID === id); if (n) { goTo(n.Lon, n.Lat, n.Incident_ID); api("nccc/notifications/" + id + "/ack", "POST").catch(() => {}); } return; }
     btn.disabled = true;
@@ -313,6 +315,22 @@ async function openReport(vid) {
   if (hasAlert) $("#rep-alert").onclick = () => { closeReport(); focusAlert(r.incident.id); };
   $("#rep-ok").onclick = closeReport;
 }
+async function openStrategies(sid) {
+  $("#strat").hidden = false; $("#strat-body").innerHTML = `<p class="m">${T("Loading the comparison…")}</p>`; $("#strat-sub").textContent = sid;
+  let d; try { d = await api("mobility/scenarios/" + encodeURIComponent(sid) + "/strategies"); } catch (e) { $("#strat-body").innerHTML = `<p>${esc(e.message)}</p>`; return; }
+  const num = (v, u) => v == null ? "–" : (Math.round(v * 10) / 10).toLocaleString() + (u || "");
+  const rows = d.strategies.map(x => `<tr class="${x.recommended ? "rec" : ""}${x.skipped ? " skip" : ""}"><td><b>${esc(x.strategy_name || x.name)}</b>${x.recommended ? ` <span class="badge go">${T("Recommended")}</span>` : ""}</td>` +
+    (x.skipped ? `<td colspan="4" class="m">${T("Not applicable to this closure")}</td>` :
+      `<td>${num(x.extra_trip_hours)}</td><td>${num(x.hospital_delta_min)}</td><td>${num(x.benefit_vs_do_nothing_pct, " %")}</td><td>${esc(TV(x.effort || ""))}</td>`) + `</tr>`).join("");
+  $("#strat-body").innerHTML = `<p><span class="badge wait">${T("Modelled")}</span> ${esc(d.verdict || "")}</p>
+    <div class="tablewrap"><table class="strat"><thead><tr><th>${T("Strategy")}</th><th>${T("Extra trip-hours")}</th><th>${T("Hospital access change (min)")}</th><th>${T("Less delay than doing nothing")}</th><th>${T("Effort")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="m"><b>${T("Assumptions")}</b></p><ul class="m">${(d.assumptions || []).map(a => `<li>${esc(a)}</li>`).join("")}</ul>
+    <p class="m">${T("Calculated from the road network and synthetic demand, not measured.")}</p>`;
+}
+function closeStrategies() { $("#strat").hidden = true; }
+$("#strat-close").onclick = closeStrategies;
+$("#strat").addEventListener("click", e => { if (e.target.id === "strat") closeStrategies(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#strat").hidden) closeStrategies(); });
 function closeReport() { $("#rep").hidden = true; }
 $("#rep-close").onclick = closeReport;
 $("#rep").addEventListener("click", e => { if (e.target.id === "rep") closeReport(); });

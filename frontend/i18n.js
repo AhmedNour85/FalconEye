@@ -194,6 +194,11 @@
     "Metro station": "محطة مترو", "Hospital": "مستشفى",
     /* ---- mobility crew, closures and the impact drawing (Plan 3) */
     "City services": "خدمات المدينة", "Mobility": "التنقل", "Traffic incident": "حادثة مرورية", "Road closure": "إغلاق طريق", "Major event": "فعالية كبرى",
+    "Compare strategies": "قارن الاستراتيجيات", "Compare response strategies": "مقارنة استراتيجيات الاستجابة", "Loading the comparison…": "جارٍ تحميل المقارنة…",
+    "Recommended": "موصى بها", "Not applicable to this closure": "لا تنطبق على هذا الإغلاق", "Strategy": "الاستراتيجية", "Extra trip-hours": "ساعات رحلة إضافية",
+    "Hospital access change (min)": "تغيّر زمن الوصول إلى المستشفى (دقيقة)", "Less delay than doing nothing": "تأخير أقل مقارنة بعدم اتخاذ إجراء", "Effort": "الجهد",
+    "Assumptions": "الافتراضات", "Calculated from the road network and synthetic demand, not measured.": "محسوبة من شبكة الطرق وطلب افتراضي، وليست قياسات فعلية.",
+    "The five response strategies side by side, with the recommended one highlighted (modelled)": "استراتيجيات الاستجابة الخمس جنبًا إلى جنب، مع إبراز الموصى بها (نموذج محاكاة)",
     "Detected": "رُصدت", "Analysed": "حُلِّلت", "Dispatched": "أُسنِدت", "Verified": "تحقّق منها", "Progress of this incident": "تقدّم هذه الحادثة",
     "The proposal was rejected. Nothing was carried out.": "رُفض المقترح. لم يُنفَّذ أي شيء.",
     "Planned closures": "الإغلاقات المخططة", "Planned closure": "إغلاق مخطط", "Requested": "مطلوب", "Approved": "معتمد", "In Place": "قيد التنفيذ", "Ended": "انتهى",

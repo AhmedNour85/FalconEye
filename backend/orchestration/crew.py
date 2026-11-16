@@ -183,6 +183,7 @@ class Crew:
             a["incident_status"] = inc["attrs"]["Status"] if inc else ""
             sc = scn.get(a["Incident_ID"]) if a["Incident_ID"] else None
             a["scenario_id"], a["scenario_status"] = (sc["Scenario_ID"], sc.get("Status") or "") if sc else ("", "")
+            a["scenario_type"] = sc.get("Scenario_Type") or "" if sc else ""
             a["lifecycle"] = lifecycle.position(self.p.store, a["Incident_ID"]) if a["Incident_ID"] else None
             a["active_work_order"] = next((w["id"] for w in self.p.store.query(S.WORK_ORDERS, Incident_ID=a["Incident_ID"]) if w["attrs"]["Status"] in ("Created", "Assigned", "In Progress")), "") if inc else ""
             rows.append(a)
