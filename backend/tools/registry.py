@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
-from backend.tools import analytics, city, executive, geoai, ops, verification
+from backend.tools import analytics, city, executive, geoai, mobility, ops, verification
 from backend.tools.common import ToolContext, ToolError
 
 
@@ -19,17 +19,25 @@ class Tool:
     fn: Callable
     stage: str
     consequential: bool = False  # True => only creates an approval proposal, never executes
+    llm: bool = True             # False => not offered to language-model planners (too slow for a chat turn); the crew and the offline planner can still call it
 
     def schema(self) -> dict:
         return {"name": self.name, "description": self.description,
                 "input_schema": {"type": "object", "properties": self.properties, "required": list(self.required), "additionalProperties": False}}
 
 
-def _t(name, desc, props, req, fn, stage, consequential=False):
-    return Tool(name, desc, props, tuple(req), fn, stage, consequential)
+def _t(name, desc, props, req, fn, stage, consequential=False, llm=True):
+    return Tool(name, desc, props, tuple(req), fn, stage, consequential, llm)
 
 
 S_ = {"type": "string"}
+CATS = ["water", "lighting", "change", "mobility"]
+HOUR = {"type": "integer", "description": "Hour of the day, 0 to 23, Riyadh time. Default: now."}
+ROAD = {"type": "string", "description": "Road name, e.g. 'King Fahd Road', 'Olaya Street', 'Northern Ring Road'"}
+CLOSURE = {"corridor": ROAD, "lanes_closed": {"type": "integer", "description": "Lanes closed. Leave out for a full closure."},
+           "start_time": {"type": "string", "description": "ISO date and time, e.g. 2026-11-17T08:00. Default: tomorrow 08:00."},
+           "end_time": {"type": "string", "description": "ISO date and time"}, "duration_hours": {"type": "number"},
+           "near": {"type": "string", "description": "A named place the closed section is nearest to, e.g. 'KAFD'"}}
 AREA = {"type": "string", "description": "Riyadh demo area: Olaya, KAFD, Al Malaz, Diplomatic Quarter, King Salman Park, Diriyah"}
 
 TOOLS: list[Tool] = [
@@ -52,20 +60,20 @@ TOOLS: list[Tool] = [
     _t("spatial_analysis", "UNDERSTAND. Proximity analysis around a detection/change/incident/asset: facilities, pipes, streetlights, roads, nearby incidents, extracted features.",
        {"target_type": {"type": "string", "enum": ["detection", "change", "incident", "asset", "work_order"]}, "target_id": S_, "radius_m": {"type": "number"}}, ["target_type"], geoai.spatial_analysis, "UNDERSTAND"),
     _t("executive_summary", "DECIDE. KPIs, hotspots, ranked incidents and evidence-based recommendations, optionally filtered.",
-       {"area": AREA, "category": {"type": "string", "enum": ["water", "lighting", "change"]}, "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4"]}, "since": {"type": "string", "description": "ISO date"}},
+       {"area": AREA, "category": {"type": "string", "enum": CATS}, "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4"]}, "since": {"type": "string", "description": "ISO date"}},
        [], executive.executive_summary, "DECIDE"),
     _t("create_incidents_from_detections", "DECIDE/ACT. Convert detections into operational incidents (idempotent). Defaults to the detections this conversation just produced; if none are waiting, every active detection that still has no incident.",
        {"detection_ids": {"type": "array", "items": S_}}, [], ops.create_incidents_from_detections, "ACT"),
     _t("list_incidents", "ACT. List incidents sorted by urgency, with optional filters.",
-       {"status": S_, "category": {"type": "string", "enum": ["water", "lighting", "change"]}, "area": AREA, "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4"]},
+       {"status": S_, "category": {"type": "string", "enum": CATS}, "area": AREA, "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4"]},
         "open_only": {"type": "boolean"}, "limit": {"type": "integer"}, "since": {"type": "string", "description": "ISO date"}}, [], ops.list_incidents, "ACT"),
     _t("get_incident", "ACT. Full incident record with detections, work orders, verifications and audit trail. Defaults to the incident in focus.",
        {"incident_id": S_}, [], ops.get_incident, "ACT"),
     _t("rank_incidents", "DECIDE. Rank open incidents by urgency and explain the evidence; the top one becomes the focus incident.",
-       {"top_n": {"type": "integer"}, "category": {"type": "string", "enum": ["water", "lighting", "change"]}, "area": AREA,
+       {"top_n": {"type": "integer"}, "category": {"type": "string", "enum": CATS}, "area": AREA,
         "priority": {"type": "string", "enum": ["P1", "P2", "P3", "P4"]}, "since": {"type": "string", "description": "ISO date"}}, [], ops.rank_incidents, "DECIDE"),
     _t("count_incidents", "DECIDE. How many incidents there are, and where: counts by area, type, priority and status. Use for 'how many', 'where' and 'which area' questions.",
-       {"area": AREA, "category": {"type": "string", "enum": ["water", "lighting", "change"]}, "severity": {"type": "string", "enum": ["Critical", "High", "Medium", "Low"]},
+       {"area": AREA, "category": {"type": "string", "enum": CATS}, "severity": {"type": "string", "enum": ["Critical", "High", "Medium", "Low"]},
         "open_only": {"type": "boolean", "description": "default true: only incidents that are not resolved"}}, [], ops.count_incidents, "DECIDE"),
     _t("feeds_summary", "UNDERSTAND. What the citizen-report feed says right now (SIMULATED feed): report counts by status, type and area.",
        {"area": AREA}, [], ops.feeds_summary, "UNDERSTAND"),
@@ -83,12 +91,32 @@ TOOLS: list[Tool] = [
        {"incident_id": S_}, [], verification.verify_outcome, "VERIFY"),
     _t("evaluate_outcomes", "LEARN. Predicted-vs-verified evaluation metrics (precision, recall where ground truth exists); recalibrate=true refreshes the configurable risk calibration (no ML retraining).",
        {"recalibrate": {"type": "boolean"}}, [], verification.evaluate_outcomes, "LEARN"),
+    # ---- mobility (Plan 3). Traffic numbers are MODELLED, never measured; road reports and safety records are SYNTHETIC.
+    _t("traffic_state", "SENSE. MODELLED traffic at one hour of a normal weekday: totals, how many road sections are slow, heavy or stop-and-go, and the most loaded sections. Not measured.",
+       {"hour": HOUR, "corridor": ROAD, "top_n": {"type": "integer"}}, [], mobility.traffic_state, "SENSE"),
+    _t("detect_traffic_incidents", "SENSE. Turn new road reports (blocked lanes; SYNTHETIC feed) into SUSPECTED traffic-incident detections, with the modelled load on the road section. Each report is evaluated once.",
+       {}, [], mobility.detect_traffic_incidents, "SENSE"),
+    _t("simulate_closure", "UNDERSTAND. Simulate closing a road section, fully or by a number of lanes, for a time window. Returns MODELLED extra trip-hours, hospital-access change and congested sections. Takes 10 to 25 seconds.",
+       CLOSURE, ["corridor"], mobility.simulate_closure, "UNDERSTAND"),
+    _t("compare_closure_strategies", "UNDERSTAND. Simulate one closure under five response strategies (do nothing, reschedule to night, diversion with signal retiming, demand shift, combined) and recommend one. Strategy effects are assumptions. Takes 1 to 2 minutes.",
+       CLOSURE, ["corridor"], mobility.compare_closure_strategies, "UNDERSTAND", llm=False),
+    _t("simulate_event", "UNDERSTAND. Simulate the extra traffic of a major event at a named place. Returns MODELLED added vehicles per hour, extra trip-hours and the parking gap. Takes 10 to 25 seconds.",
+       {"place": {"type": "string", "description": "A named place, e.g. 'KAFD', 'King Salman Park', 'Diriyah'"}, "attendance": {"type": "integer"},
+        "start_time": {"type": "string", "description": "ISO date and time. Default: today 18:00."}, "end_time": {"type": "string", "description": "ISO date and time. Default: today 23:00."}},
+       ["place", "attendance"], mobility.simulate_event, "UNDERSTAND"),
+    _t("hospital_access", "UNDERSTAND. MODELLED travel time from each named district to its nearest hospital at one hour, worst first. Hospital positions are approximate.",
+       {"hour": HOUR}, [], mobility.hospital_access, "UNDERSTAND"),
+    _t("road_safety_context", "UNDERSTAND. Accident history, road-asset condition and maintenance priority for a road section, a road or the whole network. SYNTHETIC records, not real data.",
+       {"segment_id": S_, "corridor": ROAD, "top_n": {"type": "integer"}}, [], mobility.road_safety_context, "UNDERSTAND"),
+    _t("propose_traffic_plan", "ACT. PROPOSE the traffic plan for a mobility incident (traffic response, closure plan or event traffic plan) from its completed simulation. Creates an approval request only. An approved plan is a record; nothing controls signals, signs or dispatch systems.",
+       {"incident_id": S_, "scenario_id": S_}, [], mobility.propose_traffic_plan, "ACT", True),
 ]
 BY_NAME = {t.name: t for t in TOOLS}
 
 
 def schemas() -> list[dict]:
-    return [t.schema() for t in TOOLS]
+    """The tools offered to a language-model planner. A tool with llm=False is left out; it can still be run through `execute`."""
+    return [t.schema() for t in TOOLS if t.llm]
 
 
 _TYPES = {"string": str, "number": (int, float), "integer": int, "boolean": bool, "array": list}

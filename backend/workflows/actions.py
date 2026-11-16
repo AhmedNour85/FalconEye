@@ -96,4 +96,27 @@ def change_asset_status(store: Store, p: dict) -> dict:
     return {"ok": True, "asset_id": p["asset_id"], "status": p["new_status"]}
 
 
-HANDLERS = {"create_work_order": create_work_order, "assign_worker": assign_worker, "close_incident": close_incident, "change_asset_status": change_asset_status}
+def apply_traffic_plan(store: Store, p: dict) -> dict:
+    """An approved mobility plan: the field check of the plan becomes a work order, and the plan is recorded.
+    A record only. Nothing here controls signals, signs or dispatch systems."""
+    wo = {"incident_id": p["incident_id"], "task_type": p.get("task_type", "Inspect & Verify"), "instructions": p.get("instructions", ""), "due_hours": p.get("due_hours", 24)}
+    if p.get("team"):
+        wo["team"] = p["team"]
+    res = create_work_order(store, wo)
+    if not res.get("ok"):
+        return res
+    out = {**res, "kind": p.get("kind", "")}
+    cid = p.get("closure_id")
+    if cid and store.get(S.CLOSURES, cid):
+        store.update(S.CLOSURES, cid, Status="Approved", Strategy=p.get("strategy", ""), Work_Order_ID=res["work_order_id"], Scenario_ID=p.get("scenario_id", ""),
+                     Incident_ID=p["incident_id"], Updated=utcnow())
+        out["closure_id"] = cid
+    eid = p.get("event_id")
+    if eid and store.get(S.EVENT_NOTICES, eid):
+        store.update(S.EVENT_NOTICES, eid, Status="Planned", Incident_ID=p["incident_id"])
+        out["event_id"] = eid
+    return out
+
+
+HANDLERS = {"create_work_order": create_work_order, "assign_worker": assign_worker, "close_incident": close_incident, "change_asset_status": change_asset_status,
+            "apply_traffic_plan": apply_traffic_plan}

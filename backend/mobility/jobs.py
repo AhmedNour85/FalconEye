@@ -73,6 +73,19 @@ def _prep_closure(p: dict) -> dict:
     return out
 
 
+def _prep_closure_run(p: dict) -> dict:
+    out = _prep_closure(p)
+    if out.get("lanes_closed") is not None:
+        try:
+            n = int(out["lanes_closed"])
+        except (TypeError, ValueError):
+            raise ValueError(f"lanes_closed must be a whole number of lanes, not '{out['lanes_closed']}'")
+        if n <= 0:
+            raise ValueError("lanes_closed must be 1 or more (leave it out for a full closure)")
+        out["lanes_closed"] = n
+    return out
+
+
 def _prep_event(p: dict) -> dict:
     place = str(p.get("place") or p.get("venue") or "").strip()
     if not place:
@@ -109,6 +122,14 @@ def _run_incident(p: dict, say) -> tuple:
              **_numbers(r)}, "", "", r["geojson"])
 
 
+def _run_closure_once(p: dict, say) -> tuple:
+    """One closure as asked (full, or a number of lanes), without the strategy comparison."""
+    r = engine.run_scenario({"scenario_type": "closure", **p, "name": "Closure"}, progress=say, persist=False, actor="noura")
+    res = r["scenario"]["resolved"]
+    return ({"road": res.get("corridor") or _road_name(res["ids"], p.get("corridor") or ""), "lanes_closed": res.get("lanes_closed"),
+             "full_closure": res.get("lanes_closed") is None or bool(res.get("full_closure")), "section": res.get("why"), **_numbers(r)}, "", "", r["geojson"])
+
+
 def _run_closure(p: dict, say) -> tuple:
     out = strategies.compare(dict(p), progress=say, persist=False, actor="noura")
     rows = out["strategies"]
@@ -141,8 +162,8 @@ def _run_event(p: dict, say) -> tuple:
              "metro_utilisation": ev["metro_utilisation"], **_numbers(r)}, "", "", r["geojson"])
 
 
-PREPARE: Dict[str, Callable[[dict], dict]] = {"incident": _prep_incident, "closure": _prep_closure, "event": _prep_event}
-RUNNERS: Dict[str, Callable] = {"incident": _run_incident, "closure": _run_closure, "event": _run_event}
+PREPARE: Dict[str, Callable[[dict], dict]] = {"incident": _prep_incident, "closure": _prep_closure, "closure_run": _prep_closure_run, "event": _prep_event}
+RUNNERS: Dict[str, Callable] = {"incident": _run_incident, "closure": _run_closure, "closure_run": _run_closure_once, "event": _run_event}
 
 
 class Jobs:
@@ -178,13 +199,27 @@ class Jobs:
         """Queue one simulation and return its Scenario_ID. A job of the same kind for the same subject that is still queued or
         running is returned instead of a second one. Raises ValueError for unusable inputs and StoreWriteError when ArcGIS Online
         will not take the row; in both cases nothing is queued."""
+        job = self._create(kind, params, subject_id, requested_by, on_done, name, dedupe=True)
+        if not job.pop("fresh"):
+            return job["id"]
+        self._start(job)
+        return job["id"]
+
+    def run_now(self, kind: str, params: dict, subject_id: str, requested_by: str, name: str = "") -> dict:
+        """Run one simulation in the caller's thread and return its result (the tools). It is stored exactly like a queued job."""
+        job = self._create(kind, params, subject_id, requested_by, None, name, dedupe=False)
+        job.pop("fresh")
+        self._run(job)
+        return job["result"]
+
+    def _create(self, kind, params, subject_id, requested_by, on_done, name, dedupe) -> dict:
         if kind not in RUNNERS:
             raise ValueError(f"unknown simulation kind '{kind}' (use one of: {', '.join(RUNNERS)})")
         fixed = PREPARE[kind](dict(params or {}))
         with self._cv:
             for j in self._jobs.values():
-                if j["kind"] == kind and j["subject_id"] == subject_id and j["status"] in ACTIVE and not j["preview_only"]:
-                    return j["id"]
+                if dedupe and j["kind"] == kind and j["subject_id"] == subject_id and j["status"] in ACTIVE and not j["preview_only"]:
+                    return {"id": j["id"], "fresh": False}
             sid = self.p.store.next_id("SCN")
             job = {"id": sid, "kind": kind, "params": fixed, "subject_id": subject_id, "status": "Queued", "progress": 0, "message": "Waiting for the simulation worker",
                    "error": "", "on_done": on_done, "preview_only": False, "name": name or f"{kind.replace('_', ' ').capitalize()} simulation", "result": None}
@@ -197,8 +232,8 @@ class Jobs:
             with self._cv:
                 self._jobs.pop(sid, None)
             raise
-        self._start(job)
-        return sid
+        job["fresh"] = True
+        return job
 
     def _start(self, job: dict) -> None:
         if self.inline:

@@ -61,12 +61,17 @@ AGENTS: tuple[AgentDef, ...] = (
     AgentDef("zayed", "Zayed", "Change & Planning GeoCoworker", "specialist", "Urban change and visual distortion from imagery epochs", "#ff5a5f", ("detect_imagery_changes", "extract_geoai_features", "detect_visual_distortion", "analyze_land_use")),
     AgentDef("reem", "Reem", "Service Impact GeoCoworker", "specialist", "Finds the facilities and services around each finding", "#22c7b8", ("spatial_analysis", "feeds_summary")),
     AgentDef("turki", "Turki", "Field Operations GeoCoworker", "specialist", "Prepares work orders, dispatch and closure", "#f2b233",
-             ("propose_work_order", "propose_work_orders_bulk", "propose_field_assignment", "propose_incident_closure", "propose_asset_status_change")),
+             ("propose_work_order", "propose_work_orders_bulk", "propose_field_assignment", "propose_incident_closure", "propose_asset_status_change", "propose_traffic_plan")),
     AgentDef("maha", "Maha", "Performance GeoCoworker", "specialist", "Compares field results with predictions and learns", "#4aa3ff", ("verify_outcome", "evaluate_outcomes")),
+    # the mobility specialists (Plan 3). Their traffic numbers are modelled, not measured.
+    AgentDef("nasser", "Nasser", "Traffic GeoCoworker", "specialist", "Watches the traffic state and road incidents", "#e0559a", ("traffic_state", "detect_traffic_incidents")),
+    AgentDef("noura", "Noura", "Mobility Simulation GeoCoworker", "specialist", "Simulates closures and events, compares response strategies, checks hospital access", "#7cc242",
+             ("simulate_closure", "compare_closure_strategies", "simulate_event", "hospital_access")),
+    AgentDef("fahad", "Fahad", "Road Safety & Assets GeoCoworker", "specialist", "Adds accident history and road-asset condition, ranks maintenance priority", "#c98a3b", ("road_safety_context",)),
 )
 BY_ID = {a.id: a for a in AGENTS}
 AGENT_FOR_TOOL = {t: a.id for a in AGENTS for t in a.tools}
-DETECTOR = {"water": "sarah", "lighting": "abdullah", "change": "zayed", "distortion": "zayed", "land_use": "zayed"}
+DETECTOR = {"water": "sarah", "lighting": "abdullah", "change": "zayed", "distortion": "zayed", "land_use": "zayed", "mobility": "nasser"}
 
 
 def agent_for_tool(tool: str) -> str:

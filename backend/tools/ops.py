@@ -17,7 +17,9 @@ INSTR = {"water": "Locate the suspected leak near the marked point, check for su
          "change": "Visit the polygon, determine whether construction/clearing is present or only seasonal change, photograph evidence and confirm or reject.",
          "distortion": "Inspect the flagged building from street level, photograph cracks, bulging or leaning, record GPS and confirm or reject the structural distortion.",
          "pole_health": "Inspect the listed poles: measure tilt with an inclinometer, check base corrosion and anchor bolts, photograph evidence and confirm or reject the structural risk.",
-         "land_use": "Visit the polygon, confirm what is being built, check the permit against the zoning, photograph evidence and confirm or reject the violation."}
+         "land_use": "Visit the polygon, confirm what is being built, check the permit against the zoning, photograph evidence and confirm or reject the violation.",
+         "mobility": "Go to the marked point on the road, confirm what is there (blocked lanes, a closure being set up, or event traffic), photograph evidence, record GPS and confirm or reject."}
+MOBILITY_TYPES = {"Traffic Incident": "Traffic Incident", "Road Closure Request": "Planned Road Closure", "Major Event": "Major Event Traffic Plan"}   # detection type -> incident type
 
 
 def _incident_or_focus(ctx: ToolContext, incident_id: str | None) -> dict:
@@ -85,7 +87,8 @@ def create_incidents_from_detections(ctx: ToolContext, detection_ids: list[str] 
         else:
             c = geo.centroid(top["geom"])
             desc = a["Evidence"][:420]
-            itype = {"water": "Water Leak (Suspected)", "lighting": "Streetlight Failure (Predicted)", "change": "Urban Change Review", "distortion": "Visual Distortion Review", "land_use": "Land-Use Violation Review"}[cat]
+            itype = {"water": "Water Leak (Suspected)", "lighting": "Streetlight Failure (Predicted)", "change": "Urban Change Review", "distortion": "Visual Distortion Review", "land_use": "Land-Use Violation Review",
+                     "mobility": MOBILITY_TYPES.get(a["Detection_Type"], "Traffic Incident")}[cat]
             vt = visual_types.by_name(a["Detection_Type"]) if cat == "distortion" else None
             if vt:
                 itype = vt["name"]                                                  # for example "Illegal Graffiti" instead of the generic review
