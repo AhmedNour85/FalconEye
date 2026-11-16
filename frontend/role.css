@@ -1,22 +1,22 @@
 /* NCCC palette (same as index.html / nccc.css) mapped to the tokens the role pages use. */
 :root{
-  --font:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --font:"IBM Plex Sans Arabic","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
   --fs-xs:11.5px;--fs-sm:12.5px;--fs-md:14px;--fs-lg:16px;--fs-3xl:28px;
-  --r-sm:8px;--r-md:14px;--r-full:999px;--ease:cubic-bezier(.2,.7,.2,1);
-  --bg:#071426;--surface:#0b1d36;--surface-2:#0f2540;--surface-3:#13304f;
-  --border:#1f3d63;--border-strong:#3b6aa0;
-  --text:#e8f1fb;--muted:#93a9c4;--on-accent:#04210f;
-  --accent:#2d8cff;--accent-soft:rgba(45,140,255,.16);
-  --ok:#1fb36b;--warn:#ff8a2b;--bad:#ff4d5a;--info:#4aa3ff;
-  --bad-soft:rgba(255,77,90,.16);--warn-soft:rgba(255,138,43,.16);--info-soft:rgba(74,163,255,.16);
-  --shadow-lg:0 8px 24px rgba(0,0,0,.45);
+  --r-sm:4px;--r-md:6px;--r-full:999px;--ease:cubic-bezier(.2,.7,.2,1);
+  --bg:#f3f4f6;--surface:#ffffff;--surface-2:#f9fafb;--surface-3:#f3f4f6;
+  --border:#e5e7eb;--border-strong:#9ca3af;
+  --text:#111827;--muted:#4b5563;--on-accent:#ffffff;
+  --accent:#1b8354;--accent-soft:rgba(27,131,84,.12);
+  --ok:#1b8354;--warn:#dc6803;--bad:#d92d20;--info:#1570ef;
+  --bad-soft:rgba(217,45,32,.10);--warn-soft:rgba(220,104,3,.12);--info-soft:rgba(21,112,239,.10);
+  --shadow-lg:0 8px 24px rgba(17,24,39,.15);
 }
-html,body{background:radial-gradient(1200px 500px at 70% -10%,#0d3b3a55,transparent),var(--bg)}
+html,body{background:radial-gradient(1200px 500px at 70% -10%,#1b835414,transparent),var(--bg)}
 /* Shared styles for the role pages (Executive Hub, Operational Center). Uses the tokens from styles.css. */
 html, body { margin: 0; height: 100%; }
 body.role { display: grid; grid-template-rows: 56px 1fr; grid-template-columns: 330px 1fr 360px; grid-template-areas: "top top top" "left map right";
   background: transparent; color: var(--text); font-family: var(--font); font-size: var(--fs-md); overflow: hidden; }
-.role .top { grid-area: top; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: linear-gradient(90deg,#0a3a2b,#0b2447 60%); border-bottom: 1px solid var(--border); }
+.role .top { grid-area: top; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: linear-gradient(90deg,#f0faf5,#f0faf5 60%); border-bottom: 1px solid var(--border); }
 .role .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: var(--fs-lg); }
 .role .brand i { width: 10px; height: 10px; border-radius: 50%; background: var(--role-accent); box-shadow: 0 0 10px var(--role-accent); }
 .role nav { display: flex; gap: 6px; }

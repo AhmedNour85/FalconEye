@@ -4,7 +4,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
   const { T, TV } = I18N;
   const $ = id => document.getElementById(id);
   const layers = { change: new GraphicsLayer(), inc: new GraphicsLayer() };
-  const map = new Map({ basemap: "dark-gray-vector", layers: [layers.change, layers.inc] });
+  const map = new Map({ basemap: "gray-vector", layers: [layers.change, layers.inc] });
   if (window.Mobility) Mobility.attach({ map, GraphicsLayer, Graphic, panel: document.querySelector(".layers"), host: document.querySelector(".mapwrap"), view: () => view });   // traffic (modelled), metro, bus, hospitals
   // 2D map or 3D scene on the same layers; the choice is remembered
   const makeView = three => three
@@ -23,7 +23,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
 
   const changeSym = () => ({ type: "simple-fill", color: [31, 179, 107, 0.35], outline: { color: [31, 179, 107], width: 1.2 } });
   const isCrit = p => p.Priority === "P1" || p.Severity === "Critical";
-  const incSym = p => ({ type: "simple-marker", color: isCrit(p) ? "#ff4d5a" : "#ff8a2b", size: isCrit(p) ? 13 : 9, outline: { color: "white", width: 1 } });
+  const incSym = p => ({ type: "simple-marker", color: isCrit(p) ? "#d92d20" : "#dc6803", size: isCrit(p) ? 13 : 9, outline: { color: "white", width: 1 } });
 
   const ICON = {
     crit: '<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3zM12 10v5M12 18h.01"/></svg>',
@@ -55,7 +55,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
   }
 
   function sparkline(t) {
-    const cats = [["water", "#4aa3ff"], ["lighting", "#ff8a2b"], ["distortion", "#e5484d"], ["land_use", "#a78bfa"], ["change", "#1fb36b"], ["mobility", "#14b8a6"]];
+    const cats = [["water", "#1570ef"], ["lighting", "#dc6803"], ["distortion", "#d92d20"], ["land_use", "#a78bfa"], ["change", "#1b8354"], ["mobility", "#14b8a6"]];
     const n = t.dates.length;
     if (n < 2) return `<div class="empty">${T("Not enough history yet.")}</div>`;
     const cats0 = cats; cats.splice(0, cats.length, ...cats0.filter(([c]) => Array.isArray(t.series[c])));   // an older server may not send every line
@@ -144,7 +144,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
     document.body.appendChild(frame);
     const w = frame.contentWindow;
     w.document.open();
-    w.document.write(`<!doctype html><html lang="${I18N.lang}" dir="${I18N.rtl ? "rtl" : "ltr"}"><title>${T("Daily City Health Report")}</title><style>body{font:14px Segoe UI,Tahoma,Arial;margin:40px;color:#111}h2{margin-top:28px;border-bottom:2px solid #1fb36b}
+    w.document.write(`<!doctype html><html lang="${I18N.lang}" dir="${I18N.rtl ? "rtl" : "ltr"}"><title>${T("Daily City Health Report")}</title><style>body{font:14px Segoe UI,Tahoma,Arial;margin:40px;color:#111}h2{margin-top:28px;border-bottom:2px solid #1b8354}
       table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px;text-align:start;font-size:12px}.k{display:inline-block;margin:0 24px 12px 0}.k b{font-size:24px;display:block}</style>
       <h1>${T("Riyadh City View")}</h1><div>${T("Daily City Health Report")} · ${new Date().toLocaleString(I18N.locale)} · ${T("SYNTHETIC DEMO DATA")}</div>
       <h2>${T("City health")}</h2><div class="k"><b>${health(k)}%</b>${T("health score")}</div><div class="k"><b>${k.critical_incidents}</b>${T("critical")}</div><div class="k"><b>${k.open_incidents}</b>${T("open incidents")}</div>

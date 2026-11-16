@@ -4,7 +4,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const { T, TV } = I18N;
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const SEV_COLOR = { Critical: "#ff4d5a", High: "#ff8a2b", Medium: "#f2b233", Low: "#4aa3ff", Info: "#5f7ea3" };
+const SEV_COLOR = { Critical: "#d92d20", High: "#dc6803", Medium: "#f79009", Low: "#1570ef", Info: "#6b7280" };
 const CLOSED = ["Resolved", "Closed - False Positive"];
 
 const S = { tab: "action", state: null, seen: null, agents: {}, busy: false, mapSig: "", selected: "", pollTimer: null };
@@ -19,7 +19,7 @@ async function api(path, method = "GET", body) {
 
 function toast(msg, sev = "Low") {
   const t = document.createElement("div");
-  t.className = "toast"; t.style.setProperty("--c", SEV_COLOR[sev] || "#2d8cff"); t.textContent = msg;
+  t.className = "toast"; t.style.setProperty("--c", SEV_COLOR[sev] || "#1b8354"); t.textContent = msg;
   $("#toasts").append(t); setTimeout(() => t.remove(), 6000);
 }
 
@@ -97,7 +97,7 @@ function lifeStrip(l) {
 }
 
 function card(n) {
-  const ap = n.approval, pend = ap && ap.status === "Proposed", c = S.agents[n.Agent] || { color: "#7df0b3" };
+  const ap = n.approval, pend = ap && ap.status === "Proposed", c = S.agents[n.Agent] || { color: "#1b8354" };
   let actions = "";
   if (pend) actions = `<button class="btn primary" data-act="approve" data-id="${esc(ap.id)}">${T("Approve")}</button><button class="btn" data-act="reject" data-id="${esc(ap.id)}">${T("Reject")}</button>`;
   else if (ap) actions = `<span class="state ${ap.status === "Executed" ? "" : "no"}">${ap.status === "Executed" ? T("✓ Approved and done") : esc(TV(ap.status))}</span>`;
@@ -153,7 +153,7 @@ function renderFeeds(list) {
   const box = $("#feeds"); S.feedAt = S.feedAt || {};
   box.innerHTML = list.map(f => {
     const fresh = S.feedAt[f.id] !== undefined && S.feedAt[f.id] !== f.at && f.at; S.feedAt[f.id] = f.at;
-    const ag = S.agents[f.agent] || { color: "#7df0b3", name: "" };
+    const ag = S.agents[f.agent] || { color: "#1b8354", name: "" };
     return `<div class="fchip${f.alert ? " alert" : ""}${fresh ? " fresh" : ""}" style="--ac:${ag.color}"><b><i></i>${esc(f.name)}</b><span>${esc(f.detail)}</span><small>${f.at ? T("updated {t}", { t: ago(f.at) }) : T("waiting for data")} · ${T("read by {n}", { n: esc(ag.name) })}</small></div>`;
   }).join("");
 }
@@ -183,7 +183,7 @@ function renderCompare() {
     const hasAlert = c.incident_id && S.state && S.state.notifications.some(n => n.Incident_ID === c.incident_id);
     const [lon, lat] = centroidOf(c.ring);
     return `<li class="chg-i ${c.significant ? "sig" : ""}${c.id === CMP.sel ? " on" : ""}" data-ch="${esc(c.id)}"><b>${esc(TV(c.type))}</b>
-      <span class="m">${esc(c.id)} · ${T("{n} m²", { n: Math.round(c.area_sqm).toLocaleString(I18N.locale) })} · ${T("confidence")} ${Math.round(c.confidence * 100)}% · ${c.significant ? "<b style=\"display:inline;color:#ff8a92\">" + T("significant") + "</b>" : T("minor or possibly seasonal")}${c.incident_id ? " · " + esc(c.incident_id) : ""}</span>
+      <span class="m">${esc(c.id)} · ${T("{n} m²", { n: Math.round(c.area_sqm).toLocaleString(I18N.locale) })} · ${T("confidence")} ${Math.round(c.confidence * 100)}% · ${c.significant ? "<b style=\"display:inline;color:#b42318\">" + T("significant") + "</b>" : T("minor or possibly seasonal")}${c.incident_id ? " · " + esc(c.incident_id) : ""}</span>
       <div class="row"><button class="btn" data-cm="map" data-lon="${lon}" data-lat="${lat}" data-inc="${esc(c.incident_id)}" type="button">${T("Show on map")}</button>${hasAlert ? `<button class="btn" data-cm="alert" data-inc="${esc(c.incident_id)}" type="button">${T("Open alert")}</button>` : ""}</div></li>`;
   }).join("");
   $("#cmp-body").innerHTML = `<div>
@@ -195,7 +195,7 @@ function renderCompare() {
         <span class="tag l">${T("Before · {d}", { d: esc(d.before) })}</span><span class="tag r">${T("After · {d}", { d: esc(d.after) })}</span></div>
       <input type="range" id="cmp-pos" min="0" max="100" value="${CMP.pos}" aria-label="${T("Drag to swipe between the before and after images")}">
       <p class="cmp-note">${T("False-colour composite (SWIR, NIR, red). Red outlines are significant candidate changes; grey dashed outlines are minor or possibly seasonal. Imagery and processing are SIMULATED; candidates are not confirmed until a field crew verifies them.")}</p></div>
-    <div><div class="cmp-sum"><div><b>${d.changes.length}</b><span class="m">${T("changes found")}</span></div><div><b style="color:#ff8a92">${sig}</b><span class="m">${T("significant")}</span></div></div>
+    <div><div class="cmp-sum"><div><b>${d.changes.length}</b><span class="m">${T("changes found")}</span></div><div><b style="color:#b42318">${sig}</b><span class="m">${T("significant")}</span></div></div>
       <div class="cmp-tools"><button class="btn primary" id="cmp-scan" type="button">${d.scanned ? T("Rescan this area") : T("Scan this area")}</button><span class="m">${T("Zayed compares the two dates and opens incidents for significant change.")}</span></div>
       ${d.scanned ? `<ul class="chg-list">${list}</ul>` : '<p class="m">${T("No comparison has been run for this area yet. Press Scan to compare the two dates.")}</p>'}</div>`;
   wireCompare();
@@ -345,7 +345,7 @@ function renderBell() {
   $("#bell").setAttribute("aria-label", unread.length ? T("{n} unread alerts", { n: unread.length }) : T("Alerts, none unread"));
   if (m.hidden) return;
   m.innerHTML = `<div class="bm-h"><span>${unread.length ? T("{n} unread", { n: unread.length }) : T("Alerts")}</span><button class="link" data-bm="all" type="button">${T("Mark all read")}</button></div><div class="bm-list">` +
-    (unread.length ? unread.slice(0, 12).map(n => `<button class="bm-i" data-bm="${esc(n.Notif_ID)}" type="button" style="--c:${SEV_COLOR[n.Severity] || "#4aa3ff"}"><i></i><span><b>${esc(n.Title)}</b><small>${esc(TV(n.Severity))} · ${ago(n.Created)}</small></span></button>`).join("") : '<div class="bm-e">${T("You are all caught up.")}</div>') +
+    (unread.length ? unread.slice(0, 12).map(n => `<button class="bm-i" data-bm="${esc(n.Notif_ID)}" type="button" style="--c:${SEV_COLOR[n.Severity] || "#1570ef"}"><i></i><span><b>${esc(n.Title)}</b><small>${esc(TV(n.Severity))} · ${ago(n.Created)}</small></span></button>`).join("") : '<div class="bm-e">${T("You are all caught up.")}</div>') +
     `</div>`;
   m.querySelectorAll("[data-bm]").forEach(b => b.onclick = async e => {
     e.stopPropagation();
@@ -433,7 +433,7 @@ function initMap() {
     "esri/widgets/Search"
   ], (Map, MapView, SceneView, GraphicsLayer, Graphic, Search) => {
     const chg = new GraphicsLayer(), rep = new GraphicsLayer(), layer = new GraphicsLayer(), sel = new GraphicsLayer();
-    const map = new Map({ basemap: "dark-gray-vector", layers: [chg, rep, layer, sel] });
+    const map = new Map({ basemap: "gray-vector", layers: [chg, rep, layer, sel] });
     const makeView = three => three
       ? new SceneView({ container: "map", map, camera: { position: [46.67, 24.54, 12000], tilt: 45 }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } })
       : new MapView({ container: "map", map, center: [46.68, 24.70], zoom: 11, constraints: { snapToZoom: false }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } });
@@ -470,12 +470,12 @@ function pickAt(x, y) {
 
 function ring(lon, lat) {
   M.sel.removeAll();
-  M.sel.add(new M.Graphic({ geometry: { type: "point", longitude: lon, latitude: lat }, symbol: { type: "simple-marker", style: "circle", color: [0, 0, 0, 0], size: 34, outline: { color: "#7df0b3", width: 3 } } }));
+  M.sel.add(new M.Graphic({ geometry: { type: "point", longitude: lon, latitude: lat }, symbol: { type: "simple-marker", style: "circle", color: [0, 0, 0, 0], size: 34, outline: { color: "#1b8354", width: 3 } } }));
 }
 function clearPick() { M && M.sel.removeAll(); $("#pick").hidden = true; S.selected = ""; }
 
 async function showPick(p) {
-  const box = $("#pick"); box.hidden = false; box.style.setProperty("--c", "#7df0b3");
+  const box = $("#pick"); box.hidden = false; box.style.setProperty("--c", "#1b8354");
   const close = `<button class="x" aria-label="${T("Close")}" type="button">×</button>`;
   try {
     if (p.kind === "report") {
@@ -484,7 +484,7 @@ async function showPick(p) {
         (r.Linked_Incident ? `<div class="row"><button class="btn" data-pk="inc" data-id="${esc(r.Linked_Incident)}" type="button">${T("Open {id}", { id: esc(r.Linked_Incident) })}</button></div>` : "");
     } else {
       const d = (await api("incidents/" + p.id)).result, a = d.incident, wo = d.work_orders[d.work_orders.length - 1], n = (S.reports || []).filter(x => x.Linked_Incident === p.id).length;
-      box.style.setProperty("--c", SEV_COLOR[a.Severity] || "#7df0b3");
+      box.style.setProperty("--c", SEV_COLOR[a.Severity] || "#1b8354");
       box.innerHTML = `${close}<h4>${esc(TV(a.Incident_Type))}</h4><div class="m"><b style="color:${SEV_COLOR[a.Severity]}">${esc(TV(a.Severity))}</b> · ${esc(a.Priority)} · ${esc(TV(a.Status))} · ${esc(TV(a.Area_Name))}</div><p>${esc((a.Description || "").slice(0, 210))}${(a.Description || "").length > 210 ? "…" : ""}</p>` +
         `<p class="m">${esc(p.id)} · ${T("team: {t}", { t: esc(a.Assigned_Team || T("not assigned")) })}${wo ? " · " + esc(wo.Work_Order_ID) + " " + esc(TV(wo.Status)) + (wo.Assigned_Worker ? " (" + esc(wo.Assigned_Worker) + ")" : "") : " · " + T("no work order yet")}${n ? " · " + T("{n} citizen report(s)", { n }) : ""}</p>` +
         `<div class="row">${S.state && S.state.notifications.some(x => x.Incident_ID === p.id) ? `<button class="btn" data-pk="inc" data-id="${esc(p.id)}" type="button">${T("Show alert")}</button>` : ""}${a.Category === "change" ? `<button class="btn" data-pk="cmp" data-area="${esc(a.Area_Name)}" data-id="${esc(p.id)}" type="button">${T("Compare epochs")}</button>` : ""}<button class="btn" data-pk="ask" data-id="${esc(p.id)}" type="button">${T("Ask the crew")}</button></div>`;
@@ -498,10 +498,10 @@ async function updateReports() {
   let rows; try { rows = await api("nccc/reports"); } catch { return; }
   S.reports = rows;
   const sig = rows.map(r => r.Report_ID + r.Status).join("|"); if (sig === S.repSig) return; S.repSig = sig;
-  const col = { water: "#7fd6ff", lighting: "#ffe08a", other: "#9fb2c8" };
+  const col = { water: "#0e7490", lighting: "#b54708", other: "#4b5563" };
   M.rep.removeAll();
   M.rep.addMany(rows.map(r => new M.Graphic({ geometry: { type: "point", longitude: r.lon, latitude: r.lat }, attributes: { id: r.Report_ID },
-    symbol: { type: "simple-marker", style: "diamond", color: col[r.Category] || "#9fb2c8", size: r.Status === "Linked" ? 11 : 9, outline: { color: "#0b1d36", width: 1 } } })));
+    symbol: { type: "simple-marker", style: "diamond", color: col[r.Category] || "#4b5563", size: r.Status === "Linked" ? 11 : 9, outline: { color: "#ffffff", width: 1 } } })));
 }
 
 /* the satellite-comparison polygons, drawn under the incidents (loaded only while the layer is switched on) */
@@ -527,8 +527,8 @@ async function updateMap(force) {
   M.layer.removeAll();
   M.layer.addMany(open.map(f => new M.Graphic({
     geometry: { type: "point", longitude: f.geometry.coordinates[0], latitude: f.geometry.coordinates[1] }, attributes: { id: f.id },
-    symbol: { type: "simple-marker", style: "circle", color: SEV_COLOR[f.properties.Severity] || "#4aa3ff", size: { P1: 15, P2: 13, P3: 11, P4: 9 }[f.properties.Priority] || 10,
-      outline: pend.has(f.id) ? { color: "#ffffff", width: 2.5 } : { color: "#0b1d36", width: 1 } } })));
+    symbol: { type: "simple-marker", style: "circle", color: SEV_COLOR[f.properties.Severity] || "#1570ef", size: { P1: 15, P2: 13, P3: 11, P4: 9 }[f.properties.Priority] || 10,
+      outline: pend.has(f.id) ? { color: "#ffffff", width: 2.5 } : { color: "#ffffff", width: 1 } } })));
 }
 
 function goTo(lon, lat, inc) {

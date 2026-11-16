@@ -58,8 +58,8 @@ class SensorMod(BaseModel):
 ROLES = {"viewer": 0, "worker": 1, "operator": 2}
 FORM_OFF = "The in-app investigator form is disabled. Field teams report through the ArcGIS Field Maps app; their reports are pulled in automatically."
 FIELD_PAGE = """<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Investigator form disabled</title>
-<style>body{font:16px/1.6 Segoe UI,system-ui,sans-serif;background:#071426;color:#e8f1fb;display:grid;place-items:center;min-height:100vh;margin:0}
-main{max-width:520px;padding:32px;background:#0f2540;border:1px solid #1f3d63;border-radius:14px}h1{margin:0 0 8px;font-size:22px}a{color:#4aa3ff}</style>
+<style>body{font:16px/1.6 Segoe UI,system-ui,sans-serif;background:#f3f4f6;color:#111827;display:grid;place-items:center;min-height:100vh;margin:0}
+main{max-width:520px;padding:32px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px}h1{margin:0 0 8px;font-size:22px}a{color:#1b8354}</style>
 <main><h1>Investigator form disabled</h1><p>Field teams now report through the <b>ArcGIS Field Maps</b> app. Open your assigned map in Field Maps, add a report on the
 Field Verification layer and sync. It appears in the command center within about 15 seconds.</p><p><a href="/index.html">Back to the command center</a></p></main>"""
 

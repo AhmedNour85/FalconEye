@@ -5,25 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Executive Hub | Riyadh City View</title>
 <script src="i18n.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="role.css">
 <link rel="stylesheet" href="mobility.css">
 <link rel="stylesheet" href="rtl.css">
-<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
 <script src="https://js.arcgis.com/4.30/"></script>
 <style>
-body.role { --role-accent: #1fb36b; grid-template-columns: 360px 1fr 380px; }
+body.role { --role-accent: #1b8354; grid-template-columns: 360px 1fr 380px; }
 /* header in the style of the Operation page: logo, two-line title, rounded controls */
 body.role { grid-template-rows: auto 1fr auto; }
 .role .top { padding: 12px 20px; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
 .role .brand { gap: 12px; }
-.role .brand .logo { width: 34px; height: 34px; fill: none; stroke: #7df0b3; stroke-width: 1.7; stroke-linecap: round; flex: none; }
+.role .brand .logo { width: 34px; height: 34px; fill: none; stroke: #1b8354; stroke-width: 1.7; stroke-linecap: round; flex: none; }
 .role .brand b { font-size: 20px; letter-spacing: .06em; display: block; line-height: 1.1; }
-.role .brand span { color: #b6d6c8; font-size: 12.5px; font-weight: 400; display: block; margin-top: 2px; }
+.role .brand span { color: #4b5563; font-size: 12.5px; font-weight: 400; display: block; margin-top: 2px; }
 .role nav { gap: 8px; }
 .role nav a { background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 8px 14px; color: var(--text); }
 .role nav a:hover { filter: brightness(1.15); background: var(--surface-3); }
 .role nav a.active { background: var(--role-accent); border-color: var(--role-accent); color: var(--on-accent); }
-.updated { font-size: var(--fs-xs); color: #cfe9dd; display: flex; align-items: center; gap: 8px; margin-inline-end: 12px; background: #0a1b3088; border: 1px solid var(--border); border-radius: var(--r-full); padding: 7px 12px; }
+.updated { font-size: var(--fs-xs); color: #14573a; display: flex; align-items: center; gap: 8px; margin-inline-end: 12px; background: #f9fafb88; border: 1px solid var(--border); border-radius: var(--r-full); padding: 7px 12px; }
 .updated i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
 @keyframes pulse { 50% { opacity: .3; } }
 .topright { display: flex; align-items: center; gap: 0; flex-wrap: wrap; row-gap: 8px; }
@@ -63,7 +65,7 @@ html.rtl .kgrid .kpi .sub { font-size: 14px; }
 .spark-x { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin: 3px 0 0 22px; }
 .spark-x .sq { opacity: .6; font-size: 9px; }
 .legend-inline span { white-space: nowrap; }
-.legend-inline b { color: var(--text, #e6edf7); font-weight: 600; margin-inline-start: 2px; }
+.legend-inline b { color: var(--text, #111827); font-weight: 600; margin-inline-start: 2px; }
 .legend-inline { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-xs); color: var(--muted); margin-top: 6px; }
 .legend-inline span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; background: var(--c); }
 .bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 8px; overflow: hidden; }
@@ -138,7 +140,7 @@ html.rtl body.rc .collapse svg { transform: none; }
   </div>
   <button class="mapmode" id="mapmode" type="button" title="Switch between 2D and 3D view" aria-label="Switch between 2D and 3D view"><span class="mm">2D</span></button>
   <div id="map"></div>
-  <div class="legend"><span style="--c:#1fb36b">Urban change candidate</span><span style="--c:#ff4d5a">P1 / Critical incident</span><span style="--c:#ff8a2b">Other open incident</span></div>
+  <div class="legend"><span style="--c:#1b8354">Urban change candidate</span><span style="--c:#d92d20">P1 / Critical incident</span><span style="--c:#dc6803">Other open incident</span></div>
 </main>
 
 <aside class="right" id="briefs-col">

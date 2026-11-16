@@ -9,25 +9,25 @@
 <script src="i18n.js"></script>
 <style>
   .fmain{width:100%;max-width:880px;margin:0 auto;padding:14px 16px 40px;display:flex;flex-direction:column;gap:14px}
-  .who{display:flex;align-items:center;gap:8px;color:#e8f1fb}
+  .who{display:flex;align-items:center;gap:8px;color:#111827}
   .tcard .meta{color:var(--mut);font-size:13px;margin-top:4px}
-  .badge{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12.5px;font-weight:600;background:#1f4570;color:#e8f1fb}
-  .badge.go{background:#0f3b2e;color:#7df0b3}.badge.wait{background:#4a3a10;color:#ffd27a}
+  .badge{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12.5px;font-weight:600;background:#d1d5db;color:#111827}
+  .badge.go{background:#dcfae9;color:#1b8354}.badge.wait{background:#fef0c7;color:#b54708}
   .pop .sheet{width:min(600px,100%)}
   .pop .sheet-b{display:block}
   .kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;margin:10px 0;font-size:14.5px}.kv dt{color:var(--mut)}.kv dd{margin:0}
-  .ai{background:#0a1b30;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px;color:#cfe0f3}
-  .ai b{color:#7df0b3}
+  .ai{background:#f9fafb;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px;color:#374151}
+  .ai b{color:#1b8354}
   .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
   .opts label{display:flex;gap:8px;align-items:flex-start;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px;cursor:pointer;font-size:14px}
-  .opts label:has(input:checked){border-color:#7df0b3;box-shadow:0 0 0 1px #7df0b3}
+  .opts label:has(input:checked){border-color:#1b8354;box-shadow:0 0 0 1px #1b8354}
   .opts small{display:block;color:var(--mut)}
-  textarea,input[type=text],input[type=number]{width:100%;background:#0a1b30;border:1px solid var(--line);border-radius:10px;color:var(--tx);padding:10px;font:inherit}
+  textarea,input[type=text],input[type=number]{width:100%;background:#f9fafb;border:1px solid var(--line);border-radius:10px;color:var(--tx);padding:10px;font:inherit}
   textarea{min-height:90px;resize:vertical}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .f-l{display:block;margin:10px 0 4px;color:#cfe0f3;font-size:14px}
+  .f-l{display:block;margin:10px 0 4px;color:#374151;font-size:14px}
   .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-  .err{color:#ff8a92;font-size:14px;margin-top:8px}
+  .err{color:#b42318;font-size:14px;margin-top:8px}
   .photo-prev{max-width:100%;max-height:180px;border-radius:10px;margin-top:8px;border:1px solid var(--line)}
   @media (max-width:520px){.opts{grid-template-columns:1fr}.kv{grid-template-columns:1fr}}
 </style>
@@ -62,7 +62,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const { T, TV } = I18N;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const SEV = { Critical: "#ff4d5a", High: "#ff8a2b", Medium: "#f2b233", Low: "#4aa3ff" };
+const SEV = { Critical: "#d92d20", High: "#dc6803", Medium: "#f79009", Low: "#1570ef" };
 const F = { who: "", tasks: [], shown: new Set(), open: "", photo: null, busy: false };
 
 async function api(path, opts) {
@@ -72,7 +72,7 @@ async function api(path, opts) {
   return j;
 }
 function toast(msg, sev) {
-  const t = document.createElement("div"); t.className = "toast"; t.style.setProperty("--c", SEV[sev] || "#2d8cff"); t.textContent = msg;
+  const t = document.createElement("div"); t.className = "toast"; t.style.setProperty("--c", SEV[sev] || "#1b8354"); t.textContent = msg;
   $("#toasts").append(t); setTimeout(() => t.remove(), 6000);
 }
 const due = iso => { const m = Math.round((Date.parse(iso) - Date.now()) / 60000); return m < 0 ? T("overdue") : m < 90 ? T("in {n} min", { n: m }) : T("in {n} h", { n: Math.round(m / 60) }); };
@@ -114,7 +114,7 @@ function renderTasks() {
   box.innerHTML = F.tasks.map(t => {
     const w = t.work_order, i = t.incident, acc = !!w.Accepted_At;
     const state = !acc ? `<span class="badge wait">${T("Waiting for you")}</span>` : w.Status === "In Progress" ? `<span class="badge go">${T("Confirmed · repair report due")}</span>` : `<span class="badge go">${T("Accepted · report due")}</span>`;
-    return `<article class="card tcard ${esc(i.Severity)}" style="--ac:#7df0b3"><div class="c-title">${esc(TV(i.Incident_Type))} · ${esc(TV(i.Area_Name))}</div>
+    return `<article class="card tcard ${esc(i.Severity)}" style="--ac:#1b8354"><div class="c-title">${esc(TV(i.Incident_Type))} · ${esc(TV(i.Area_Name))}</div>
       <div class="meta">${esc(i.Incident_ID)} · ${esc(i.Priority)} · ${esc(TV(i.Severity))} · ${esc(w.Work_Order_ID)} · ${T("due {t}", { t: esc(due(w.Due_Date)) })}</div>
       <div class="c-act">${state}<button class="btn ${acc ? "" : "primary"}" data-open="${esc(w.Work_Order_ID)}" type="button">${acc ? T("Open report form") : T("Review assignment")}</button></div></article>`;
   }).join("");
@@ -138,7 +138,7 @@ const facts = t => `<dl class="kv"><dt>${T("Incident")}</dt><dd><b>${esc(TV(t.in
   <dt>${T("Area")}</dt><dd>${esc(TV(t.incident.Area_Name))} · <bdi>${t.location.lat.toFixed(5)}, ${t.location.lon.toFixed(5)}</bdi></dd>
   <dt>${T("Due")}</dt><dd>${esc(due(t.work_order.Due_Date))}</dd><dt>${T("Work order")}</dt><dd>${esc(t.work_order.Work_Order_ID)} · ${esc(TV(t.work_order.Assigned_Team))}</dd></dl>
   <div class="ai"><b>${T("What the AI found")}</b> ${T("(not confirmed):")} ${t.ai_finding.map(f => esc(f.evidence)).join("<br>") || T("no detail")}</div>
-  <p style="color:#cfe0f3;font-size:14.5px"><b>${T("Your task:")}</b> ${esc(t.instructions)}</p>`;
+  <p style="color:#374151;font-size:14.5px"><b>${T("Your task:")}</b> ${esc(t.instructions)}</p>`;
 
 function renderAssignment(t) {
   $("#pop-h").textContent = T("New assignment");

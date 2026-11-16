@@ -1,13 +1,13 @@
 /* Language switch + right-to-left (Arabic) overrides. Loaded last on every page. Layouts built with flex/grid mirror by themselves;
    this file fixes the places that were written with physical left/right values. */
-.lang-toggle { background: var(--card2, var(--surface-3, #13304f)); color: var(--tx, var(--text, #e8f1fb)); border: 1px solid var(--line, var(--border-strong, #1f3d63));
+.lang-toggle { background: var(--card2, var(--surface-3, #f3f4f6)); color: var(--tx, var(--text, #111827)); border: 1px solid var(--line, var(--border-strong, #e5e7eb));
   border-radius: 10px; padding: 7px 14px; cursor: pointer; font: inherit; font-weight: 600; white-space: nowrap; }
 .lang-toggle:hover { filter: brightness(1.15); }
-.lang-toggle:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
+.lang-toggle:focus-visible { outline: 2px solid #1570ef; outline-offset: 2px; }
 .lang-toggle.floating { position: fixed; top: 14px; inset-inline-end: 14px; z-index: 20; }
 .role .topright .lang-toggle { margin-inline-start: 14px; }
 
-html.rtl body, html.rtl button, html.rtl input, html.rtl select, html.rtl textarea { font-family: "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, Arial, sans-serif; }
+html.rtl body, html.rtl button, html.rtl input, html.rtl select, html.rtl textarea { font-family: "IBM Plex Sans Arabic", "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, Arial, sans-serif; }
 html.rtl .header h1 { letter-spacing: 0; }
 
 /* ids, numbers, coordinates and code stay left-to-right inside Arabic text */
@@ -20,10 +20,10 @@ html.rtl .track::after { left: auto; right: 3px; }
 html.rtl .switch input:checked + .track::after { transform: translateX(-18px); }
 html.rtl .bell span { right: auto; left: -4px; }
 html.rtl .panel-h .link, html.rtl .panel-h .now { margin-left: 0; margin-right: auto; }
-html.rtl body:not(.role) .card, html.rtl .chg-i { border-left: 1px solid var(--line); border-right: 5px solid var(--c, #9fb2c8); }
+html.rtl body:not(.role) .card, html.rtl .chg-i { border-left: 1px solid var(--line); border-right: 5px solid var(--c, #4b5563); }
 html.rtl .chg-i.sig { border-left-color: var(--line); border-right-color: var(--crit); }
 html.rtl body:not(.role) .toast { border-left: 1px solid var(--line); border-right: 5px solid var(--c, var(--acc2)); }
-html.rtl .rep-obs { border-left: 0; border-right: 5px solid #7df0b3; }
+html.rtl .rep-obs { border-left: 0; border-right: 5px solid #1b8354; }
 html.rtl body:not(.role) .legend { left: auto; right: 12px; }
 html.rtl .d { margin-left: 0; margin-right: 6px; }
 html.rtl .answer { padding: 12px 14px 12px 40px; }
@@ -34,7 +34,7 @@ html.rtl .ag { text-align: right; }
 html.rtl .toasts { right: auto; left: 16px; }
 html.rtl .bellmenu { right: auto; left: 0; }
 html.rtl .bellmenu .bm-i { text-align: right; }
-html.rtl .pick { left: auto; right: 12px; border-left: 1px solid #7df0b3aa; border-right: 6px solid var(--c, #7df0b3); }
+html.rtl .pick { left: auto; right: 12px; border-left: 1px solid #1b8354aa; border-right: 6px solid var(--c, #1b8354); }
 html.rtl .sheet-h .x { margin-left: 0; margin-right: auto; }
 html.rtl .cmp-view .tag.l { left: auto; right: 8px; }
 html.rtl .cmp-view .tag.r { right: auto; left: 8px; }

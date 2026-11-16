@@ -12,11 +12,11 @@
 (function () {
   const { T, TV } = I18N;
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const FLOW = { free: "#2faa4a", slow: "#f5a21d", heavy: "#e2362b", stopped: "#8b1117" };
+  const FLOW = { free: "#2faa4a", slow: "#dc6803", heavy: "#d92d20", stopped: "#8b1117" };
   const WIDTH = { slow: 2.6, heavy: 3.2, stopped: 3.8 };
   const LAYERS = [["traffic", "Traffic"], ["metro", "Metro"], ["bus", "Bus"], ["hosp", "Hospitals"], ["closures", "Planned closures"]];
-  const CLOSURE = { Requested: "#f5a21d", Approved: "#ffd24a", "In Place": "#e2362b" };       // asked for, approved, in place
-  const LEVEL = { severe: "#8b1117", heavy: "#e2362b", busy: "#f5a21d" };
+  const CLOSURE = { Requested: "#dc6803", Approved: "#b54708", "In Place": "#d92d20" };       // asked for, approved, in place
+  const LEVEL = { severe: "#8b1117", heavy: "#d92d20", busy: "#dc6803" };
   const pad = h => String(h).padStart(2, "0") + ":00";
   const riyadhHour = () => (new Date().getUTCHours() + 3) % 24;
   const remember = (k, v) => { try { localStorage.setItem("geoai.layer." + k, v ? "1" : "0"); } catch (e) { /* optional */ } };
@@ -72,7 +72,7 @@
       if (on("closures")) rows.push(`<div class="mob-leg">` + ["Requested", "Approved", "In Place"].map(c => `<span><i style="background:${CLOSURE[c]}"></i>${T(c)}</span>`).join("") + `</div>`);
       if (st.impact) {
         head = `<b>${T("Impact of {id}", { id: `<span dir="ltr">${esc(st.impact)}</span>` })}</b> · <b class="mob-mod">${T("Modelled")}</b>`;
-        rows.push(`<div class="mob-leg">` + [["#ff2d3d", "Closed section"], ["#f5a21d", "Worse after the closure"], ["#38bdf8", "Detour"], ["#9fb2c8", "Usual route"]].map(([c, n]) => `<span><i style="background:${c}"></i>${T(n)}</span>`).join("") + `</div>` +
+        rows.push(`<div class="mob-leg">` + [["#d92d20", "Closed section"], ["#dc6803", "Worse after the closure"], ["#0284c7", "Detour"], ["#4b5563", "Usual route"]].map(([c, n]) => `<span><i style="background:${c}"></i>${T(n)}</span>`).join("") + `</div>` +
           `<div class="mob-note"><b>${T("Modelled")}</b> · ${T("calculated from the road network and synthetic demand, not measured")}</div>` +
           `<button class="mob-clear" type="button" data-clear>${T("Clear the impact drawing")}</button>`);
       }
@@ -122,14 +122,14 @@
       const [lines, stations] = await Promise.all([get("layers/metro_lines"), get("layers/metro_stations")]);
       const color = {};
       L.metro.addMany(lines.features.map(f => {
-        const p = f.properties; color[p.Line_ID] = p.Color || "#9fb2c8";
+        const p = f.properties; color[p.Line_ID] = p.Color || "#4b5563";
         return new Graphic({ geometry: { type: "polyline", paths: [f.geometry.coordinates], spatialReference: { wkid: 4326 } }, attributes: p,
           symbol: { type: "simple-line", color: color[p.Line_ID], width: 3.2, cap: "round" }, popupTemplate: popup(name(p), esc((I18N.rtl && p.Terminals_AR) || p.Terminals || "")) });
       }));
       L.metro.addMany(stations.features.map(f => {
         const p = f.properties;
         return new Graphic({ geometry: { type: "point", longitude: f.geometry.coordinates[0], latitude: f.geometry.coordinates[1] }, attributes: p,
-          symbol: { type: "simple-marker", style: "circle", color: "#ffffff", size: 6.5, outline: { color: color[p.Line_ID] || "#9fb2c8", width: 2 } },
+          symbol: { type: "simple-marker", style: "circle", color: "#ffffff", size: 6.5, outline: { color: color[p.Line_ID] || "#4b5563", width: 2 } },
           popupTemplate: popup(name(p), `${T("Metro station")} · ${esc(p.Line_Name || "")}`) });
       }));
     }
@@ -138,16 +138,16 @@
       const [routes, pts] = await Promise.all([get("layers/bus_routes"), get("layers/bus_stops")]);
       L.bus.add(line(routes.features.map(f => f.geometry.coordinates), [56, 189, 248, 0.75], 1.4));                       // one drawing for the 117 routes
       stops.add(new Graphic({ geometry: { type: "multipoint", points: pts.features.map(f => f.geometry.coordinates), spatialReference: { wkid: 4326 } },
-        symbol: { type: "simple-marker", style: "circle", color: [56, 189, 248, 0.95], size: 4.5, outline: { color: "#0b1d36", width: 0.6 } } }));
+        symbol: { type: "simple-marker", style: "circle", color: [56, 189, 248, 0.95], size: 4.5, outline: { color: "#ffffff", width: 0.6 } } }));
     }
 
     async function loadHosp() {
       const gj = await get("layers/hospitals");
       for (const f of gj.features) {
         const g = { type: "point", longitude: f.geometry.coordinates[0], latitude: f.geometry.coordinates[1] }, p = f.properties;
-        L.hosp.add(new Graphic({ geometry: g, attributes: p, symbol: { type: "simple-marker", style: "square", color: "#ffffff", size: 14, outline: { color: "#e2362b", width: 1.6 } },
+        L.hosp.add(new Graphic({ geometry: g, attributes: p, symbol: { type: "simple-marker", style: "square", color: "#ffffff", size: 14, outline: { color: "#d92d20", width: 1.6 } },
           popupTemplate: popup(p.Name, `${T("Hospital")} · ${T("approximate position")}`) }));
-        L.hosp.add(new Graphic({ geometry: g, symbol: { type: "text", text: "H", color: "#e2362b", font: { size: 9, weight: "bold" }, yoffset: -3.5 } }));
+        L.hosp.add(new Graphic({ geometry: g, symbol: { type: "text", text: "H", color: "#d92d20", font: { size: 9, weight: "bold" }, yoffset: -3.5 } }));
       }
     }
 
@@ -163,7 +163,7 @@
         const paths = g.type === "MultiLineString" ? g.coordinates : [g.coordinates];
         const lanes = p.full_closure ? T("whole road closed") : T("{n} lane(s) closed", { n: p.lanes_closed });
         L.closures.add(new Graphic({ geometry: { type: "polyline", paths, spatialReference: { wkid: 4326 } }, attributes: p,
-          symbol: { type: "simple-line", color: CLOSURE[p.status] || "#ffd24a", width: 5, style: p.status === "Requested" ? "short-dash" : "solid", cap: "round" },
+          symbol: { type: "simple-line", color: CLOSURE[p.status] || "#b54708", width: 5, style: p.status === "Requested" ? "short-dash" : "solid", cap: "round" },
           popupTemplate: popup(T("Planned closure") + ": " + (p.road || ""), `<b>${esc(TV(p.status))}</b> · ${esc(lanes)}<br><span dir="ltr">${esc(String(p.start_time).replace("T", " ").slice(0, 16))} → ${esc(String(p.end_time).replace("T", " ").slice(0, 16))}</span>` +
             `<br>${esc(TV(p.reason))}${p.incident_id ? "<br>" + esc(p.incident_id) : ""}`) }));
       }
@@ -184,13 +184,13 @@
         const paths = g => !g ? [] : g.type === "MultiLineString" ? g.coordinates : [g.coordinates];
         for (const f of (d.routes && d.routes.features) || []) {
           const k = f.properties.kind; if (k === "scenario") continue;
-          impact.add(lines(paths(f.geometry), k === "detour" ? "#38bdf8" : "#9fb2c8", k === "detour" ? 3.4 : 2, k === "detour" ? "solid" : "short-dash"));
+          impact.add(lines(paths(f.geometry), k === "detour" ? "#0284c7" : "#4b5563", k === "detour" ? 3.4 : 2, k === "detour" ? "solid" : "short-dash"));
         }
         for (const f of (d.segments && d.segments.features) || []) {
           const p = f.properties; if (p.status !== "worse" && p.status !== "new") continue;
-          impact.add(lines(paths(f.geometry), LEVEL[p.scenario_level] || "#f5a21d", 4.2));
+          impact.add(lines(paths(f.geometry), LEVEL[p.scenario_level] || "#dc6803", 4.2));
         }
-        if (d.closed && d.closed.geometry) impact.add(lines(paths(d.closed.geometry), "#ff2d3d", 6.5));
+        if (d.closed && d.closed.geometry) impact.add(lines(paths(d.closed.geometry), "#d92d20", 6.5));
         renderInfo();
         const v = view && view();
         if (v && d.closed && d.closed.geometry) {                                       // bring the closed section into view

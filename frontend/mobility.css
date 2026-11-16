@@ -1,37 +1,37 @@
 /* Mobility layer controls, legend and credits. Used by the Operation page and the Executive Hub (their colour variables differ, hence the fallbacks). */
 .mob { display: flex; flex-direction: column; gap: 6px; }
 .mob label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.mob input[type=checkbox] { accent-color: #38bdf8; }
-.mob input:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
-.mob-hour { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line, var(--border, #27405f)); }
+.mob input[type=checkbox] { accent-color: #0284c7; }
+.mob input:focus-visible { outline: 2px solid #1570ef; outline-offset: 2px; }
+.mob-hour { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line, var(--border, #d1d5db)); }
 .mob-hour[hidden] { display: none; }
-.mob-hour input { flex: 1; min-width: 96px; accent-color: #f5a21d; }
+.mob-hour input { flex: 1; min-width: 96px; accent-color: #dc6803; }
 .mob-hour output { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2em; text-align: end; }
-.mob-info { position: absolute; right: 12px; bottom: 52px; z-index: 5; max-width: min(380px, calc(100% - 24px)); background: #071426e6; border: 1px solid var(--line, var(--border, #27405f)); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; color: #dbe7f5; }
+.mob-info { position: absolute; right: 12px; bottom: 52px; z-index: 5; max-width: min(380px, calc(100% - 24px)); background: #ffffffe6; border: 1px solid var(--line, var(--border, #d1d5db)); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; color: #374151; }
 .mob-info[hidden] { display: none; }
 .mob-info summary { cursor: pointer; list-style-position: inside; }
-.mob-info summary:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
+.mob-info summary:focus-visible { outline: 2px solid #1570ef; outline-offset: 2px; }
 .mob-info[open] summary { margin-bottom: 4px; }
-.mob-mod { color: #ffe08a; }
+.mob-mod { color: #b54708; }
 .mob-leg { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; }
 .mob-leg i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-inline-end: 5px; vertical-align: middle; }
-.mob-note, .mob-credit { color: #a9bdd4; margin-top: 3px; }
-.mob-note b { color: #ffe08a; }
+.mob-note, .mob-credit { color: #4b5563; margin-top: 3px; }
+.mob-note b { color: #b54708; }
 .mob-credit { font-size: 11.5px; }
-.mob-wait { margin-top: 4px; color: #ffe08a; }
-.mob-clear { margin-top: 6px; background: #12304f; color: #dbe7f5; border: 1px solid var(--line, var(--border, #27405f)); border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
-.mob-clear:hover { border-color: #38bdf8; }
-.mob-clear:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
+.mob-wait { margin-top: 4px; color: #b54708; }
+.mob-clear { margin-top: 6px; background: #f3f4f6; color: #374151; border: 1px solid var(--line, var(--border, #d1d5db)); border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+.mob-clear:hover { border-color: #0284c7; }
+.mob-clear:focus-visible { outline: 2px solid #1570ef; outline-offset: 2px; }
 
 /* Operation page: the legend and credits sit above the incident legend row (bottom: 52px above), so the two never cover each other.
    The layer box sits under the search box, clear of the zoom buttons on the other side */
-.maplayers { position: absolute; right: 12px; top: 58px; z-index: 5; background: #071426d9; border: 1px solid var(--line, #27405f); border-radius: 10px; padding: 6px 10px; font-size: 13px; }
+.maplayers { position: absolute; right: 12px; top: 58px; z-index: 5; background: #ffffffd9; border: 1px solid var(--line, #d1d5db); border-radius: 10px; padding: 6px 10px; font-size: 13px; }
 .maplayers summary { cursor: pointer; font-weight: 600; list-style-position: inside; }
 .maplayers[open] summary { margin-bottom: 6px; }
-.maplayers summary:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
+.maplayers summary:focus-visible { outline: 2px solid #1570ef; outline-offset: 2px; }
 
 /* Executive Hub: the mobility layers continue the existing layer box; the map shows the ArcGIS credit line at the bottom */
-.layers .mob { padding-top: 6px; border-top: 1px solid var(--border, #27405f); }
+.layers .mob { padding-top: 6px; border-top: 1px solid var(--border, #d1d5db); }
 .role .mob-info { bottom: 30px; right: 14px; }
 
 /* Arabic: the incident legend moves to the right, so the mobility legend takes the left */
@@ -42,19 +42,19 @@ html.rtl .role .mob-info { left: 14px; }
 
 /* Lifecycle strip: seven steps on every alert, the current one highlighted */
 .life { list-style: none; display: flex; gap: 2px; margin: 8px 0 2px; padding: 0; }
-.life li { flex: 1 1 0; min-width: 0; text-align: center; font-size: 10px; color: #8aa0ba; }
-.life li i { display: block; height: 4px; border-radius: 2px; background: #27405f; margin-bottom: 3px; }
+.life li { flex: 1 1 0; min-width: 0; text-align: center; font-size: 10px; color: #6b7280; }
+.life li i { display: block; height: 4px; border-radius: 2px; background: #d1d5db; margin-bottom: 3px; }
 .life li span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.life li.ls-done i { background: #3fb68b; } .life li.ls-done { color: #b7c7da; }
-.life li.ls-current i { background: #4aa3ff; } .life li.ls-current { color: #fff; font-weight: 600; }
-.life li.ls-stopped i { background: #e5484d; } .life li.ls-stopped { color: #ff8a8e; font-weight: 600; }
+.life li.ls-done i { background: #1b8354; } .life li.ls-done { color: #4b5563; }
+.life li.ls-current i { background: #1570ef; } .life li.ls-current { color: #fff; font-weight: 600; }
+.life li.ls-stopped i { background: #d92d20; } .life li.ls-stopped { color: #b42318; font-weight: 600; }
 .life-note { margin: 2px 0 0; }
 @media (max-width: 640px) { .life li { font-size: 9px; } }
 
 /* Strategy comparison table */
 .tablewrap { overflow-x: auto; }
 table.strat { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
-table.strat th, table.strat td { padding: 6px 8px; text-align: start; border-bottom: 1px solid #27405f; vertical-align: top; }
-table.strat th { color: #8aa0ba; font-weight: 600; font-size: 12px; }
+table.strat th, table.strat td { padding: 6px 8px; text-align: start; border-bottom: 1px solid #d1d5db; vertical-align: top; }
+table.strat th { color: #6b7280; font-weight: 600; font-size: 12px; }
 table.strat tr.rec td { background: rgba(63, 182, 139, .14); }
 table.strat tr.skip { opacity: .6; }
