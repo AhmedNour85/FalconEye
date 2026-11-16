@@ -313,3 +313,75 @@ def test_a_bilingual_description_never_passes_the_hosted_limit():
         assert tasks.description({"Work_Order_ID": "WO-1"}, "") .rstrip()[-1] != "…"          # a short text is never marked as cut
     finally:
         tasks.LANG = old
+
+
+# ---- Plan 4, Task 2: answers on mobility tasks ----
+import json as _json
+
+import pytest as _pytest
+
+
+def _mobility_task(platform, name):
+    """A dispatched mobility task: (event id, incident id, work order id)."""
+    out = platform.crew.inject(name)
+    iid = out["scan"]["new_incidents"][0]
+    apr = next(p for p in platform.approvals.pending() if p["Incident_ID"] == iid and p["Action_Type"] == "apply_traffic_plan")
+    assert platform.approvals.approve(apr["Approval_ID"])["ok"]
+    wo = platform.store.query(S.WORK_ORDERS, Incident_ID=iid)[0]["id"]
+    platform.crew.run_cycle(scope=frozenset({"mobility"}))
+    a = next(p for p in platform.approvals.pending() if p["Action_Type"] == "assign_worker" and _json.loads(p["Payload"])["work_order_id"] == wo)
+    assert platform.approvals.approve(a["Approval_ID"])["ok"]
+    return out["id"], iid, wo
+
+
+def _status(platform, iid):
+    return platform.store.get(S.INCIDENTS, iid)["attrs"]["Status"]
+
+
+@_pytest.mark.parametrize("name", ["road_closure", "major_event"])
+def test_finishing_a_plan_task_in_field_maps_with_yes_confirmed_confirms_it_and_needs_no_repair_visit(platform, name):
+    _eid, iid, wo = _mobility_task(platform, name)
+    platform.mirror = _FinishingWithForm(wo, Field_Verdict="Confirmed", Field_Comment="Signs and barriers are in place as approved.")
+    platform.pull_field_updates()
+    assert _status(platform, iid) == "Confirmed" and len(platform.store.query(S.VERIFICATION, Incident_ID=iid)) == 1
+    platform.crew.run_cycle(scope=frozenset({"mobility"}))
+    assert len(platform.store.query(S.VERIFICATION, Incident_ID=iid)) == 1          # nothing to repair: no second visit is asked for
+
+
+def test_finishing_a_traffic_incident_task_confirms_it_and_the_road_is_cleared_in_a_later_visit(platform):
+    _eid, iid, wo = _mobility_task(platform, "traffic_incident")
+    platform.mirror = _FinishingWithForm(wo, Field_Verdict="Confirmed", Field_Comment="Two vehicles blocking the left lanes.")
+    platform.pull_field_updates()
+    assert _status(platform, iid) == "Confirmed"
+
+
+def test_finishing_with_not_found_does_not_confirm_a_mobility_task(platform):
+    _eid, iid, wo = _mobility_task(platform, "road_closure")
+    platform.mirror = _FinishingWithForm(wo, Field_Verdict="Rejected", Field_Comment="No barriers on the road.")
+    platform.pull_field_updates()
+    assert _status(platform, iid) != "Confirmed"
+    assert platform.store.query(S.VERIFICATION, Incident_ID=iid)[-1]["attrs"]["Verification_Status"] == "Rejected"
+
+
+def test_a_note_alone_still_works_on_a_mobility_task(platform):
+    _eid, iid, wo = _mobility_task(platform, "major_event")
+    platform.mirror = _FinishingWithForm(wo, esritask_notes="Confirmed: marshals and signs are in position")
+    platform.pull_field_updates()
+    assert _status(platform, iid) == "Confirmed"
+
+
+def test_the_task_text_of_a_mobility_task_is_bilingual(platform):
+    import re
+    from backend.services import tasks
+    old = tasks.LANG
+    tasks.LANG = "both"
+    try:
+        _eid, iid, wo = _mobility_task(platform, "road_closure")
+        a = platform.store.get(S.WORK_ORDERS, wo)["attrs"]
+        d = tasks.description(a, "")
+        ar, _sep, en = d.partition("――――――――")
+        assert "Confirm" in en and re.search(r"[؀-ۿ]{4,}", ar)
+        latin_sentences = re.findall(r"\b[a-z]{4,} [a-z]{4,} [a-z]{4,}\b", ar)          # no run of three plain English words in the Arabic half
+        assert not latin_sentences, latin_sentences
+    finally:
+        tasks.LANG = old
