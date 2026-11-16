@@ -386,11 +386,11 @@ class SimEngine:
 
     # incident type -> (what is found when the answer key says it is real, what is found when it is not)
     MOBILITY_OBS = {
-        "Traffic Incident": ("Crashed vehicles are blocking the reported lanes; traffic is queuing behind them. Scene made safe and traffic directed past. Blockage confirmed.",
+        "Traffic Incident": ("Crashed vehicles blocking the reported lanes; traffic queuing. Scene made safe. Blockage confirmed.",
                              "All lanes are open and traffic is flowing normally; no crash or debris found at the reported point."),
         "Planned Road Closure": ("Signs, barriers and the diversion route are in place as approved; the section is closed to traffic. Closure confirmed.",
                                  "No closure found on site: no signs or barriers are set up and traffic is using the section."),
-        "Major Event Traffic Plan": ("Approach routes are signed, parking guidance is up and marshals are in position at the venue. Traffic plan confirmed in place.",
+        "Major Event Traffic Plan": ("Approach routes signed, parking guidance up, marshals in position at the venue. Traffic plan confirmed in place.",
                                      "No traffic plan found on site: no signs, parking guidance or marshals at the venue."),
     }
     MOBILITY_CLEARED = "Vehicles removed and debris cleared; all lanes are open again and traffic is back to normal."

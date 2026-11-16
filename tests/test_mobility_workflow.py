@@ -138,3 +138,22 @@ def test_the_simulated_investigator_answers_by_incident_type_and_follows_the_ans
     assert platform.approvals.approve(close["Approval_ID"])["ok"] and status(platform, iid) == "Closed - False Positive"
     if name == "road_closure":
         assert platform.store.get(S.CLOSURES, out["id"])["attrs"]["Status"] == "Approved"   # found not in place: the record is not moved on
+
+
+@pytest.mark.parametrize("name", ["traffic_incident", "road_closure", "major_event"])
+def test_the_stored_assessment_fits_the_hosted_text_field(platform, name):
+    """Found live: a mobility finding makes a longer assessment than the 255 characters the hosted Agent_Assessment field holds."""
+    out, iid, apr = plan(platform, name)
+    assert platform.approvals.approve(apr["Approval_ID"])["ok"]
+    wo = dispatch(platform, iid)
+    res = platform.simulate_field_response(wo)
+    row = platform.store.query(S.VERIFICATION, Work_Order_ID=wo)[-1]["attrs"]
+    assert 0 < len(row["Agent_Assessment"]) <= 255 and "Agent assessment: " in row["Agent_Assessment"]
+    assert len(res["assessment"]) >= len(row["Agent_Assessment"])
+
+
+def test_every_simulated_observation_survives_the_alert_cut_in_full():
+    """The alert quotes the first 140 characters of the observation: a longer one would be cut mid-sentence and could not be translated."""
+    from backend.services.simulation import SimEngine
+    texts = [t for pair in SimEngine.MOBILITY_OBS.values() for t in pair] + [SimEngine.MOBILITY_CLEARED]
+    assert all(len("[SIMULATED WORKER] " + t) <= 140 for t in texts)

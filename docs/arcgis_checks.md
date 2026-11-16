@@ -105,6 +105,27 @@ Seen in the log during start-up: two `urllib3` warnings "Connection pool is full
 
 Not re-measured: the 15-second refresh. Reference layers are left out of it by design, so it should be unchanged, but that was not timed again.
 
+## Mobility crew, events and road impact (Plan 3, 2026-11-16)
+
+Layers: `scripts/create_feature_layers.py --apply` created `CityView_Riyadh_Traffic_Incidents`, `_Planned_Closures`, `_Event_Notices` and `_Mobility_Scenarios` (32 layers in all; a second dry run shows 32 unchanged). `scripts/add_mobility_demo_rows.py --apply` added WRK-008 and WRK-009 (9 workers). Both ran as a dry run first, were shown, and were applied after a yes.
+
+Live run against ArcGIS Online (full network, 10,986 road sections; one event of each kind, then a traffic incident taken to Resolved):
+
+| Measurement | Result |
+|---|---|
+| Traffic incident simulation (background job) | 18 s |
+| Closure simulation with the strategy comparison (background job) | 25.7 s |
+| Major event simulation (background job) | 7.6 s |
+| Road-impact run (day and night, two scenario runs) on the full network | 44 s |
+| Crew scan with no simulation running | 0.7 to 1.8 s |
+| Event injected (scan only; the simulation continues in the background) | 2.8 to 7.9 s |
+
+The 60-second crew scan never waited for a simulation. A traffic incident went through approval, assignment, the simulated field check, closing, and ended Resolved with its road report Cleared; an approved closure plan appeared on the planned-closures map as Approved, and "View impact on map" drew the closed section, the worse sections and the detours with the "Modelled" note. Arabic: the Simulate menu groups, eleven crew names, layer names and alert text read in Arabic.
+
+Found and fixed during the live run: the hosted `Agent_Assessment` field holds 255 characters and a mobility field result made a longer one, so the scan was refused (nothing was changed, as designed). The stored text now shortens the quoted observation to fit; the full observation stays in its own field. The two longest simulated observations were also shortened so the alert never cuts them.
+
+Not seen live: the water-leak road-impact line. The demo leak sits 87 m from the nearest modelled road, outside the 60 m rule, so no closure was proposed; the rule was checked on the skeleton network in the tests (tests never contact ArcGIS Online).
+
 ## ArcGIS Maps SDK for JavaScript version (checked 2026-11-16)
 
 The pages load version **4.30** from Esri's CDN with `require([...])`. No upgrade was made. Esri's release notes say:

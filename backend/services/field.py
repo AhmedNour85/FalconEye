@@ -134,12 +134,20 @@ def assess(store: Store, audit: Audit, verification_id: str) -> dict:
     else:
         outcome = "Requires Further Inspection"
     predicted = "; ".join(f"{d['attrs']['Detection_Type']} (risk {d['attrs']['Risk_Score']}, confidence {d['attrs']['Confidence']})" for d in dets) or "n/a"
-    assessment = f"AI predicted: {predicted}. Field observed: '{a['Observation']}' -> {st}. Distance to detection {dist:.0f} m. Agent assessment: {outcome}. " + " ".join(notes)
+    def _assessment(obs: str) -> str:
+        return f"AI predicted: {predicted}. Field observed: '{obs}' -> {st}. Distance to detection {dist:.0f} m. Agent assessment: {outcome}. " + " ".join(notes)
+
+    assessment = _assessment(a["Observation"])
+    stored = assessment                                  # the hosted field holds 255 characters: the quoted observation (kept in full in its own field) is shortened to fit
+    if len(stored) > 255:
+        obs = a["Observation"]
+        stored = _assessment(obs[:max(20, len(obs) - (len(stored) - 255) - 3)].rstrip() + "...")
+        stored = stored if len(stored) <= 255 else stored[:252].rstrip() + "..."
     inc_status = {"Confirmed": "Confirmed", "Rejected": "Rejected", "Requires Further Inspection": "Requires Further Inspection", "Escalated": "Escalated"}[outcome]
     if st == "Repaired" and outcome == "Confirmed":
         inc_status = "Repair Reported"
     changed_det = outcome in ("Confirmed", "Rejected")
-    store.update(S.VERIFICATION, verification_id, Agent_Assessment=assessment)
+    store.update(S.VERIFICATION, verification_id, Agent_Assessment=stored)
     if inc["attrs"]["Status"] in ("Resolved", "Closed - False Positive"):
         # a report that is assessed again after the incident was closed (for example a row pulled back from ArcGIS Online) keeps its text but changes nothing else
         return {"ok": True, "verification_id": verification_id, "incident_id": inc["id"], "outcome": outcome, "incident_status": inc["attrs"]["Status"], "assessment": assessment,
