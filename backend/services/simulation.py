@@ -172,7 +172,79 @@ class SimEngine:
             area = self.least_busy(self.light_areas()) if key == "random" else self.SLUGS.get(key)
             if area in self.light_areas():
                 return self._lights_area(area)
-        raise ValueError(f"unknown scenario {name}; available: olaya_leak, multi_incident, king_fahd_lights, streetlight_pole, pole_decay, distortion_event, landuse_violation, leak_<area|random>, lights_<olaya|kafd|almalaz|dq|ksp|diriyah|random>")
+        if name == "traffic_incident":
+            return self._traffic_incident()
+        if name == "road_closure":
+            return self._road_closure()
+        if name == "major_event":
+            return self._major_event()
+        raise ValueError(f"unknown scenario {name}; available: olaya_leak, multi_incident, king_fahd_lights, streetlight_pole, pole_decay, distortion_event, landuse_violation, "
+                         "leak_<area|random>, lights_<olaya|kafd|almalaz|dq|ksp|diriyah|random>, traffic_incident, road_closure, major_event")
+
+    # ---- mobility events (SYNTHETIC rows; the crew reads them on its next scan) ---------------------
+    CLOSURE_REASONS = ("Resurfacing works", "Bridge joint replacement", "Utility crossing under the carriageway", "Drainage repair")
+    EVENTS = (("Riyadh Season concert", "KAFD"), ("National festival evening", "King Abdullah Park"), ("Football final screening", "Riyadh Front"),
+              ("Heritage night", "King Abdulaziz Historical Center"), ("Graduation ceremony", "King Saud University"))
+
+    def _wide_section(self, min_lanes: int = 3) -> dict:
+        """A motorway or arterial section with at least this many lanes, on the named road with the fewest open incidents and earlier events."""
+        from backend.mobility import sources
+
+        roads = [r for r in sources.load_network()[0] if r["road_class"] in ("motorway", "arterial") and int(r["lanes"]) >= min_lanes and r.get("corridor")]
+        if not roads:
+            raise ValueError("the road network has no motorway or arterial section wide enough for this event")
+        corridor = self.least_busy(sorted({r["corridor"] for r in roads}))
+        return self.rng.choice(sorted((r for r in roads if r["corridor"] == corridor), key=lambda r: r["id"]))
+
+    @staticmethod
+    def _riyadh_day(days: int = 0) -> datetime:
+        return (datetime.utcnow() + timedelta(hours=3, days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def _traffic_incident(self) -> dict:
+        """A crash blocking two lanes of a wide road: one road report, as a traffic control room would log it."""
+        r = self._wide_section()
+        c = r["geometry"]["coordinates"]
+        rid = self.store.next_id("TRF")
+        self.store.upsert(S.TRAFFIC_REPORTS, {"Report_ID": rid, "Report_Type": "Crash", "Segment_ID": r["id"], "Corridor": r["corridor"], "Road_Class": r["road_class"],
+                                              "Lanes": int(r["lanes"]), "Lanes_Blocked": 2, "Reported_At": utcnow(), "Source": "Road report (SYNTHETIC)", "Status": "New",
+                                              "Detection_ID": "", "Description": f"Multi-vehicle crash blocking 2 of {int(r['lanes'])} lanes on {r['corridor']}.",
+                                              "Data_Classification": S.SYNTHETIC}, geo.point(*c[len(c) // 2][:2]))
+        self._set_truth(rid, True, "scenario: crash blocking lanes")
+        self.event("scenario", f"Road report: crash blocking 2 lanes on {r['corridor']}", rid)
+        return {"scenario": "traffic_incident", "id": rid, "corridor": r["corridor"], "segment_id": r["id"]}
+
+    def _road_closure(self) -> dict:
+        """A contractor asks to close one section of a road tomorrow, 08:00 to 16:00."""
+        r = self._wide_section(min_lanes=2)
+        cid = self.store.next_id("CLS")
+        day = self._riyadh_day(1)
+        reason = self.rng.choice(self.CLOSURE_REASONS)
+        self.store.upsert(S.CLOSURES, {"Closure_ID": cid, "Corridor": r["corridor"], "Section": r["name"], "Segment_IDs": r["id"], "Lanes_Closed": int(r["lanes"]),
+                                       "Full_Closure": "Yes", "Start_Time": day.replace(hour=8).isoformat(timespec="minutes"),
+                                       "End_Time": day.replace(hour=16).isoformat(timespec="minutes"), "Reason": reason, "Status": "Requested", "Strategy": "",
+                                       "Incident_ID": "", "Work_Order_ID": "", "Scenario_ID": "", "Requested_By": "Road works contractor (SYNTHETIC)", "Created": utcnow(),
+                                       "Updated": utcnow(), "Data_Classification": S.SYNTHETIC}, {"type": "LineString", "coordinates": r["geometry"]["coordinates"]})
+        self._set_truth(cid, True, "scenario: planned road closure")
+        self.event("scenario", f"Closure request: {reason.lower()} on {r['corridor']}, tomorrow 08:00 to 16:00", cid)
+        return {"scenario": "road_closure", "id": cid, "corridor": r["corridor"], "segment_id": r["id"]}
+
+    def _major_event(self) -> dict:
+        """An event notice for tonight, 18:00 to 23:00, at a venue the traffic model knows by name."""
+        from backend.mobility import riyadh_network as RN
+
+        venues = {full: (lon, lat) for full, lon, lat in RN.LOCATIONS.values()}
+        venues.update({k: (v[1], v[2]) for k, v in RN.LOCATIONS.items()})
+        name, venue = self.EVENTS[self.injected.get("major_event", 0) % len(self.EVENTS)]
+        self.injected["major_event"] = self.injected.get("major_event", 0) + 1
+        eid = self.store.next_id("EVN")
+        day = self._riyadh_day()
+        people = int(self.rng.randrange(20, 61) * 1000)
+        self.store.upsert(S.EVENT_NOTICES, {"Event_ID": eid, "Name": name, "Venue": venue, "Attendance": people, "Start_Time": day.replace(hour=18).isoformat(timespec="minutes"),
+                                            "End_Time": day.replace(hour=23).isoformat(timespec="minutes"), "Status": "New", "Detection_ID": "", "Incident_ID": "",
+                                            "Source": "Event notice (SYNTHETIC)", "Created": utcnow(), "Data_Classification": S.SYNTHETIC}, geo.point(*venues[venue]))
+        self._set_truth(eid, True, "scenario: major event")
+        self.event("scenario", f"Event notice: {name} at {venue}, about {people:,} people, 18:00 to 23:00", eid)
+        return {"scenario": "major_event", "id": eid, "venue": venue, "attendance": people}
 
     def _pole_decay(self, corridor: str = "King Fahd Road") -> dict:
         """A run of five neighbouring poles on a corridor leans and corrodes (inclinometer + inspection telemetry)."""

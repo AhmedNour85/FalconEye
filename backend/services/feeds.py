@@ -102,8 +102,8 @@ class FeedEngine:
     def on_scenario(self, name: str, info: dict) -> int:
         """Residents notice the same faults the sensors see: correlated reports arrive within the hour."""
         n = 0
-        if not self.citizen_enabled:
-            return 0
+        if not self.citizen_enabled or name in ("traffic_incident", "road_closure", "major_event"):
+            return 0                                             # road events reach the crew as road reports and notices, not through residents
         if info.get("sensor_id") and (name == "olaya_leak" or name.startswith("leak")):
             c = self._sensor_point(info["sensor_id"], info.get("pipeline_id"))
             if c:

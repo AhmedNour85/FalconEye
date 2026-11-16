@@ -502,6 +502,8 @@ class Crew:
             return frozenset({"distortion"})
         if name.startswith("landuse_"):
             return frozenset({"land_use", "change"})        # land-use management = the satellite comparison (urban change) plus the zoning check on what it finds
+        if name in ("traffic_incident", "road_closure", "major_event"):
+            return frozenset({"mobility"})
         return None
 
     def request_inspection(self, incident_id: str) -> dict:
