@@ -131,6 +131,7 @@
     "Reset the demo to a clean state? All alerts, open incidents and approvals will be cleared; only the closed history stays.": "إعادة ضبط العرض إلى حالة نظيفة؟ سيتم مسح كل التنبيهات والحوادث المفتوحة والموافقات، ويبقى السجل المغلق فقط.", "Demo reset.": "تمت إعادة ضبط العرض.",
     /* ---- executive hub */
     "Show the urban-change polygons found in the satellite comparison": "إظهار مضلّعات التغيّر العمراني المرصودة من مقارنة الصور",
+    "Daily brief (PDF)": "الملخص اليومي (PDF)", "English": "English",
     "Collapse Executive Briefs": "طيّ الموجزات التنفيذية", "Expand Executive Briefs": "توسيع الموجزات التنفيذية",
     "Loading…": "جارٍ التحميل…", "City Overview": "نظرة عامة على المدينة", "Incident Trend · 45 days": "اتجاه الحوادث · 45 يومًا", "Hotspots": "النقاط الساخنة",
     "Strategic view · urban change & incidents": "العرض الاستراتيجي · التغيّر العمراني والحوادث", "Map layers": "طبقات الخريطة",
@@ -195,7 +196,7 @@
     /* ---- mobility crew, closures and the impact drawing (Plan 3) */
     "City services": "خدمات المدينة", "Mobility": "التنقل", "Traffic incident": "حادثة مرورية", "Road closure": "إغلاق طريق", "Major event": "فعالية كبرى",
     "mobility": "التنقل", "Not available yet": "غير متاح بعد", "Congestion now": "ازدحام الآن", "Open or coming up": "قائمة أو قادمة", "Peak delay ratio": "نسبة التأخير في الذروة",
-    "busiest hour {h}:00": "ساعة الذروة {h}:00", "Severe road segments": "مقاطع الطرق الشديدة الازدحام", "Worst hospital access": "أسوأ زمن للوصول إلى مستشفى",
+    "busiest hour {h}:00": "ساعة الذروة {h}:00", "Severe sections": "مقاطع شديدة الازدحام", "Hospital access": "الوصول إلى مستشفى",
     "Compare strategies": "قارن الاستراتيجيات", "Compare response strategies": "مقارنة استراتيجيات الاستجابة", "Loading the comparison…": "جارٍ تحميل المقارنة…",
     "Recommended": "موصى بها", "Not applicable to this closure": "لا تنطبق على هذا الإغلاق", "Strategy": "الاستراتيجية", "Extra trip-hours": "ساعات رحلة إضافية",
     "Hospital access change (min)": "تغيّر زمن الوصول إلى المستشفى (دقيقة)", "Less delay than doing nothing": "تأخير أقل مقارنة بعدم اتخاذ إجراء", "Effort": "الجهد",

@@ -61,6 +61,7 @@ def test_arcgis_mode_starts_on_the_data_the_record_holds_and_writes_nothing():
     counts = first.reset()                               # the first fill (scripts/initialize_demo.py --apply)
     incidents = [f["id"] for f in first.store.all(S.INCIDENTS)]
     first.store.release()
+    Platform(settings=Settings(**HOSTED), gateway=gw).store.release()  # the first restart after a fill stamps the Field Maps task fields on the work orders, once
     n = len(gw.writes)
     again = Platform(settings=Settings(**HOSTED), gateway=gw)          # a restart
     assert again.data_ready and again.store.count(S.INFRA) == counts[S.INFRA]

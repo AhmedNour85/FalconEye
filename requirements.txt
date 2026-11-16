@@ -12,3 +12,6 @@ pytest>=8.0
 arcgis>=2.4.2          # ArcGIS Online is the system of record
 six                    # without it `item.layers` comes back empty and the hosted layers look missing (noted in the City project's handoff)
 networkx>=3.2          # mobility: road graph and traffic assignment
+reportlab>=4.0         # daily brief PDF
+arabic-reshaper>=3.0   # Arabic letter shaping in the PDF
+python-bidi>=0.5       # Arabic right-to-left ordering in the PDF

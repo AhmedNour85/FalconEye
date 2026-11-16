@@ -83,6 +83,8 @@ def hotspots(platform, top_n: int = 3, hour: int | None = None) -> list[dict]:
     best: dict = {}
     for vc, sid in sorted(rows, key=lambda r: (-r[0], r[1])):
         road = segs[sid].get("corridor") or segs[sid].get("name") or sid
+        if road.lower().startswith("unnamed"):
+            continue                                            # a road with no name on the map says nothing to a reader
         best.setdefault(road, (vc, sid))
     ranked = sorted(best.items(), key=lambda kv: (-kv[1][0], kv[0]))[:max(1, top_n)]
     top = ranked[0][1][0] if ranked else 1

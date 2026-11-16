@@ -143,6 +143,7 @@ html.rtl body.rc .collapse svg { transform: none; }
   <h2><span class="ttl">Executive Briefs</span> <span class="badge" id="brief-count">0</span>
     <button class="collapse" id="rtoggle" type="button" aria-expanded="true" aria-controls="briefs-col" title="Collapse Executive Briefs" aria-label="Collapse Executive Briefs"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button></h2>
   <div class="row"><button class="go" id="gen">Generate daily report</button><button id="refresh">Refresh</button></div>
+  <div class="row" id="brief-pdf"><span>Daily brief (PDF)</span> <a href="/api/brief.pdf?lang=en" target="_blank" rel="noopener">English</a> <a href="/api/brief.pdf?lang=ar" target="_blank" rel="noopener" lang="ar">العربية</a></div>
   <div class="tabs" role="tablist"><button class="on" data-f="crit" role="tab">Critical</button><button data-f="all" role="tab">All crew alerts</button></div>
   <div class="stack" id="briefs"></div>
 </aside>

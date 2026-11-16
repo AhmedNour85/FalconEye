@@ -168,3 +168,9 @@ Steps 1 to 3 are enough for 5.x. Step 4 is the larger piece of work and is only 
 - Found and fixed: investigators had no `ArcGIS_Username` at start-up, so tasks stayed Unassigned. The server now fills the logins from `GEOAI_FIELD_USERS` at every start.
 - The live record holds these demo rows (INC-0037, CLS-0002, SCN-0004, WO-0026, VER-0025).
 - Phone test (user, 2026-11-17): all ten lines of the script passed in the Field Maps app, including the scripted map's task settings. Checkpoint 4 approved.
+
+## Plan 5 (2026-11-17)
+
+- No new hosted layer and no account change in Tasks 1 to 6. Closures whose window has passed are set to "Ended" by the crew scan (a record change, not a schema change).
+- The demo water leak now picks the sensor pipe next to a modelled road when there is one (simulation only), so the headline story needs no Reset demo.
+- Demand-growth questions create scenario rows of type `demand` in `CityView_Riyadh_Scenarios` (same table, existing fields).

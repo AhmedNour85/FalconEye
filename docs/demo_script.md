@@ -1,4 +1,30 @@
-# Executive demonstration script (~10 minutes)
+# Riyadh City View demo script
+
+## Two-minute walk-through (headline story, then one city story, then Arabic)
+
+Start: `python -m backend.main`, open http://127.0.0.1:8000/index.html (Operation page). Wait until the strip under the title says the traffic model is ready (about a minute after start).
+
+**1. Water leak that touches a road (about 70 seconds)**
+1. Simulate an event: **Water leak**. The crew detects a *suspected* leak (Olaya) and raises an alert. Point at the **lifecycle strip** on the alert: Detected, Analysed, Proposed, Approved, Dispatched, Verified, Resolved.
+2. Within a minute the alert gains a **road-impact line**: closing 2 lanes of the nearest road by day against by night, in trip-hours and minutes to the worst hospital. Say: "Modelled, not measured."
+3. **Approve** the work-order proposal. One approval records the work order and the planned closure. Open **Compare strategies** on the closure alert: five responses, one recommended, assumptions listed.
+4. Nothing was carried out before the click. Everything on screen came from a Python tool.
+
+**2. A city-service story (about 30 seconds)**
+1. Simulate an event: **Streetlight & pole monitoring**. Approve the work order, then the field assignment. The task is in ArcGIS Field Maps for the investigator.
+2. **Simulate repair**, approve the closure. The incident is Resolved and the calibration updates.
+
+**3. Arabic and the Hub (about 20 seconds)**
+1. Press **العربية**. Ask the crew: `ماذا يحدث لو أُغلق طريق الملك فهد غدا من 8 إلى 4؟` The answer is in Arabic, with the Modelled label.
+2. Open the **Executive Hub**: the four mobility numbers, the trend line, congestion hotspots. **Daily brief (PDF)**: English or Arabic, one page.
+
+Questions to try in Ask the crew (English or Arabic): "What if demand grows 20% near KAFD?", "What will an event at KAFD with 40,000 people do to traffic?", "How long does it take to reach a hospital?", "Which roads need maintenance first?", "How is the traffic right now?". Questions create information only; they never create an approval.
+
+Notes: the live record holds earlier demo rows (INC-0037, CLS-0002, SCN-0004, WO-0026, VER-0025). **Reset demo** empties and refills the `CityView` demo layers; run it only when you mean to.
+
+---
+
+# Longer walk-through of the city-service use cases (~10 minutes)
 
 ## Current flow on the Operation page (recommended)
 

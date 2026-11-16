@@ -79,7 +79,7 @@ AGENTS: tuple[AgentDef, ...] = (
     # the mobility specialists (Plan 3). Their traffic numbers are modelled, not measured.
     AgentDef("nasser", "Nasser", "Traffic GeoCoworker", "specialist", "Watches the traffic state and road incidents", "#e0559a", ("traffic_state", "detect_traffic_incidents")),
     AgentDef("noura", "Noura", "Mobility Simulation GeoCoworker", "specialist", "Simulates closures and events, compares response strategies, checks hospital access", "#7cc242",
-             ("simulate_closure", "compare_closure_strategies", "simulate_event", "hospital_access")),
+             ("simulate_closure", "compare_closure_strategies", "simulate_event", "simulate_demand_growth", "hospital_access")),
     AgentDef("fahad", "Fahad", "Road Safety & Assets GeoCoworker", "specialist", "Adds accident history and road-asset condition, ranks maintenance priority", "#c98a3b", ("road_safety_context",)),
 )
 BY_ID = {a.id: a for a in AGENTS}

@@ -15,6 +15,18 @@ PFX_AR = "أثر الطريق (نمذجة): "
 WINDOW = {"day": "النهار", "night": "الليل"}
 
 TERMS = {
+    "King Fahad Medical City": "مدينة الملك فهد الطبية", "DQ": "الحي الدبلوماسي",
+    "King Khalid University Hospital": "مستشفى الملك خالد الجامعي", "King Faisal Specialist Hospital": "مستشفى الملك فيصل التخصصي", "Security Forces Hospital": "مستشفى قوى الأمن",
+    "Dr. Sulaiman Al Habib Hospital (Olaya)": "مستشفى الدكتور سليمان الحبيب (العليا)", "King Abdulaziz Medical City": "مدينة الملك عبدالعزيز الطبية",
+    "Imam Abdulrahman Al Faisal Hospital (East)": "مستشفى الإمام عبدالرحمن الفيصل (الشرق)", "Northern Riyadh Hospital (sample)": "مستشفى شمال الرياض (نموذج)",
+    "Civil Defense HQ (sample)": "مقر الدفاع المدني (نموذج)", "Civil Defense Station North (sample)": "محطة الدفاع المدني الشمالية (نموذج)",
+    "Civil Defense Station East (sample)": "محطة الدفاع المدني الشرقية (نموذج)", "Red Crescent Dispatch Centre (sample)": "مركز إسعاف الهلال الأحمر (نموذج)",
+    "Red Crescent Station South (sample)": "محطة الهلال الأحمر الجنوبية (نموذج)",
+
+    "Al Nakheel": "النخيل", "Nakheel": "النخيل", "Al Narjis": "النرجس", "Narjis": "النرجس", "Al Wurud": "الورود", "Wurud": "الورود", "Al Yasmin": "الياسمين", "Yasmin": "الياسمين",
+    "Malaz": "الملز", "KAHC": "المدينة الطبية بالملك عبدالله", "KAPark": "حديقة الملك عبدالله", "KKIA": "مطار الملك خالد الدولي", "KSU": "جامعة الملك سعود",
+    "King Khalid International Airport": "مطار الملك خالد الدولي", "RiyadhFront": "واجهة الرياض", "King Abdullah Financial District (KAFD)": "المركز المالي (كافد)",
+
     # the three agents, their roles and what they do
     "Nasser": "ناصر", "Noura": "نورة", "Fahad": "فهد",
     "Traffic GeoCoworker": "زميل جيومكاني للمرور", "Mobility Simulation GeoCoworker": "زميل جيومكاني لمحاكاة التنقل",

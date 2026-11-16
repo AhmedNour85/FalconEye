@@ -321,7 +321,17 @@ class SimEngine:
         def nb(pid):
             n = {pipes[pid]["From_Node"], pipes[pid]["To_Node"]}
             return sum(1 for q, _ in pairs if q != pid and n & {pipes[q]["From_Node"], pipes[q]["To_Node"]})
-        pid, sid = max(pairs, key=lambda x: (nb(x[0]), x[0]))
+        from backend.mobility import road_impact, rules
+
+        reach = rules.ROAD_IMPACT["water"]["radius_m"] * 0.75      # inside the road-impact rule even if the leak is localised a little off the pipe's middle
+
+        def by_road(pid):       # a leak next to a modelled road lets the crew show its road-impact line (the headline demo)
+            line = self.store.get(S.WATER, pid)
+            if not line:
+                return 0
+            mid = geo.interpolate(line["geom"]["coordinates"], 0.5)[0]
+            return 1 if road_impact.nearest_road(mid, reach) else 0
+        pid, sid = max(pairs, key=lambda x: (by_road(x[0]), nb(x[0]), x[0]))
         self.modify_sensor(sid, 31, 38, 4)
         for q, s2 in pairs:
             if q != pid and {pipes[pid]["From_Node"], pipes[pid]["To_Node"]} & {pipes[q]["From_Node"], pipes[q]["To_Node"]}:

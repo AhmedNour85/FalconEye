@@ -49,8 +49,8 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
     const na = T("Not available yet"), mod = T("Modelled"), none = !m;
     const v = x => none || x == null ? "–" : x;
     return card("clock", "var(--info)", T("Peak delay ratio"), none || m.peak_delay_ratio == null ? "–" : m.peak_delay_ratio + "×", none || m.peak_delay_ratio == null ? na : `${mod} · ${T("busiest hour {h}:00", { h: m.peak_hour })}`) +
-      card("crit", "var(--warn)", T("Severe road segments"), v(m && m.severe_segments), none || m.severe_segments == null ? na : mod) +
-      card("crit", "var(--bad)", T("Worst hospital access"), none || m.worst_hospital_minutes == null ? "–" : m.worst_hospital_minutes + (I18N.rtl ? " د" : " min"), none || m.worst_hospital_minutes == null ? na : mod) +
+      card("crit", "var(--warn)", T("Severe sections"), v(m && m.severe_segments), none || m.severe_segments == null ? na : mod) +
+      card("crit", "var(--bad)", T("Hospital access"), none || m.worst_hospital_minutes == null ? "–" : m.worst_hospital_minutes + (I18N.rtl ? " د" : " min"), none || m.worst_hospital_minutes == null ? na : mod) +
       card("gate", "var(--info)", T("Planned closures"), none ? "–" : m.planned_closures, none ? na : T("Open or coming up"));
   }
 

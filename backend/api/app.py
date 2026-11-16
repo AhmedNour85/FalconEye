@@ -5,7 +5,7 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +18,8 @@ from backend.gis.store import StoreWriteError
 from backend.mobility import traffic, transit
 from backend.orchestration import crew as crewmod
 from backend.platform import Platform
-from backend.services import field, i18n, imagery, learning, mobility_numbers
+from backend.security import guard as guardmod
+from backend.services import brief as briefmod, field, i18n, imagery, learning, mobility_numbers, pdf_arabic
 from backend.services.filters import make_filter
 from backend.services.synthetic import AREAS, CORRIDORS
 from backend.tools import executive, registry
@@ -97,6 +98,23 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-type")}
         return Response(content=data, status_code=resp.status_code, headers=headers, media_type="application/json")
 
+    gd = guardmod.Guard(p.settings.api_tokens)
+    app.state.guard = gd
+
+    @app.middleware("http")
+    async def guard_every_api_route(request: Request, call_next):
+        """One guard in front of every /api route except the health check; security headers on every response."""
+        if request.url.path.startswith("/api/") and request.url.path not in guardmod.OPEN_PATHS:
+            try:
+                request.state.role = gd.check(request)
+            except HTTPException as exc:
+                resp = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+                guardmod.apply_headers(resp)
+                return resp
+        resp = await call_next(request)
+        guardmod.apply_headers(resp)
+        return resp
+
     app.add_middleware(GZipMiddleware, minimum_size=20000)   # added last = outermost: the road and bus layers are several MB of JSON
 
     @app.exception_handler(StoreWriteError)
@@ -113,11 +131,12 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             release()
 
     def role(minimum: str):
-        """Demo-grade RBAC via X-Role header (default: operator). Production: derive the role from the OAuth/OIDC identity."""
-        def dep(x_role: str = Header(default="operator")):
-            if ROLES.get(x_role, -1) < ROLES[minimum]:
-                raise HTTPException(403, f"role '{x_role}' cannot perform this action (needs {minimum})")
-            return x_role
+        """The role the guard found: the token's role in token mode, the X-Role header (default operator) in local mode."""
+        def dep(request: Request):
+            r = getattr(request.state, "role", None) or "operator"
+            if ROLES.get(r, -1) < ROLES[minimum]:
+                raise HTTPException(403, f"role '{r}' cannot perform this action (needs {minimum})")
+            return r
         return dep
 
     # ---------------------------------------------------------------- meta
@@ -216,6 +235,16 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         """The four mobility numbers of the Executive Hub and the congestion hotspots. Modelled; None where the model is not ready."""
         return {"summary": mobility_numbers.summary(p), "hotspots": mobility_numbers.hotspots(p)}
 
+    @app.get("/api/brief.pdf")
+    def daily_brief(lang: str = "en"):
+        """The one-page daily brief, built from the records and the traffic model now. Nothing is stored."""
+        lang = "ar" if lang == "ar" else "en"
+        try:
+            pdf = briefmod.build(p, lang)
+        except pdf_arabic.ArabicUnavailable as exc:
+            raise HTTPException(503, str(exc))
+        return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="riyadh-city-view-brief-{lang}.pdf"'})
+
     @app.get("/api/mobility/scenarios/{scenario_id}")
     def mobility_scenario(scenario_id: str):
         row = p.jobs.row(scenario_id)
@@ -257,7 +286,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
 
     # ---------------------------------------------------------------- agent
     @app.post("/api/chat")
-    def chat(body: ChatIn):
+    def chat(body: ChatIn, _=Depends(role("operator"))):
         return ag.chat(body.session_id, body.message)
 
     @app.post("/api/tools/{name}")
@@ -380,11 +409,11 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             raise HTTPException(400, str(exc))
 
     @app.post("/api/nccc/notifications/{nid}/ack")
-    def nccc_ack(nid: str):
+    def nccc_ack(nid: str, _=Depends(role("operator"))):
         return {"acknowledged": p.crew.acknowledge(nid)}
 
     @app.post("/api/nccc/notifications/ack-all")
-    def nccc_ack_all():
+    def nccc_ack_all(_=Depends(role("operator"))):
         return {"acknowledged": p.crew.acknowledge(None)}
 
     # ---------------------------------------------------------------- planner choice (offline rules, Claude, OpenAI, Gemini, local servers)
@@ -416,7 +445,7 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         return ag.test_planner()
 
     @app.post("/api/nccc/ask")
-    def nccc_ask(body: ChatIn):
+    def nccc_ask(body: ChatIn, _=Depends(role("operator"))):
         """Ask the crew in plain language; the reply names which agent used which tool."""
         res = ag.chat(body.session_id or "nccc", body.message)
         for t in res.get("trace", []):
@@ -517,19 +546,19 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         return {**p.sim.status(), "events": p.sim.events(25)}
 
     @app.post("/api/sim/start")
-    def sim_start(interval: float = 5.0):
+    def sim_start(interval: float = 5.0, _=Depends(role("operator"))):
         return p.sim.start(max(1.0, interval))
 
     @app.post("/api/sim/pause")
-    def sim_pause():
+    def sim_pause(_=Depends(role("operator"))):
         return p.sim.pause()
 
     @app.post("/api/sim/tick")
-    def sim_tick():
+    def sim_tick(_=Depends(role("operator"))):
         return p.sim.tick()
 
     @app.post("/api/sim/anomaly-rate")
-    def sim_rate(rate: float = 0.0):
+    def sim_rate(rate: float = 0.0, _=Depends(role("operator"))):
         p.sim.anomaly_rate = max(0.0, min(1.0, rate))
         return p.sim.status()
 

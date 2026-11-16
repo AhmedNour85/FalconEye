@@ -5,6 +5,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from backend.security.guard import parse_tokens
+
 try:
     from dotenv import load_dotenv
 
@@ -34,6 +36,7 @@ class Settings:
     field_users: dict | None = None    # worker id -> ArcGIS Online username used in Field Maps, e.g. GEOAI_FIELD_USERS=WRK-001=nawaf.harbi,WRK-002=khalid.otaibi
     field_sync_seconds: float = 15.0   # how often reports made in Field Maps are pulled from ArcGIS Online
     citizen_reports: bool = False      # the citizen-report feed is disabled unless GEOAI_CITIZEN_REPORTS=1
+    api_tokens: dict | None = None     # token -> role (viewer, worker, operator), from API_TOKENS=token=role,... ; empty = local mode (only this computer may call the API)
     field_lang: str = "en"             # language of the task text on the phone: en | ar | both (GEOAI_FIELD_LANG)
     mobility_network: str = "skeleton" # road network of the traffic model: "auto" (hosted road layer, else data/mobility/network.json.gz, else the skeleton), "file" or "skeleton".
                                        # load_settings() defaults to "auto" (GEOAI_MOBILITY_NETWORK); a Settings() built by hand, as the tests do, is the 73-segment skeleton.
@@ -90,6 +93,7 @@ def load_settings() -> Settings:
         field_form=e("GEOAI_FIELD_FORM", "1").lower() in ("1", "true", "yes"),       # the in-app investigator page is on next to ArcGIS Field Maps
         field_users={k.strip(): v.strip() for k, _, v in (p.partition("=") for p in e("GEOAI_FIELD_USERS", "").split(",")) if k.strip() and v.strip()},
         field_sync_seconds=float(e("GEOAI_FIELD_SYNC_SECONDS", "15")),
+        api_tokens=parse_tokens(e("GEOAI_API_TOKENS") or e("API_TOKENS", "")),
         mobility_network=net,
         mobility_warm=e("GEOAI_MOBILITY_WARM", "1").lower() in ("1", "true", "yes"),
         mobility_jobs_inline=e("GEOAI_MOBILITY_JOBS_INLINE", "0").lower() in ("1", "true", "yes"),
