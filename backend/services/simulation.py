@@ -325,12 +325,16 @@ class SimEngine:
 
         reach = rules.ROAD_IMPACT["water"]["radius_m"] * 0.75      # inside the road-impact rule even if the leak is localised a little off the pipe's middle
 
-        def by_road(pid):       # a leak next to a modelled road lets the crew show its road-impact line (the headline demo)
+        def by_road(pid):       # a leak next to a named road lets the crew show a road-impact line worth showing (the headline demo)
             line = self.store.get(S.WATER, pid)
             if not line:
-                return 0
+                return (0, 0)
             mid = geo.interpolate(line["geom"]["coordinates"], 0.5)[0]
-            return 1 if road_impact.nearest_road(mid, reach) else 0
+            road = road_impact.nearest_road(mid, reach)
+            if not road:
+                return (0, 0)
+            named = not str(road.get("corridor") or road.get("name") or "").lower().startswith("unnamed")
+            return (2 if named else 1, int(road.get("lanes") or 0))
         pid, sid = max(pairs, key=lambda x: (by_road(x[0]), nb(x[0]), x[0]))
         self.modify_sensor(sid, 31, 38, 4)
         for q, s2 in pairs:
