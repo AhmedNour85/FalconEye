@@ -30,6 +30,11 @@ def create_work_order(store: Store, p: dict) -> dict:
     a = inc["attrs"]
     wo = store.next_id("WO")
     due = (datetime.now(timezone.utc) + timedelta(hours=int(p.get("due_hours", 24)))).strftime("%Y-%m-%dT%H:%M:%SZ")
+    plan = p.get("closure_plan") or None        # a repair next to a road: the planned closure is recorded with the work order (one approval covers both)
+    if plan:
+        from backend.mobility import road_impact
+
+        p = {**p, "instructions": (p.get("instructions", "") + f" Planned closure: {road_impact.plan_text(plan)} (modelled recommendation: {plan.get('window', 'day')} window).").strip()}
     store.upsert(S.WORK_ORDERS, {"Work_Order_ID": wo, "Incident_ID": p["incident_id"], "Assigned_Team": p.get("team", a["Assigned_Team"]), "Assigned_Worker": "",
                                  "Priority": a["Priority"], "Due_Date": due, "Status": "Created", "Approval_Status": "Approved", "Created_Date": utcnow(),
                                  "Task_Type": p.get("task_type", "Inspect & Verify"), "Instructions": p.get("instructions", ""), "Accepted_At": "",
@@ -40,7 +45,29 @@ def create_work_order(store: Store, p: dict) -> dict:
     back = store.get(S.WORK_ORDERS, wo)
     if not back:
         return {"ok": False, "error": "write verification failed"}
-    return {"ok": True, "work_order_id": wo, "incident_id": p["incident_id"], "status": "Created", "due": due}
+    out = {"ok": True, "work_order_id": wo, "incident_id": p["incident_id"], "status": "Created", "due": due}
+    if plan:
+        out["closure_id"] = _planned_closure(store, plan, inc, wo)
+    return out
+
+
+def _planned_closure(store: Store, plan: dict, inc: dict, work_order_id: str) -> str:
+    """One planned-closure row for an approved repair. Its line is the road section(s) of the plan, read from the road network now."""
+    from backend.mobility import sources
+
+    roads = {r["id"]: r for r in sources.load_network()[0]}
+    ids = [i for i in plan.get("segment_ids") or [] if i in roads]
+    lines = [roads[i]["geometry"]["coordinates"] for i in ids]
+    pt = list(inc["geom"]["coordinates"][:2])
+    geom = {"type": "LineString", "coordinates": lines[0]} if len(lines) == 1 else {"type": "MultiLineString", "coordinates": lines} if lines \
+        else {"type": "LineString", "coordinates": [pt, pt]}                 # the section is no longer in the network: mark the repair's own position
+    cid = store.next_id("CLS")
+    store.upsert(S.CLOSURES, {"Closure_ID": cid, "Corridor": plan.get("corridor") or "", "Section": roads[ids[0]]["name"] if ids else "", "Segment_IDs": ",".join(plan.get("segment_ids") or []),
+                              "Lanes_Closed": int(plan.get("lanes_closed") or 0), "Full_Closure": "Yes" if plan.get("full_closure") else "No",
+                              "Start_Time": plan.get("start_time") or "", "End_Time": plan.get("end_time") or "", "Reason": plan.get("reason") or "Repair", "Status": "Approved",
+                              "Strategy": "", "Incident_ID": inc["id"], "Work_Order_ID": work_order_id, "Scenario_ID": plan.get("scenario_id") or "",
+                              "Requested_By": inc["attrs"].get("Assigned_Team") or "", "Created": utcnow(), "Updated": utcnow(), "Data_Classification": S.OPERATIONAL}, geom)
+    return cid
 
 
 def assign_worker(store: Store, p: dict) -> dict:
@@ -81,6 +108,10 @@ def close_incident(store: Store, p: dict) -> dict:
     store.update(S.INCIDENTS, p["incident_id"], Status=new, Last_Updated=utcnow())
     if a["Category"] == "mobility":
         _close_mobility_records(store, inc, new)
+    else:                                       # a repair's planned closure is over when its incident is closed
+        for c in store.query(S.CLOSURES, Incident_ID=p["incident_id"]):
+            if c["attrs"].get("Status") == "Approved":
+                store.update(S.CLOSURES, c["id"], Status="Ended", Updated=utcnow())
     for w in store.query(S.WORK_ORDERS, Incident_ID=p["incident_id"]):
         if w["attrs"]["Status"] in ACTIVE_WO + ("Completed",):
             store.update(S.WORK_ORDERS, w["id"], Status="Completed")

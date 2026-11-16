@@ -30,6 +30,19 @@ class ApprovalService:
         self.audit.log(session_id, f"PROPOSED {action_type}", "approval_gate", incident_id, payload, summary, "Proposed")
         return rec
 
+    def amend(self, approval_id: str, patch: dict, expected_suffix: str = "") -> bool:
+        """Add to a proposal that is still waiting (for example the planned closure that goes with a repair). Only while Proposed:
+        a decided proposal is never changed. The 'If approved' text gains the suffix so the operator sees what the approval now covers."""
+        f = self.store.get(S.APPROVALS, approval_id)
+        if not f or f["attrs"]["Status"] != "Proposed":
+            return False
+        a = f["attrs"]
+        payload = {**json.loads(a["Payload"]), **patch}
+        expected = a["Expected_Result"] + expected_suffix
+        self.store.update(S.APPROVALS, approval_id, Payload=json.dumps(payload), Expected_Result=expected if len(expected) <= 255 else expected[:252] + "...")
+        self.audit.log(a["Session_ID"], f"AMENDED {a['Action_Type']}", "approval_gate", a["Incident_ID"], patch, expected_suffix.strip() or "payload amended", "Proposed")
+        return True
+
     def pending(self) -> list[dict]:
         return [f["attrs"] for f in self.store.query(S.APPROVALS, Status="Proposed")]
 

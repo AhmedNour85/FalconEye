@@ -162,8 +162,52 @@ def _run_event(p: dict, say) -> tuple:
              "metro_utilisation": ev["metro_utilisation"], **_numbers(r)}, "", "", r["geojson"])
 
 
-PREPARE: Dict[str, Callable[[dict], dict]] = {"incident": _prep_incident, "closure": _prep_closure, "closure_run": _prep_closure_run, "event": _prep_event}
-RUNNERS: Dict[str, Callable] = {"incident": _run_incident, "closure": _run_closure, "closure_run": _run_closure_once, "event": _run_event}
+def _prep_road_impact(p: dict) -> dict:
+    """A repair next to a road: the same closure in the day window and in the night window of the next working day."""
+    if not p.get("segment_id"):
+        raise ValueError("a road-impact simulation needs the road section (segment_id)")
+    rule = rules.ROAD_IMPACT.get(p.get("category") or "water", rules.ROAD_IMPACT["water"])
+    day, night = p.get("day") or rule["day"], p.get("night") or rule["night"]
+    d = working_day(riyadh_now())
+
+    def window(h0: int, h1: int) -> tuple:
+        s = d.replace(hour=int(h0))
+        e = d.replace(hour=int(h1)) + dt.timedelta(days=1 if int(h1) <= int(h0) else 0)
+        return _iso(s), _iso(e)
+
+    n = p.get("lanes_closed")
+    (ds, de), (ns, ne) = window(*day), window(*night)
+    return {"segment_id": p["segment_id"], "corridor": p.get("corridor") or "", "lanes": int(p.get("lanes") or 0), "lanes_closed": int(n) if n else None,
+            "day_start": ds, "day_end": de, "night_start": ns, "night_end": ne, "night_saving": float(p.get("night_saving", rule["night_saving"])),
+            "category": p.get("category") or "water"}
+
+
+def _run_road_impact(p: dict, say) -> tuple:
+    from backend.mobility import road_impact
+
+    def one(start: str, end: str, label: str, lo: int) -> dict:
+        q = {"scenario_type": "closure", "segment_ids": [p["segment_id"]], "start_time": start, "end_time": end, "name": f"Repair closure ({label})"}
+        if p.get("lanes_closed"):
+            q["lanes_closed"] = p["lanes_closed"]
+        return engine.run_scenario(q, progress=lambda pct, msg: say(lo + pct / 2, f"{label}: {msg}"), persist=False, actor="noura")
+
+    runs = {"day": one(p["day_start"], p["day_end"], "day", 0), "night": one(p["night_start"], p["night_end"], "night", 50)}
+    nums = {k: _numbers(r) for k, r in runs.items()}
+    out = {k: {"start": v["window"]["start"], "end": v["window"]["end"], "window_extra_trip_hours": v["window_extra_trip_hours"],
+               "worst_hospital_access_delta_min": v["worst_hospital_access_delta_min"], "severe_segments": v["severe_segments"],
+               "severe_segments_baseline": v["severe_segments_baseline"], "affected_segments": v["affected_segments"]} for k, v in nums.items()}
+    res = runs["day"]["scenario"]["resolved"]
+    rec = road_impact.recommend(out["day"], out["night"], p["night_saving"])
+    summary = {"road": _road_name(res["ids"], p.get("corridor") or ""), "segment_id": p["segment_id"], "segment_ids": list(res["ids"]), "lanes": p.get("lanes"),
+               "lanes_closed": p.get("lanes_closed"), "full_closure": not p.get("lanes_closed") or bool(res.get("full_closure")), "length_km": res.get("length_km"),
+               "day": out["day"], "night": out["night"], "recommended": rec, "small": road_impact.is_small(out["day"], out["night"]), "category": p.get("category") or "water"}
+    return summary, rec, road_impact.line(summary), runs[rec]["geojson"]
+
+
+PREPARE: Dict[str, Callable[[dict], dict]] = {"incident": _prep_incident, "closure": _prep_closure, "closure_run": _prep_closure_run, "event": _prep_event,
+                                              "road_impact": _prep_road_impact}
+RUNNERS: Dict[str, Callable] = {"incident": _run_incident, "closure": _run_closure, "closure_run": _run_closure_once, "event": _run_event,
+                                "road_impact": _run_road_impact}
 
 
 class Jobs:

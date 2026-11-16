@@ -31,7 +31,7 @@ from backend.gis.store import utcnow
 from backend.mobility import jobs as mob_jobs
 from backend.mobility import rules as mob_rules
 from backend.mobility import sources as mobility_sources
-from backend.mobility import traffic, wording
+from backend.mobility import road_impact, traffic, wording
 from backend.services import learning
 from backend.services.synthetic import AREAS
 from backend.tools import executive, registry
@@ -51,6 +51,7 @@ AUTO_PROPOSE = ("P1", "P2")          # incidents at these priorities get an auto
 CALCULATING = "Noura is calculating the road impact."
 CALC_TRAIL = "Calculating the road impact (modelled); the proposed plan follows"
 RESTARTED = "The server stopped while the road impact was being calculated; the simulation has been started again"
+CALC_REPAIR = "Noura is calculating the road impact of the repair"
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,7 @@ class Crew:
         self._known_reports: dict = {}        # incident id -> citizen reports already mentioned in an alert
         self._counts: dict | None = None
         self.record_error: dict | None = None  # the last automatic scan that the system of record refused: {"at", "message"}; cleared by the next good scan
+        self._impact_pending: list = []        # (incident id, category, road) whose road-impact run is queued once the scan's batch has been sent
 
     # ---- bookkeeping ---------------------------------------------------------------------------------------
     def reset(self) -> None:
@@ -197,7 +199,9 @@ class Crew:
         The whole scan is one batch: the system of record gets one request per layer at the end, and a refusal undoes the whole scan.
         Mobility simulations are started after that batch, on the background worker: the scan never waits for one."""
         with self.lock:
+            self._impact_pending = []                     # filled by the scan; a scan the system of record refuses queues nothing
             out = self._scan(deep, simulate_field, scope)
+            out["steps"].extend(self._queue_road_impacts())
             if scope is None or "mobility" in scope:
                 out["steps"].extend(self._mobility_followup())
             return out
@@ -307,6 +311,8 @@ class Crew:
                         apr = r["result"]["approval"]["Approval_ID"]
                         trail.append({"agent": "turki", "did": f"Prepared a work order ({apr}) and is waiting for your approval"})
                         self._step(steps, "turki", "Prepared work order", f"{iid} -> {apr}", iid)
+                        if self._repair_near_road(st.get(S.INCIDENTS, iid)):
+                            trail.append({"agent": "noura", "did": CALC_REPAIR})
                 else:
                     trail.append({"agent": "turki", "did": "No dispatch needed yet - kept on watch"})
                 sev = c["severity"]
@@ -548,6 +554,70 @@ class Crew:
             return self.mobility_result({"Scenario_ID": "", "Scenario_Type": kind, "Subject_ID": iid, "Status": "Failed", "Error": str(exc), "summary": {}})
         return None
 
+    # ---- the cross-domain link: what a repair next to a road costs traffic -------------------------------------------
+    def _repair_near_road(self, inc: dict) -> bool:
+        """True when this incident's repair sits on a modelled road: the road-impact run is queued once the scan's batch has been sent."""
+        rule = mob_rules.ROAD_IMPACT.get(inc["attrs"]["Category"])
+        if not rule:
+            return False
+        try:
+            road = road_impact.nearest_road(tuple(inc["geom"]["coordinates"][:2]), rule["radius_m"])
+        except Exception as exc:  # noqa: BLE001  no road network is no reason to hold back the work order
+            log.warning("could not look for a road near %s: %s", inc["id"], exc)
+            return False
+        if road:
+            self._impact_pending.append((inc["id"], inc["attrs"]["Category"], road))
+        return bool(road)
+
+    def _queue_road_impacts(self) -> list:
+        pending, self._impact_pending = getattr(self, "_impact_pending", []), []
+        steps: list = []
+        for iid, cat, road in pending:
+            try:
+                self.p.jobs.submit("road_impact", road_impact.params(cat, road), iid, "noura", on_done=self.mobility_result, name=f"Repair closure: {road['corridor']}")
+            except Exception as exc:  # noqa: BLE001  the alert must not keep saying "calculating"
+                res = self.mobility_result({"Scenario_ID": "", "Scenario_Type": "road_impact", "Subject_ID": iid, "Status": "Failed", "Error": str(exc), "summary": {}})
+                steps.extend((res or {}).get("steps", []))
+        return steps
+
+    def _road_impact_result(self, row: dict, inc: dict) -> dict | None:
+        """The road-impact run of a repair ended. The alert gets the line. While the work-order proposal is still waiting, the planned closure
+        is added to it (one approval covers both); once it has been decided the line is information only."""
+        st, iid, a, steps = self.p.store, inc["id"], inc["attrs"], []
+        ok = row.get("Status") == "Completed"
+        with st.batch():
+            line = road_impact.line(row.get("summary") or {}) if ok else f"{wording.FAILED}{(row.get('Error') or mob_jobs.INTERRUPTED).strip().rstrip('.')}."
+            notes = [n for n in st.query(S.NOTIFICATIONS, Ref_ID=iid) if n["attrs"]["Kind"] == "fault"]
+            pend = [f for f in st.query(S.APPROVALS, Action_Type="create_work_order", Target=iid)
+                    if f["attrs"]["Status"] == "Proposed" and "closure_plan" not in json.loads(f["attrs"]["Payload"] or "{}")] if ok else []
+            shown = any(t.get("did") == line for n in notes for t in json.loads(n["attrs"]["Trail"] or "[]"))
+            if shown and not pend:
+                return None                                           # this result is already on the alert and there is nothing to add it to
+            extra, amended = [], False
+            if ok:
+                if pend:
+                    plan = road_impact.closure_plan(row["summary"], scenario_id=row.get("Scenario_ID") or "")
+                    amended = self.p.approvals.amend(pend[-1]["id"], {"closure_plan": plan}, f" A planned closure ({road_impact.plan_text(plan)}) is recorded with it.")
+                    if amended:
+                        extra = [{"agent": "turki", "did": f"Added the planned closure ({road_impact.plan_text(plan)}) to work order proposal {pend[-1]['id']}; one approval covers both"}]
+                if not amended:
+                    extra = [{"agent": "noura", "did": "For information: the work order was decided before this result arrived, so no planned closure is recorded"}]
+            self._step(steps, "noura", "Simulated the road impact of the repair" if ok else "Could not simulate the road impact of the repair", f"{iid}: {line}", iid)
+            if amended:
+                self._step(steps, "turki", "Added planned closure to the proposal", f"{iid} -> {pend[-1]['id']}", iid)
+            for n in notes:
+                trail = json.loads(n["attrs"]["Trail"] or "[]")
+                at = next((i for i, t in enumerate(trail) if t.get("did") == CALC_REPAIR), None)
+                if at is not None and shown:
+                    del trail[at]                                     # the same numbers as an earlier run: said once
+                elif at is not None:
+                    trail[at] = {"agent": "noura", "did": line}
+                elif not shown:
+                    trail.append({"agent": "noura", "did": line})
+                st.update(S.NOTIFICATIONS, n["id"], Message=self._mob_message(a, line), Trail=json.dumps(trail + extra), Updated=utcnow(),
+                          **({"Status": "New"} if amended else {}))
+        return {"incident_id": iid, "amended": amended, "steps": steps}
+
     def mobility_result(self, row: dict | None) -> dict | None:
         """A simulation ended (the worker calls this), or its result was found waiting by a scan. The alert gets the numbers and returns to New;
         Turki proposes the traffic plan. When the simulation failed or was interrupted the alert says why and Turki proposes a plain field check.
@@ -557,8 +627,10 @@ class Crew:
         with self.lock:
             st, iid = self.p.store, row.get("Subject_ID") or ""
             inc = st.get(S.INCIDENTS, iid)
-            if not inc or inc["attrs"]["Status"] in CLOSED_INC or inc["attrs"]["Category"] != "mobility":
+            if not inc or inc["attrs"]["Status"] in CLOSED_INC:
                 return None
+            if inc["attrs"]["Category"] != "mobility":
+                return self._road_impact_result(row, inc) if row.get("Scenario_Type") == "road_impact" else None
             a, steps = inc["attrs"], []
             ok = row.get("Status") == "Completed"
             with st.batch():
@@ -760,12 +832,17 @@ class Crew:
                 return {"ok": False, "error": r["error"]}
             apr = r["result"]["approval"]["Approval_ID"]
             st = self.p.store
+            self._impact_pending = []
+            on_road = self._repair_near_road(st.get(S.INCIDENTS, incident_id))
             for f in st.query(S.NOTIFICATIONS, Ref_ID=incident_id):
                 if f["attrs"]["Kind"] in ("fault", "change"):
                     trail = json.loads(f["attrs"]["Trail"] or "[]")
                     trail.append({"agent": "turki", "did": f"Inspection requested by the operator - work order {apr} prepared for approval"})
+                    if on_road:
+                        trail.append({"agent": "noura", "did": CALC_REPAIR})
                     st.update(S.NOTIFICATIONS, f["id"], Approval_ID=apr, Trail=json.dumps(trail), Status="New", Updated=utcnow())
             self._step([], "turki", "Prepared inspection work order", f"{incident_id} -> {apr} (operator request)", incident_id)
+            self._queue_road_impacts()
             return {"ok": True, "approval_id": apr, "incident_id": incident_id}
 
     # ---- field results --------------------------------------------------------------------------------------
