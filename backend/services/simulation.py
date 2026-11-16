@@ -15,6 +15,17 @@ from backend.gis import schema as S
 from backend.gis.store import Store, utcnow
 
 
+def road_peak_load(segment_id) -> float | None:
+    """Modelled volume / capacity of one road section in the morning peak (08:00), or None when the traffic model is not available."""
+    try:
+        from backend.mobility import network_model, sources
+
+        e = network_model.get_model().assign(sources.demand_factor(8))["edges"].get(segment_id)
+        return round(float(e["vc"]), 2) if e else None
+    except Exception:  # noqa: BLE001  without the model the leak is chosen by road name and lanes only
+        return None
+
+
 class SimEngine:
     def __init__(self, store: Store, seed: int = 20260101):
         self.store = store
@@ -328,13 +339,14 @@ class SimEngine:
         def by_road(pid):       # a leak next to a named road lets the crew show a road-impact line worth showing (the headline demo)
             line = self.store.get(S.WATER, pid)
             if not line:
-                return (0, 0)
+                return (0, 0.0, 0)
             mid = geo.interpolate(line["geom"]["coordinates"], 0.5)[0]
             road = road_impact.nearest_road(mid, reach)
             if not road:
-                return (0, 0)
+                return (0, 0.0, 0)
             named = not str(road.get("corridor") or road.get("name") or "").lower().startswith("unnamed")
-            return (2 if named else 1, int(road.get("lanes") or 0))
+            load = road_peak_load(road.get("segment_id"))
+            return (2 if named else 1, load if load is not None else 0.0, int(road.get("lanes") or 0))
         pid, sid = max(pairs, key=lambda x: (by_road(x[0]), nb(x[0]), x[0]))
         self.modify_sensor(sid, 31, 38, 4)
         for q, s2 in pairs:

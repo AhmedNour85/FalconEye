@@ -34,3 +34,14 @@ def test_the_leak_prefers_a_named_road_with_more_lanes_over_an_unnamed_link(plat
     roads = {mid(link): {"corridor": "unnamed primary_link", "lanes": 4, "distance_m": 2.0}, mid(named): {"corridor": "Olaya Street", "lanes": 3, "distance_m": 30.0}}
     monkeypatch.setattr(road_impact, "nearest_road", lambda lonlat, radius_m: next((r for m, r in roads.items() if abs(m[0] - lonlat[0]) < 1e-9 and abs(m[1] - lonlat[1]) < 1e-9), None))
     assert platform.sim.scenario("olaya_leak")["pipeline_id"] == named
+
+
+def test_among_named_roads_the_leak_takes_the_one_that_is_busiest_at_the_peak(platform, monkeypatch):
+    from backend.services import simulation
+    default = platform.sim.scenario("olaya_leak")["pipeline_id"]
+    quiet, busy = [q for q in (p for p, _s in platform.sim._pipes_with_sensors("Olaya")) if q != default][:2]
+    mid = lambda q: geo.interpolate(platform.store.get(S.WATER, q)["geom"]["coordinates"], 0.5)[0]
+    roads = {mid(quiet): {"corridor": "Wide Road", "lanes": 5, "segment_id": "seg-quiet"}, mid(busy): {"corridor": "Olaya Street", "lanes": 3, "segment_id": "seg-busy"}}
+    monkeypatch.setattr(road_impact, "nearest_road", lambda lonlat, radius_m: next((r for m, r in roads.items() if abs(m[0] - lonlat[0]) < 1e-9 and abs(m[1] - lonlat[1]) < 1e-9), None))
+    monkeypatch.setattr(simulation, "road_peak_load", lambda segment_id: {"seg-quiet": 0.27, "seg-busy": 0.89}.get(segment_id))
+    assert platform.sim.scenario("olaya_leak")["pipeline_id"] == busy
