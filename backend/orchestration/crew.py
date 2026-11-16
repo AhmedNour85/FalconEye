@@ -23,12 +23,19 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from datetime import datetime
 
 from backend.gis import geo
 from backend.gis import schema as S
 from backend.gis.store import utcnow
+from backend.mobility import jobs as mob_jobs
+from backend.mobility import rules as mob_rules
+from backend.mobility import sources as mobility_sources
+from backend.mobility import traffic, wording
+from backend.services import learning
 from backend.services.synthetic import AREAS
 from backend.tools import executive, registry
+from backend.tools import mobility as mob
 from backend.tools.common import ToolContext, severity_of
 
 log = logging.getLogger("geoai.crew")
@@ -39,6 +46,10 @@ CLUSTER_M = 300.0                    # citizen reports closer than this belong t
 LINK_M = 450.0                       # a report this close to an open incident of the same kind is evidence for it
 CLOSED_INC = ("Resolved", "Closed - False Positive")
 AUTO_PROPOSE = ("P1", "P2")          # incidents at these priorities get an automatic work-order proposal (still needs approval)
+# mobility: the alert goes out with these while the simulation runs; mobility_result replaces them with the numbers
+CALCULATING = "Noura is calculating the road impact."
+CALC_TRAIL = "Calculating the road impact (modelled); the proposed plan follows"
+RESTARTED = "The server stopped while the road impact was being calculated; the simulation has been started again"
 
 
 @dataclass(frozen=True)
@@ -182,7 +193,15 @@ class Crew:
         deep=True also scans satellite imagery for the next area in rotation; deep='<area>' scans that area.
         scope limits the WATCH and TRIAGE steps to some use cases ({"water"}, {"lighting"}, {"distortion"}, {"land_use"}, {"change"}); None watches everything.
         A simulated event passes its own use case, so only that feed reacts. Findings of other use cases wait for the next full scan.
-        The whole scan is one batch: the system of record gets one request per layer at the end, and a refusal undoes the whole scan."""
+        The whole scan is one batch: the system of record gets one request per layer at the end, and a refusal undoes the whole scan.
+        Mobility simulations are started after that batch, on the background worker: the scan never waits for one."""
+        with self.lock:
+            out = self._scan(deep, simulate_field, scope)
+            if scope is None or "mobility" in scope:
+                out["steps"].extend(self._mobility_followup())
+            return out
+
+    def _scan(self, deep: bool | str, simulate_field: bool | None, scope: set | frozenset | None) -> dict:
         with self.lock, self.p.store.batch():
             self.cycles += 1
             if self.epoch is None:
@@ -227,6 +246,8 @@ class Crew:
                 if r["ok"]:
                     found = sum(1 for c in r["result"]["changes"] if c["significant"])
                     self._step(steps, "zayed", "Compared satellite imagery", f"{area}: {found} significant change(s)" if found else f"{area}: no significant change")
+            if want("mobility"):
+                self._mobility_watch(steps)
 
             # 1b. FEEDS - citizen reports arrive alongside the sensors
             if scope is None:
@@ -254,7 +275,9 @@ class Crew:
                 inc = st.get(S.INCIDENTS, iid)["attrs"]
                 cat = inc["Category"]
                 det = DETECTOR[cat]
-                from_citizens = any((st.get(S.DETECTIONS, d) or {"attrs": {"Source": ""}})["attrs"]["Source"].startswith("Citizen") for d in c["detections"])
+                if cat == "mobility" and inc["Incident_Type"] != "Traffic Incident":
+                    det = "noura"                                    # closure requests and event notices are her feed
+                from_citizens =any((st.get(S.DETECTIONS, d) or {"attrs": {"Source": ""}})["attrs"]["Source"].startswith("Citizen") for d in c["detections"])
                 nrep = len(st.query(S.CITIZEN, Linked_Incident=iid))
                 self._known_reports[iid] = nrep
                 if from_citizens:
@@ -274,7 +297,10 @@ class Crew:
                     trail.append({"agent": "reem", "did": f"Impact: {impact}"})
                     self._step(steps, "reem", "Assessed impact", f"{iid}: {impact}", iid)
                 apr = ""
-                if c["priority"] in AUTO_PROPOSE:
+                if cat == "mobility":                                # the plan waits for Noura's numbers: the alert goes out now and is updated by mobility_result
+                    self._road_safety(steps, trail, iid)
+                    trail.append({"agent": "noura", "did": CALC_TRAIL})
+                elif c["priority"] in AUTO_PROPOSE:
                     r = self._tool("propose_work_order", incident_id=iid)
                     if r["ok"]:
                         apr = r["result"]["approval"]["Approval_ID"]
@@ -289,7 +315,7 @@ class Crew:
                 worst = max((worst, sev), key=lambda s: SEV_RANK[s])
                 pt = st.get(S.INCIDENTS, iid)["geom"]["coordinates"]
                 kind = "change" if cat == "change" else "fault"
-                msg = inc["Description"][:420].rstrip() + ("..." if len(inc["Description"]) > 420 else "")
+                msg = self._mob_message(inc, CALCULATING) if cat == "mobility" else inc["Description"][:420].rstrip() + ("..." if len(inc["Description"]) > 420 else "")
                 n = self.notify(kind, sev, self._title(cat, c, inc), msg, det, trail, iid, iid, apr, inc["Area_Name"], (pt[0], pt[1]))
                 if n:
                     raised.append(n)
@@ -310,6 +336,7 @@ class Crew:
                                         f["id"], a["Incident_ID"], apr, inc["attrs"]["Area_Name"], tuple(inc["geom"]["coordinates"]))
                         if n:
                             raised.append(n)
+            self._rejected_closures(steps)
             if sim_field:
                 for f in st.all(S.WORK_ORDERS):
                     a = f["attrs"]
@@ -355,7 +382,217 @@ class Crew:
         if ch:
             a = ch["attrs"]
             return f"Compared the two satellite dates and found {a['Change_Type'].replace(' (candidate)', '').lower()} of about {a['Area_Sqm']:,.0f} m² in {inc['Area_Name']}"
+        if cat == "mobility":
+            return {"Planned Road Closure": f"Closure request received for {inc['Area_Name']}",
+                    "Major Event Traffic Plan": f"Event notice received for {inc['Area_Name']}"}.get(c["type"], f"Road report received: blocked lanes on {inc['Area_Name']}")
         return f"Detected: {c['type']} in {inc['Area_Name']}"
+
+    # ---- mobility: watch, simulate in the background, then decide ------------------------------------------------
+    @staticmethod
+    def _mob_message(inc: dict, tail: str) -> str:
+        d = inc["Description"]
+        return d[:420].rstrip() + ("..." if len(d) > 420 else "") + " " + tail
+
+    def _mobility_watch(self, steps: list) -> None:
+        """Nasser reads the road reports and the modelled traffic state; Noura reads closure requests and event notices."""
+        r = self._tool("detect_traffic_incidents")
+        n = r["result"]["detected"] if r["ok"] else 0
+        txt = f"{n} new road report(s)" if n else "no new road reports"
+        h = mob.riyadh_hour()
+        if h in traffic.status()["hours_ready"]:                     # only hours the model already holds: the scan never builds the traffic model
+            t = self._tool("traffic_state", hour=h, top_n=1)
+            if t["ok"]:
+                busy = t["result"]["counts"]["heavy"] + t["result"]["counts"]["stopped"]
+                txt += f"; {busy} road section(s) heavy or stopped at {h:02d}:00 (modelled)" if busy else f"; no abnormal congestion at {h:02d}:00 (modelled)"
+        self._step(steps, "nasser", "Checked road reports and traffic", txt)
+        made = self._mobility_requests()
+        if made["closures"] or made["events"]:
+            self._step(steps, "noura", "Read closure requests and event notices", f"{made['closures']} closure request(s), {made['events']} event notice(s)")
+
+    def _mobility_requests(self) -> dict:
+        """Each closure request and each new event notice becomes one finding (once). They are SYNTHETIC demo rows."""
+        st, out = self.p.store, {"closures": 0, "events": 0}
+        roads = None
+
+        def finding(dtype, where, base, source, ref, evidence, pt):
+            did = st.next_id("DET")
+            risk = learning.apply_calibration(st, "mobility", base)
+            st.upsert(S.DETECTIONS, {"Detection_ID": did, "Detection_Type": dtype, "Location": where, "Confidence": 0.95, "Severity": severity_of(risk), "Risk_Score": risk,
+                                     "Base_Risk_Score": base, "Detection_Date": utcnow(), "Source": source, "Status": "Candidate", "Related_Asset_ID": ref, "Pipeline_ID": "",
+                                     "Area_Name": where, "Category": "mobility", "Cluster_ID": "", "Evidence": evidence, "Incident_ID": "", "Data_Classification": S.SYNTHETIC},
+                      geo.point(*pt))
+            return did
+
+        for f in sorted(st.all(S.CLOSURES), key=lambda f: f["id"]):
+            a = f["attrs"]
+            if a.get("Status") != "Requested" or st.query(S.DETECTIONS, Related_Asset_ID=f["id"]):
+                continue
+            if roads is None:
+                roads = {r["id"]: r for r in mobility_sources.load_network()[0]}
+            seg = roads.get(next((i for i in (a.get("Segment_IDs") or "").split(",") if i), ""))
+            full = a.get("Full_Closure") == "Yes"
+            try:
+                hours = (datetime.fromisoformat(a["End_Time"]) - datetime.fromisoformat(a["Start_Time"])).total_seconds() / 3600
+            except (TypeError, ValueError):
+                hours = 8.0
+            road = a.get("Corridor") or "the road"
+            line = f["geom"]["coordinates"] if f["geom"]["type"] == "LineString" else f["geom"]["coordinates"][0]
+            what = "full closure" if full else f"closure of {int(a.get('Lanes_Closed') or 1)} lane(s)"
+            finding("Road Closure Request", road, mob_rules.closure_risk(seg["road_class"] if seg else "", full, hours), "Closure request (SYNTHETIC)", f["id"],
+                    f"REQUESTED: {what} of {road} ({a.get('Section') or 'one section'}), {str(a.get('Start_Time')).replace('T', ' ')} to {wording.clock(a.get('End_Time'))}, "
+                    f"for {(a.get('Reason') or 'road works').lower()} (closure request, SYNTHETIC). Needs a traffic plan before it goes ahead.", line[len(line) // 2][:2])
+            out["closures"] += 1
+        for f in sorted(st.all(S.EVENT_NOTICES), key=lambda f: f["id"]):
+            a = f["attrs"]
+            if a.get("Status") != "New":
+                continue
+            people = int(a.get("Attendance") or 0)
+            did = finding("Major Event", a.get("Venue") or "the venue", mob_rules.event_risk(people), "Event notice (SYNTHETIC)", f["id"],
+                          f"NOTIFIED: {a.get('Name') or 'An event'} at {a.get('Venue')}, about {people:,} people, {str(a.get('Start_Time')).replace('T', ' ')} to "
+                          f"{wording.clock(a.get('End_Time'))} (event notice, SYNTHETIC). Needs a traffic plan.", f["geom"]["coordinates"][:2])
+            st.update(S.EVENT_NOTICES, f["id"], Status="Detected", Detection_ID=did)
+            out["events"] += 1
+        return out
+
+    def _road_safety(self, steps: list, trail: list, iid: str) -> None:
+        """Fahad adds the accident history and road-asset condition of the road section (SYNTHETIC inputs)."""
+        st = self.p.store
+        row = (mob.subject_of(st, st.get(S.INCIDENTS, iid))["row"] or {"attrs": {}})["attrs"]
+        seg = row.get("Segment_ID") or next((i for i in (row.get("Segment_IDs") or "").split(",") if i), "")
+        r = self._tool("road_safety_context", segment_id=seg) if seg else {"ok": False}
+        if not r["ok"]:
+            return
+        acc, cond = r["result"]["accidents"], r["result"]["asset_condition"]
+        line = f"Road safety (SYNTHETIC): {acc['accidents']} recorded accident(s) on this section in the last 12 months, {acc['severe']} severe"
+        if cond["worst_condition"] is not None:
+            line += f"; road-asset condition {cond['worst_condition']:g} of 100 ({cond['proposed_action']})"
+        trail.append({"agent": "fahad", "did": line})
+        self._step(steps, "fahad", "Added road-safety context", f"{iid}: {line}", iid)
+
+    def _rejected_closures(self, steps: list) -> None:
+        """A closure request whose traffic plan the operator rejected is recorded as Rejected."""
+        st = self.p.store
+        for f in st.query(S.APPROVALS, Action_Type="apply_traffic_plan", Status="Rejected"):
+            try:
+                cid = json.loads(f["attrs"]["Payload"] or "{}").get("closure_id")
+            except ValueError:
+                continue
+            row = st.get(S.CLOSURES, cid) if cid else None
+            if row and row["attrs"].get("Status") == "Requested":
+                st.update(S.CLOSURES, cid, Status="Rejected", Updated=utcnow())
+                self._step(steps, "turki", "Recorded rejected closure", f"{cid}: the plan was rejected, so the closure is not approved", f["attrs"].get("Incident_ID") or "")
+
+    def _mobility_followup(self) -> list:
+        """After a scan's batch is with the system of record: every open mobility incident that has no plan yet gets its simulation queued,
+        or its waiting result handled. Returns the steps taken (a queued simulation reports later, through mobility_result)."""
+        st, steps = self.p.store, []
+        for f in sorted(st.all(S.INCIDENTS), key=lambda f: f["id"]):
+            a = f["attrs"]
+            if a["Category"] != "mobility" or a["Status"] != "Open" or st.query(S.APPROVALS, Action_Type="apply_traffic_plan", Target=f["id"]) \
+                    or st.query(S.APPROVALS, Action_Type="create_work_order", Target=f["id"]):
+                continue
+            try:
+                rows = sorted((r["attrs"] for r in st.query(S.SCENARIOS, Subject_ID=f["id"])), key=lambda r: r["Scenario_ID"])
+                if any(r.get("Status") in ("Queued", "Running") for r in rows):
+                    continue                                          # Noura is on it
+                done = [r for r in rows if r.get("Status") == "Completed"]
+                stopped = [r for r in rows if r.get("Status") == "Interrupted"]
+                if done:
+                    res = self.mobility_result(self.p.jobs.row(done[-1]["Scenario_ID"]))
+                elif rows and (rows[-1].get("Status") != "Interrupted" or len(stopped) >= 2):
+                    res = self.mobility_result(self.p.jobs.row(rows[-1]["Scenario_ID"]))      # failed, or interrupted twice: a plain field check instead
+                else:
+                    if stopped:
+                        self._trail_note(f["id"], "noura", RESTARTED)
+                    res = self._simulate(f)
+                steps.extend((res or {}).get("steps", []))
+            except Exception as exc:  # noqa: BLE001  one incident must never stop the others; the next scan tries again
+                log.warning("mobility follow-up failed for %s: %s", f["id"], exc)
+        return steps
+
+    def resume_mobility(self) -> list:
+        """At start-up, after Jobs.recover(): simulations a stopped server left behind are queued once more."""
+        with self.lock:
+            return self._mobility_followup()
+
+    def _trail_note(self, iid: str, agent: str, text: str) -> None:
+        st = self.p.store
+        for n in st.query(S.NOTIFICATIONS, Kind="fault", Ref_ID=iid):
+            trail = json.loads(n["attrs"]["Trail"] or "[]")
+            if not any(t.get("did") == text for t in trail):
+                at = next((i for i, t in enumerate(trail) if t.get("did") == CALC_TRAIL), len(trail))
+                trail.insert(at, {"agent": agent, "did": text})
+                st.update(S.NOTIFICATIONS, n["id"], Trail=json.dumps(trail), Updated=utcnow())
+
+    def _simulate(self, inc: dict) -> dict | None:
+        """Queue Noura's simulation for one mobility incident. Inputs come from its road report, closure request or event notice."""
+        st, iid = self.p.store, inc["id"]
+        sub = mob.subject_of(st, inc)
+        row = (sub["row"] or {"attrs": {}})["attrs"]
+        kind = sub["kind"]
+        if kind == "incident":
+            params = {"segment_id": row.get("Segment_ID"), "corridor": row.get("Corridor"), "lanes_blocked": row.get("Lanes_Blocked")}
+        elif kind == "closure":
+            params = {"corridor": row.get("Corridor"), "segment_ids": [i for i in (row.get("Segment_IDs") or "").split(",") if i] or None,
+                      "start_time": row.get("Start_Time") or None, "end_time": row.get("End_Time") or None,
+                      "lanes_closed": None if row.get("Full_Closure") == "Yes" else row.get("Lanes_Closed")}
+        else:
+            params = {"place": row.get("Venue"), "attendance": row.get("Attendance"), "start_time": row.get("Start_Time") or None, "end_time": row.get("End_Time") or None}
+        try:
+            if not sub["row"] or not kind:
+                raise ValueError("the road report, closure request or event notice behind this incident was not found")
+            self.p.jobs.submit(kind, {k: v for k, v in params.items() if v is not None}, iid, "noura", on_done=self.mobility_result,
+                               name=f"{inc['attrs']['Incident_Type']}: {inc['attrs']['Area_Name']}")
+        except Exception as exc:  # noqa: BLE001  unusable inputs, or ArcGIS Online would not take the row: the incident must not be stuck
+            return self.mobility_result({"Scenario_ID": "", "Scenario_Type": kind, "Subject_ID": iid, "Status": "Failed", "Error": str(exc), "summary": {}})
+        return None
+
+    def mobility_result(self, row: dict | None) -> dict | None:
+        """A simulation ended (the worker calls this), or its result was found waiting by a scan. The alert gets the numbers and returns to New;
+        Turki proposes the traffic plan. When the simulation failed or was interrupted the alert says why and Turki proposes a plain field check.
+        Takes the crew lock first, then the store; never called while Jobs holds its own lock."""
+        if not row:
+            return None
+        with self.lock:
+            st, iid = self.p.store, row.get("Subject_ID") or ""
+            inc = st.get(S.INCIDENTS, iid)
+            if not inc or inc["attrs"]["Status"] in CLOSED_INC or inc["attrs"]["Category"] != "mobility":
+                return None
+            a, steps = inc["attrs"], []
+            ok = row.get("Status") == "Completed"
+            with st.batch():
+                busy = self._approval_exists("create_work_order", iid, ("Proposed",)) or self._approval_exists("apply_traffic_plan", iid, ("Proposed",)) \
+                    or any(w["attrs"]["Status"] in ("Created", "Assigned", "In Progress") for w in st.query(S.WORK_ORDERS, Incident_ID=iid))
+                if ok:
+                    line = wording.impact(row.get("Scenario_Type") or "", row.get("summary") or {}, row.get("Recommended") or "", row.get("Verdict") or "")
+                    r = self._tool("propose_traffic_plan", incident_id=iid, scenario_id=row["Scenario_ID"]) if not busy else {"ok": False}
+                    did = "Prepared the traffic plan ({apr}) and is waiting for your approval"
+                else:
+                    line = wording.failed(row.get("Error") or mob_jobs.INTERRUPTED)
+                    r = self._tool("propose_work_order", incident_id=iid) if not busy else {"ok": False}
+                    did = "Prepared a plain field check ({apr}) instead and is waiting for your approval"
+                apr = r["result"]["approval"]["Approval_ID"] if r["ok"] else ""
+                self._step(steps, "noura", "Simulated the road impact" if ok else "Could not simulate the road impact", f"{iid}: {line}", iid)
+                if apr:
+                    self._step(steps, "turki", "Prepared traffic plan" if ok else "Prepared work order", f"{iid} -> {apr}", iid)
+                notes = [n for n in st.query(S.NOTIFICATIONS, Ref_ID=iid) if n["attrs"]["Kind"] == "fault"]
+                extra = [{"agent": "turki", "did": did.format(apr=apr)}] if apr else []
+                if not notes:                                        # an incident opened outside a scan has no alert yet
+                    pt = inc["geom"]["coordinates"]
+                    self.notify("fault", a["Severity"], f"{a['Incident_Type']} - {a['Area_Name']}", self._mob_message(a, line), "noura",
+                                [{"agent": "noura", "did": line}] + extra, iid, iid, apr, a["Area_Name"], (pt[0], pt[1]))
+                for n in notes:
+                    trail = json.loads(n["attrs"]["Trail"] or "[]")
+                    if any(t.get("did") == line for t in trail):
+                        continue                                      # this result is already on the alert
+                    at = next((i for i, t in enumerate(trail) if t.get("did") == CALC_TRAIL), None)
+                    if at is None:
+                        trail.append({"agent": "noura", "did": line})
+                    else:
+                        trail[at] = {"agent": "noura", "did": line}
+                    st.update(S.NOTIFICATIONS, n["id"], Message=self._mob_message(a, line), Trail=json.dumps(trail + extra), Approval_ID=apr or n["attrs"]["Approval_ID"],
+                              Status="New", Updated=utcnow())
+            return {"incident_id": iid, "approval_id": apr, "steps": steps}
 
     # ---- data feeds ------------------------------------------------------------------------------------------
     def _near(self, p, cat: str, layer: str, ok, radius: float = LINK_M) -> str | None:
@@ -448,13 +685,21 @@ class Crew:
         reps = [x["attrs"] for x in st.all(S.CITIZEN)]
         waiting = sum(1 for r in reps if r["Status"] == "New")
         hass = self.last.get("zayed")
+        reports = [x["attrs"] for x in st.all(S.TRAFFIC_REPORTS)]
+        closures, notices = [x["attrs"] for x in st.all(S.CLOSURES)], [x["attrs"] for x in st.all(S.EVENT_NOTICES)]
+        nasser = self.last.get("nasser")
+        mobility = [
+            {"id": "traffic", "name": "Traffic & road reports", "detail": f"{len(reports)} road report(s) · traffic state modelled, not measured",
+             "at": max([r.get("Reported_At") or "" for r in reports] + [nasser["at"] if nasser else ""]) or None, "agent": "nasser"},
+            {"id": "closures", "name": "Closures & events", "detail": f"{len(closures)} closure request(s) · {len(notices)} event notice(s)",
+             "at": max([r.get("Created") or "" for r in closures + notices], default="") or None, "agent": "noura"}]
         return [
             {"id": "water", "name": "Water sensors", "detail": f"{self._counts['sensors']} sensors · hourly", "at": f.last_tick, "agent": "sarah"},
             {"id": "lighting", "name": "Streetlights & poles", "detail": f"{self._counts['lamps']} lamps · telemetry, tilt & corrosion", "at": f.last_tick, "agent": "abdullah"},
             {"id": "imagery", "name": "Satellite imagery", "detail": "change scan on each new pass", "at": hass["at"] if hass else None, "agent": "zayed"},
             {"id": "distortion", "name": "Visual distortion (imagery)", "detail": "street-level problems and building shape between satellite dates", "at": hass["at"] if hass else None, "agent": "zayed"},
             {"id": "landuse", "name": "Land use / zoning", "detail": "construction vs. zoning rules", "at": hass["at"] if hass else None, "agent": "zayed"},
-        ] + ([{"id": "citizen", "name": "Citizen reports", "detail": f"{len(reps)} received · {waiting} waiting", "at": max((r["Reported_At"] for r in reps), default=None), "agent": "reem"}]
+        ] + mobility + ([{"id": "citizen", "name": "Citizen reports", "detail": f"{len(reps)} received · {waiting} waiting", "at": max((r["Reported_At"] for r in reps), default=None), "agent": "reem"}]
               if f.citizen_enabled else [])
 
     def inject(self, name: str) -> dict:
@@ -687,8 +932,13 @@ class Crew:
 
     def roster(self) -> list[dict]:
         out = []
+        working = dict(self.working)
+        jobs = self.p.jobs.active()                      # Noura's simulations run on the background worker, outside any scan
+        if jobs and not working.get("noura"):
+            inc = self.p.store.get(S.INCIDENTS, jobs[0]["subject_id"])
+            working["noura"] = f"simulating {inc['attrs']['Area_Name'] if inc else jobs[0]['name']}"
         for a in AGENTS:
             last = self.last.get(a.id)
             out.append({"id": a.id, "name": a.name, "role": a.role, "tier": a.tier, "focus": a.focus, "color": a.color, "tools": list(a.tools),
-                        "working": self.working.get(a.id, ""), "last_action": last["action"] if last else "", "last_at": last["at"] if last else ""})
+                        "working": working.get(a.id, ""), "last_action": last["action"] if last else "", "last_at": last["at"] if last else ""})
         return out

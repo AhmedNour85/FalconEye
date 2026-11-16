@@ -10,7 +10,7 @@ from backend.gis import schema as S
 from backend.gis.store import Store, utcnow
 
 PRIOR_PRECISION = 0.75
-CATS = ("water", "lighting", "change", "distortion", "land_use")
+CATS = ("water", "lighting", "change", "distortion", "land_use", "mobility")
 
 
 def get_cfg(store: Store, key: str, default: float = 1.0) -> float:

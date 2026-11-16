@@ -274,7 +274,7 @@ def _generate(store: Store, seed: int, now: datetime | None, with_history: bool)
                                  "Open_Tasks": 0, "Last_Update": _iso(now), "Data_Classification": SYN}, geo.point(*p))
 
     # -- learning config -------------------------------------------------------------------
-    for cat in ("water", "lighting", "change"):
+    for cat in ("water", "lighting", "change", "mobility"):
         store.upsert(S.CONFIG, {"Config_ID": f"calibration.{cat}", "Value": "1.0", "Updated": _iso(now)})
     store.upsert(S.CONFIG, {"Config_ID": "streetlight.detect_threshold", "Value": "0.55", "Updated": _iso(now)})
     store.upsert(S.CONFIG, {"Config_ID": "meta.seed", "Value": str(seed), "Updated": _iso(now)})

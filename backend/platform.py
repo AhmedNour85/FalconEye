@@ -79,6 +79,20 @@ class Platform:
         if init and self.store.is_hosted:
             self.setup_field_tasks()
             self.start_field_sync()
+            self.recover_simulations()
+
+    def recover_simulations(self) -> list:
+        """Simulations a stopped server left Queued or Running are marked Interrupted, and the crew queues each once more.
+        Start-up never fails because of this: what cannot be recovered now is picked up by the next crew scan."""
+        try:
+            left = self.jobs.recover()
+            if left:
+                log.info("%d simulation(s) were interrupted by the last stop: %s", len(left), ", ".join(left))
+                self.crew.resume_mobility()
+            return left
+        except Exception as exc:  # noqa: BLE001
+            log.warning("could not recover interrupted simulations: %s", exc)
+            return []
 
     def reset(self) -> dict:
         self.sim.pause()

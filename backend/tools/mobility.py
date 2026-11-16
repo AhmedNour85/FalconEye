@@ -11,6 +11,7 @@ import datetime as dt
 from backend.gis import schema as S
 from backend.gis.store import utcnow
 from backend.mobility import accessibility, network_model, rules, safety, sources, traffic
+from backend.services import learning
 from backend.services.workforce import TEAM_FOR
 from backend.tools.common import ToolContext, ToolError, severity_of
 
@@ -89,7 +90,8 @@ def detect_traffic_incidents(ctx: ToolContext) -> dict:
         road = a.get("Corridor") or "the road"
         vc = load_on(ctx, a.get("Segment_ID") or "", h)
         after = None if vc is None else (round(vc * lanes / (lanes - blocked), 2) if blocked < lanes else 9.99)
-        risk = rules.report_risk(lanes, blocked, a.get("Road_Class") or "", after)
+        base = rules.report_risk(lanes, blocked, a.get("Road_Class") or "", after)
+        risk = learning.apply_calibration(st, "mobility", base)
         if after is None:
             load = "The modelled load on this section is not known yet (the traffic model is still being built)."
         elif blocked >= lanes:
@@ -99,7 +101,7 @@ def detect_traffic_incidents(ctx: ToolContext) -> dict:
                     f"({'abnormal: heavy or worse' if after >= rules.ABNORMAL_VC else 'within the normal range'}).")
         did = st.next_id("DET")
         st.upsert(S.DETECTIONS, {"Detection_ID": did, "Detection_Type": "Traffic Incident", "Location": road, "Confidence": 0.85, "Severity": severity_of(risk), "Risk_Score": risk,
-                                 "Base_Risk_Score": risk, "Detection_Date": utcnow(), "Source": "Road report (SYNTHETIC)", "Status": "Suspected", "Related_Asset_ID": r["id"],
+                                 "Base_Risk_Score": base, "Detection_Date": utcnow(), "Source": "Road report (SYNTHETIC)", "Status": "Suspected", "Related_Asset_ID": r["id"],
                                  "Pipeline_ID": "", "Area_Name": road, "Category": "mobility", "Cluster_ID": "",
                                  "Evidence": f"REPORTED: {a.get('Report_Type') or 'incident'} blocking {blocked} of {lanes} lane(s) on {road} (road report, SYNTHETIC). {load} Needs confirmation on site.",
                                  "Incident_ID": "", "Data_Classification": S.SYNTHETIC}, r["geom"])
