@@ -15,7 +15,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 
-from backend.agent import ar, compose, providers
+from backend.agent import ar, compose, mobility_questions, providers
 from backend.agent.prompts import SYSTEM_PROMPT
 from backend.services import i18n
 from backend.gis import schema as S
@@ -404,8 +404,26 @@ class GeoAIAgent:
             return f"**{name} could not run:** {r['error']}"
         return compose.COMPOSERS[name](r["result"])
 
+    def _mobility_turn(self, s: Session, text: str) -> tuple[str, list] | None:
+        """A mobility question (closure, event, demand, hospital access, road maintenance, traffic now). One tool call; the reply is written from its numbers."""
+        q = mobility_questions.parse(text)
+        if not q:
+            return None
+        lang = "ar" if AR_REPLY.get() else "en"
+        trace: list = []
+        if q["intent"] in ("unknown_road", "unknown_place"):
+            return mobility_questions.known_list(q["intent"].split("_")[1], lang), trace
+        r = self._call(s, trace, mobility_questions.TOOL[q["intent"]], **q["args"])
+        if not r["ok"]:
+            err = str(r["error"])
+            return (i18n.to_ar(err) if lang == "ar" else err), trace
+        return mobility_questions.answer(q["intent"], r["result"], lang, q["args"]), trace
+
     def _rule_turn(self, s: Session, text: str) -> tuple[str, list]:
-        text = ar.augment(text)               # Arabic words add the English keywords the rules below look for
+        asked = self._mobility_turn(s, text)
+        if asked:
+            return asked
+        text = ar.augment(text)              # Arabic words add the English keywords the rules below look for
         t = text.lower()
         trace: list = []
         area = self._area(text)

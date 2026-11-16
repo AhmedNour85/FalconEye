@@ -155,6 +155,11 @@ def simulate_event(ctx: ToolContext, place: str, attendance: int, start_time: st
             "label": MODELLED + ". Car share, parking supply and metro capacity are assumptions."}
 
 
+def simulate_demand_growth(ctx: ToolContext, place: str, growth_pct: float = 20.0) -> dict:
+    res = _ran(ctx, "demand", {"place": place, "growth_pct": growth_pct}, f"Demand growth near {place}")
+    return {"scenario_id": res["Scenario_ID"], "summary": res["summary"], "label": MODELLED + ". The growth is the figure asked for, not a forecast."}
+
+
 def hospital_access(ctx: ToolContext, hour: int | None = None) -> dict:
     h = _hour(hour)
     if not model_ready(ctx, h):

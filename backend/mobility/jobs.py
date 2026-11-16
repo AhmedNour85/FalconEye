@@ -162,6 +162,32 @@ def _run_event(p: dict, say) -> tuple:
              "metro_utilisation": ev["metro_utilisation"], **_numbers(r)}, "", "", r["geojson"])
 
 
+def _prep_demand(p: dict) -> dict:
+    place = str(p.get("place") or "").strip()
+    if not place:
+        raise ValueError("a demand-growth simulation needs the place")
+    try:
+        pct = float(p.get("growth_pct", 20))
+    except (TypeError, ValueError):
+        raise ValueError("the demand growth must be a number (percent)")
+    if not -50 <= pct <= 200 or pct == 0:
+        raise ValueError("the demand growth must be between -50 and 200 percent, and not zero")
+    day = riyadh_now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return {"place": place, "growth_pct": pct, "radius_km": float(p.get("radius_km") or 3),
+            "start_time": p.get("start_time") or _iso(day.replace(hour=7)), "end_time": p.get("end_time") or _iso(day.replace(hour=10))}
+
+
+def _run_demand(p: dict, say) -> tuple:
+    model = network_model.get_model()
+    if not model.resolve_place(p["place"]):
+        from backend.mobility import riyadh_network as RN
+
+        raise ValueError(f"The road network has no place named '{p['place']}'. Places known by name include: " + ", ".join(sorted(v[0] for v in RN.LOCATIONS.values())[:12]) + ".")
+    r = engine.run_scenario({"scenario_type": "demand", "area": {"place": p["place"], "radius_km": p["radius_km"]}, "demand_change_pct": p["growth_pct"],
+                             "start_time": p["start_time"], "end_time": p["end_time"], "name": f"Demand near {p['place']}"}, progress=say, persist=False, actor="noura")
+    return ({"place": p["place"], "growth_pct": p["growth_pct"], "radius_km": p["radius_km"], **_numbers(r)}, "", "", r["geojson"])
+
+
 def _prep_road_impact(p: dict) -> dict:
     """A repair next to a road: the same closure in the day window and in the night window of the next working day."""
     if not p.get("segment_id"):
@@ -205,9 +231,9 @@ def _run_road_impact(p: dict, say) -> tuple:
 
 
 PREPARE: Dict[str, Callable[[dict], dict]] = {"incident": _prep_incident, "closure": _prep_closure, "closure_run": _prep_closure_run, "event": _prep_event,
-                                              "road_impact": _prep_road_impact}
+                                              "road_impact": _prep_road_impact, "demand": _prep_demand}
 RUNNERS: Dict[str, Callable] = {"incident": _run_incident, "closure": _run_closure, "closure_run": _run_closure_once, "event": _run_event,
-                                "road_impact": _run_road_impact}
+                                "road_impact": _run_road_impact, "demand": _run_demand}
 
 
 class Jobs:
