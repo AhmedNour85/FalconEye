@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status:** written 2026-11-17, **waiting for the user's review**. Nothing in it is built yet.
+**Status:** built and approved (Checkpoint 5, 2026-11-17).
 
 **Goal:** The command center and the Executive Hub show the mobility story clearly (lifecycle strip, strategy table, four mobility numbers, trend and hotspots); operators can ask the crew mobility questions in English and Arabic; a one-page daily brief downloads as a PDF; every API route is protected; and the whole project is checked, documented and ready for your final review.
 
