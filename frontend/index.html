@@ -26,10 +26,17 @@
     <button class="btn" id="cmp-open" type="button" title="Compare satellite images from two dates to spot urban change">Compare imagery</button>
     <select id="sim" aria-label="Simulate an event">
       <option value="">Simulate an event…</option>
-      <option value="olaya_leak">Water leak</option>
-      <option value="streetlight_pole">Streetlight &amp; pole monitoring</option>
-      <option value="distortion_event">Visual distortion detection</option>
-      <option value="landuse_violation">Land-use management</option>
+      <optgroup label="City services">
+        <option value="olaya_leak">Water leak</option>
+        <option value="streetlight_pole">Streetlight &amp; pole monitoring</option>
+        <option value="distortion_event">Visual distortion detection</option>
+        <option value="landuse_violation">Land-use management</option>
+      </optgroup>
+      <optgroup label="Mobility">
+        <option value="traffic_incident">Traffic incident</option>
+        <option value="road_closure">Road closure</option>
+        <option value="major_event">Major event</option>
+      </optgroup>
     </select>
     <button class="bell" id="planner-open" type="button" title="Planner" aria-label="Planner" aria-haspopup="dialog"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></button>
     <div class="bellwrap">

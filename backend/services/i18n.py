@@ -88,8 +88,11 @@ from backend.services import visual_types as _vt  # noqa: E402  (pure data)
 for _v in _vt.VISUAL_TYPES.values():             # the eight visual-distortion types: names and the short description used in the evidence sentence
     TERMS[_v["name"]] = _v["ar"]
     TERMS[_v["what"]] = _v["what_ar"]
+from backend.services import i18n_mobility as _mob  # noqa: E402  (pure data)
+
+TERMS.update(_mob.TERMS)
 _TERM_RE = re.compile("|".join(r"(?<![\w])" + re.escape(k) + r"(?![\w])" for k in sorted(TERMS, key=len, reverse=True)))
-_CAT_AR = {"water": "مياه", "lighting": "إنارة", "change": "تغيّر عمراني", "distortion": "تشوّه بصري", "land_use": "استخدام أراضٍ"}
+_CAT_AR = {"water": "مياه", "lighting": "إنارة", "change": "تغيّر عمراني", "distortion": "تشوّه بصري", "land_use": "استخدام أراضٍ", "mobility": _mob.CAT_AR}
 _STATUS_AR = {"Open": "مفتوحة", "Assigned": "مُكلَّفة", "In Progress": "قيد التنفيذ", "Resolved": "تم الحل", "Confirmed": "مؤكدة", "Rejected": "مرفوضة", "Escalated": "مصعَّدة"}
 _ID_RE = re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Za-z0-9]+)+\b")
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
@@ -231,7 +234,7 @@ RULES: list[tuple[str, str]] = [
     (rf"^(.+) in (.+): {N} residents are now reporting the same problem, which raises confidence in the finding\.$", r"\1 في \2: \3 من السكان يبلغون الآن عن المشكلة نفسها، مما يرفع الثقة بالرصد."),
     # ---- approvals
     (rf"^Create (P\d) work order for (\S+) \((.+), (.+)\)$", r"إنشاء أمر عمل \1 للحادثة \2 (\3، \4)"),
-    (rf"^Work order created in the system of record; incident moves to '(.+)'; due in {N} h\.$", r"يُنشأ أمر العمل في السجل المرجعي؛ تنتقل الحادثة إلى '\1'؛ الاستحقاق خلال \2 ساعة."),
+    (rf"^Work order created in the system of record; incident moves to '(.+)'; due in {N} h\.(?= |$)", r"يُنشأ أمر العمل في السجل المرجعي؛ تنتقل الحادثة إلى '\1'؛ الاستحقاق خلال \2 ساعة."),
     (r"^Assign (.+) \((.+)\) to (\S+) for (\S+)$", r"تكليف \1 (\2) بأمر العمل \3 للحادثة \4"),
     (r"^Field task appears in (.+)'s portal; incident status becomes Assigned\.$", r"تظهر المهمة الميدانية في بوابة \1؛ وتصبح حالة الحادثة 'مُكلَّفة'."),
     (r"^Close incident (\S+) as '(.+)'$", r"إغلاق الحادثة \1 بحالة '\2'"),
@@ -336,7 +339,15 @@ RULES += [
     (r"(.+?) confirmed from street level: (.+?)\. Photographed and noted for the notice to the owner\.", r"تأكد وجود \1 من مستوى الشارع: \2. تم التصوير والتسجيل لإشعار المالك."),
     (r"Nothing found on site: the apparent (.+?) was temporary hoarding or a shadow in the imagery\.", r"لم يُعثر على شيء في الموقع: كان \1 الظاهر سياجًا مؤقتًا أو ظلًّا في الصورة."),
 ]
+RULES += _mob.RULES
 _COMPILED = [(re.compile(p, re.S), r) for p, r in RULES]
+# a road that is not in the vocabulary keeps its name; the word "Road" or "Street" goes before it, as it is written in Arabic
+_ROAD_RE = re.compile(r"(?<![\w-])((?:[A-Z][\w'’.-]*)(?: [A-Z][\w'’.-]*){0,2}) (Road|Street)(?![\w])(?! [A-Z])")
+_ROAD_WORD = {"Road": "طريق", "Street": "شارع"}
+
+
+def _road(m):
+    return m.group(0) if m.group(0) in TERMS else f"{_ROAD_WORD[m.group(2)]} {m.group(1)}"
 
 HOW_TO_ANSWER_AR = ("اختر إجابتك (نعم، مؤكد / لم يتم العثور / أحتاج إلى معاينة أخرى / تصعيد)، واكتب ما رأيته في التعليق، ثم اضغط إنهاء. "
                     "وإن لم يظهر سوى حقل الملاحظات فابدأ الملاحظة بإحدى العبارات: تم التأكيد، لم يتم العثور، أحتاج إلى معاينة أخرى، تصعيد.")
@@ -386,6 +397,7 @@ def to_ar(text: str, terms_only: bool = False) -> str:
     out = text
     for rx, rep in _COMPILED:
         out = rx.sub(rep, out)
+    out = _ROAD_RE.sub(_road, out)
     # keep "High/Low ..." words out of sentences; translate the rest of the vocabulary
     out = _TERM_RE.sub(lambda m: m.group(0) if m.group(0) in _SEV_ONLY else TERMS[m.group(0)], out)
     # ids such as SEN-W-001 or INC-0042 are isolated so the hyphens do not reorder them inside right-to-left text

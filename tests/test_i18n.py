@@ -206,3 +206,109 @@ def test_simulated_crew_sentences_translate():
     assert "عامل محاكى" in i18n.to_ar("[SIMULATED WORKER] Fault repaired and tested; area made safe.") and "SIMULATED" not in i18n.to_ar("[SIMULATED WORKER] Fault repaired and tested; area made safe.")
     ar = i18n.to_ar("Illegal Graffiti confirmed from street level: unlicensed drawings or writing on walls. Photographed and noted for the notice to the owner.")
     assert "الكتابات الجدارية العشوائية" in ar and "Photographed" not in ar
+
+
+# ---------------------------------------------------------------- Plan 3, task 9: the mobility crew in Arabic
+MOBILITY_EVENTS = ("traffic_incident", "road_closure", "major_event")
+ENGLISH_RUN = re.compile(r"[A-Za-z]{3,}(?:[ ,]+[A-Za-z]{3,}){2,}")
+
+
+def _english_left(text):
+    """English wording left in a text after ids, codes, proper names in the allow-list and bracketed notes are taken out."""
+    t = re.sub(r"\(مثلًا:.*", "", str(text))                        # example facility names are demo data, not crew wording
+    t = re.sub(r"\([^)]*\)", "", t)
+    t = re.sub(r"\b[A-Z]{2,}-[\w-]+|\b[A-Z]{2,}\b", "", t)
+    return ENGLISH_RUN.findall(t)
+
+
+def _walk_text(state):
+    for n in state["notifications"]:
+        yield "title", n["Title"]
+        yield "message", n["Message"]
+        for t in n["Trail"]:
+            yield "trail", t["did"]
+        if n["approval"]:
+            yield "approval", n["approval"]["summary"]
+            yield "expected", n["approval"]["expected"]
+    for a in state["crew"]["agents"]:
+        for k in ("name", "role", "focus"):
+            yield "agent." + k, a[k]
+    for s in state["crew"]["activity"]:
+        yield "activity", s["action"]
+        yield "activity", s.get("detail") or ""
+    for f in state["feeds"]:
+        yield "feed", f["name"]
+        yield "feed", f["detail"]
+
+
+def test_the_three_mobility_events_read_in_arabic(platform):
+    c = client(platform)
+    for ev in MOBILITY_EVENTS:
+        assert c.post(f"/api/nccc/events/{ev}").status_code == 200
+    st = c.get("/api/nccc/state?lang=ar").json()
+    assert len(st["crew"]["agents"]) == 11
+    left = [(kind, txt, _english_left(txt)) for kind, txt in _walk_text(st) if _english_left(txt)]
+    assert not left, left[:8]
+    names = {a["id"]: a["name"] for a in st["crew"]["agents"]}
+    for aid in ("nasser", "noura", "fahad"):
+        assert ARABIC.search(names[aid]), aid
+
+
+def test_every_mobility_sentence_of_the_crew_has_an_arabic_rule():
+    from backend.mobility import road_impact, wording
+    cases = [
+        wording.impact("incident", {"road": "King Fahd Road", "lanes_closed": 2, "full_closure": False, "duration_h": 2, "window_extra_trip_hours": 1200,
+                                    "worst_hospital_access_delta_min": 4, "severe_segments": 3}),
+        wording.impact("incident", {"road": "King Fahd Road", "lanes_closed": 4, "full_closure": True, "duration_h": 2, "window_extra_trip_hours": 1200,
+                                    "worst_hospital_access_delta_min": 4, "severe_segments": 3}),
+        wording.impact("event", {"venue": "KAFD", "attendance": 30000, "added_vehicles_per_hour": 4200, "window_extra_trip_hours": 900, "parking_shortfall": 300}),
+        wording.failed("The server stopped while this simulation was running."),
+        road_impact.line({"road": "Olaya Street", "lanes_closed": 2, "full_closure": False, "recommended": "night", "small": False, "category": "water",
+                          "day": {"start": "08:00", "end": "16:00", "window_extra_trip_hours": 1200, "worst_hospital_access_delta_min": 4},
+                          "night": {"start": "22:00", "end": "06:00", "window_extra_trip_hours": 150, "worst_hospital_access_delta_min": 1}}),
+    ]
+    for en in cases:
+        ar = i18n.to_ar(en)
+        assert ARABIC.search(ar) and not _english_left(ar), (en, ar)
+
+
+def test_strategy_verdicts_instructions_and_field_findings_have_arabic():
+    from backend.mobility import strategies
+    from backend.services.simulation import SimEngine as Simulation
+    cases = [s["name"] for s in strategies.STRATEGIES]
+    cases += ["Recommended: Reschedule to off-peak (22:00 start). It lowers the weighted impact score from 100 to 41.5 (62.3% less trip-time lost over the window; "
+              "worst hospital-access increase 5.2 -> 1.1 min). Note: this strategy assumes 10% fewer trips network-wide at the peak hour; its benefit depends entirely on that behavioural assumption.",
+              "No strategy improves the weighted score by at least 2%; the differences are within the model's noise.",
+              "The closure's modelled impact is small, so no response strategy changes outcomes materially. Proceed as planned and monitor.",
+              "Go to King Fahd Road. Confirm the reported blockage (2 lane(s) blocked), make the scene safe, direct traffic and report when the road is clear. Modelled impact if it lasts 2 hours: 1,200 extra trip-hours.",
+              "Confirm the closure of Olaya Street is set up as approved (2026-11-17T08:00 to 2026-11-17T16:00; response: Do nothing): signs, barriers and the diversion route in place. Photograph and report.",
+              "Confirm the traffic plan for the event at KAFD is in place: approach routes signed, parking guidance and marshals. Modelled peak: 4,200 added vehicles per hour. Photograph and report.",
+              "Work order created in the system of record; incident moves to 'Work Order Created'; due in 4 h. A planned closure (2 lanes of Makkah Road, 2026-11-17 22:00:00 to 06:00) is recorded with it.",
+              "Inspect the location and confirm or reject the AI finding. Planned closure: 2 lanes of Makkah Road, 2026-11-17 22:00:00 to 06:00 (modelled recommendation: night window).",
+              "Road safety (SYNTHETIC): 6 recorded accident(s) on this section in the last 12 months, 0 severe; road-asset condition 78.2 of 100 (monitor)",
+              "Closure plan for Olaya Street (INC-0030): Do nothing",
+              "Traffic response for INC-0029: send Traffic Response to Airport Road to confirm and clear the blockage",
+              "Prepared a plain field check (APR-0005) instead and is waiting for your approval",
+              "For information: the work order was decided before this result arrived, so no planned closure is recorded"]
+    cases += [t for pair in Simulation.MOBILITY_OBS.values() for t in pair] + [Simulation.MOBILITY_CLEARED]
+    bad = []
+    for en in cases:
+        ar = i18n.to_ar(en)
+        if not ARABIC.search(ar) or _english_left(ar):
+            bad.append((en[:60], ar[:80]))
+    assert not bad, bad
+    assert "طريق Al Hair" in i18n.to_ar("Closure request received for Al Hair Road").replace("لـ", "") or "طريق Al Hair" in i18n.to_ar("closing 2 lanes of Al Hair Road")
+
+
+def test_the_simulate_menu_and_the_mobility_page_labels_have_arabic():
+    have = _dictionary()
+    html = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+    groups = re.findall(r'<optgroup label="([^"]+)">(.*?)</optgroup>', html, re.S)
+    assert [g for g, _ in groups] == ["City services", "Mobility"]
+    assert re.findall(r'value="(\w+)"', groups[1][1]) == ["traffic_incident", "road_closure", "major_event"] and len(re.findall(r"<option", groups[0][1])) == 4
+    labels = [g for g, _ in groups] + [re.sub(r"<[^>]+>", "", o).replace("&amp;", "&") for _, body in groups for o in re.findall(r"<option[^>]*>[^<]*</option>", body)]
+    for key in labels + ["Planned closures", "Requested", "Approved", "In Place", "Detour", "Closed section", "View impact on map", "Traffic Incident", "Planned Road Closure",
+                         "Major Event Traffic Plan", "Confirm the road is clear", "Bandar Al-Shehri", "Rayan Al-Anazi"]:
+        assert key in have, key
+    js = (ROOT / "frontend" / "i18n.js").read_text(encoding="utf-8")
+    assert all(a in js for a in ("nasser:", "noura:", "fahad:")) and '"label"' in js           # agent names, and the group labels of the menu

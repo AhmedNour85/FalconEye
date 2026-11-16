@@ -166,6 +166,10 @@ class Crew:
 
     def notifications(self, status: str | None = None, limit: int = 60) -> list[dict]:
         pend = {a["Approval_ID"]: a for a in self.p.approvals.all()}
+        scn = {}                                                    # the latest simulation of each incident, so an alert can show its impact on the map
+        for f in sorted(self.p.store.all(S.SCENARIOS), key=lambda r: r["id"]):
+            if f["attrs"].get("Subject_ID"):
+                scn[f["attrs"]["Subject_ID"]] = f["attrs"]
         rows = []
         for f in self.p.store.all(S.NOTIFICATIONS):
             a = dict(f["attrs"])
@@ -177,6 +181,8 @@ class Crew:
                              "worker_id": json.loads(ap["Payload"]).get("worker_id", "") if ap["Action_Type"] == "assign_worker" else ""} if ap else None
             inc = self.p.store.get(S.INCIDENTS, a["Incident_ID"]) if a["Incident_ID"] else None
             a["incident_status"] = inc["attrs"]["Status"] if inc else ""
+            sc = scn.get(a["Incident_ID"]) if a["Incident_ID"] else None
+            a["scenario_id"], a["scenario_status"] = (sc["Scenario_ID"], sc.get("Status") or "") if sc else ("", "")
             a["active_work_order"] = next((w["id"] for w in self.p.store.query(S.WORK_ORDERS, Incident_ID=a["Incident_ID"]) if w["attrs"]["Status"] in ("Created", "Assigned", "In Progress")), "") if inc else ""
             rows.append(a)
         rows.sort(key=lambda r: (r["Created"], r["Notif_ID"]), reverse=True)

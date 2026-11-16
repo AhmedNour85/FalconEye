@@ -5,7 +5,7 @@ require(["esri/Map", "esri/views/MapView", "esri/views/SceneView", "esri/layers/
   const $ = id => document.getElementById(id);
   const layers = { change: new GraphicsLayer(), inc: new GraphicsLayer() };
   const map = new Map({ basemap: "dark-gray-vector", layers: [layers.change, layers.inc] });
-  if (window.Mobility) Mobility.attach({ map, GraphicsLayer, Graphic, panel: document.querySelector(".layers"), host: document.querySelector(".mapwrap") });   // traffic (modelled), metro, bus, hospitals
+  if (window.Mobility) Mobility.attach({ map, GraphicsLayer, Graphic, panel: document.querySelector(".layers"), host: document.querySelector(".mapwrap"), view: () => view });   // traffic (modelled), metro, bus, hospitals
   // 2D map or 3D scene on the same layers; the choice is remembered
   const makeView = three => three
     ? new SceneView({ container: "map", map, camera: { position: [46.67, 24.54, 12000], tilt: 45 } })

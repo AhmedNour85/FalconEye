@@ -191,7 +191,21 @@
     "Royal Commission for Riyadh City (RCRC) open data, KSA Open Data License": "البيانات المفتوحة للهيئة الملكية لمدينة الرياض، رخصة البيانات المفتوحة في المملكة العربية السعودية",
     "Bus stops appear when you zoom in": "تظهر مواقف الحافلات عند تقريب الخريطة", "approximate positions": "مواقع تقريبية", "Map sources": "مصادر الخريطة","approximate position": "موقع تقريبي",
     "Building the traffic model… {n} of 24 hours ready": "جارٍ بناء نموذج المرور… {n} من 24 ساعة جاهزة", "Could not load this layer: {m}": "تعذّر تحميل هذه الطبقة: {m}",
-    "Metro station": "محطة مترو", "Hospital": "مستشفى"
+    "Metro station": "محطة مترو", "Hospital": "مستشفى",
+    /* ---- mobility crew, closures and the impact drawing (Plan 3) */
+    "City services": "خدمات المدينة", "Mobility": "التنقل", "Traffic incident": "حادثة مرورية", "Road closure": "إغلاق طريق", "Major event": "فعالية كبرى",
+    "Planned closures": "الإغلاقات المخططة", "Planned closure": "إغلاق مخطط", "Requested": "مطلوب", "Approved": "معتمد", "In Place": "قيد التنفيذ", "Ended": "انتهى",
+    "whole road closed": "الطريق مغلق بالكامل", "{n} lane(s) closed": "{n} حارة مغلقة",
+    "Impact of {id}": "أثر {id}", "Closed section": "المقطع المغلق", "Worse after the closure": "أسوأ بعد الإغلاق", "Detour": "مسار التحويل", "Usual route": "المسار المعتاد",
+    "Clear the impact drawing": "إزالة رسم الأثر", "Calculating the map drawing…": "جارٍ حساب رسم الخريطة…", "The impact drawing is not available: {m}": "رسم الأثر غير متاح: {m}",
+    "View impact on map": "عرض الأثر على الخريطة", "Show the closed road, the worse road sections and the detours (modelled)": "إظهار الطريق المغلق ومقاطع الطرق الأسوأ ومسارات التحويل (نمذجة)",
+    "The impact drawing needs the map, which needs internet access.": "رسم الأثر يحتاج إلى الخريطة، والخريطة تحتاج إلى اتصال بالإنترنت.",
+    "Traffic Incident": "حادثة مرورية", "Planned Road Closure": "إغلاق طريق مخطط", "Major Event Traffic Plan": "خطة مرورية لفعالية كبرى", "Road Closure Request": "طلب إغلاق طريق",
+    "Major Event": "فعالية كبرى", "Traffic Response": "الاستجابة المرورية", "Confirm the road is clear": "تأكيد خلو الطريق", "Confirm the closure is in place": "تأكيد تنفيذ الإغلاق",
+    "Confirm the traffic plan is in place": "تأكيد تنفيذ الخطة المرورية", "Bandar Al-Shehri": "بندر الشهري", "Rayan Al-Anazi": "ريان العنزي", "Cleared": "تمت إزالة الانسداد",
+    "Water leak repair": "إصلاح تسرّب مياه", "Resurfacing works": "أعمال إعادة السفلتة", "Bridge joint replacement": "استبدال فواصل الجسر",
+    "Utility crossing under the carriageway": "عبور خدمات تحت الطريق", "Drainage repair": "إصلاح تصريف المياه",
+    "Traffic & road reports": "المرور وبلاغات الطرق", "Closures & events": "الإغلاقات والفعاليات"
   };
   AR["change"] = "التغيّر";
 
@@ -202,7 +216,7 @@
   const apiUrl = u => { if (!rtl) return u; return u + (u.includes("?") ? "&" : "?") + "lang=ar"; };
 
   /* translate what is already in the page (static HTML) */
-  const ATTRS = ["title", "placeholder", "aria-label", "alt"];
+  const ATTRS = ["title", "placeholder", "aria-label", "alt", "label"];
   function translateNode(el) {
     if (!rtl) return;
     const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => /^(SCRIPT|STYLE)$/.test(n.parentNode.nodeName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
@@ -227,7 +241,7 @@
   const start = () => { if (rtl) { translateNode(document.body); document.title = T(document.title); } toggle(); };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 
-  const AGENT_AR = { faisal: "فيصل", mansour: "منصور", sarah: "سارة", abdullah: "عبدالله", zayed: "زايد", reem: "ريم", turki: "تركي", maha: "مها" };
+  const AGENT_AR = { faisal: "فيصل", mansour: "منصور", sarah: "سارة", abdullah: "عبدالله", zayed: "زايد", reem: "ريم", turki: "تركي", maha: "مها", nasser: "ناصر", noura: "نورة", fahad: "فهد" };
   const agentName = id => (rtl && AGENT_AR[id]) || id;
 
   window.I18N = { lang, rtl, T, TV, locale, apiUrl, agentName, translateNode, dict: AR };

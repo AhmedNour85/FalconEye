@@ -74,7 +74,7 @@ const needsAction = n => (n.approval && n.approval.status === "Proposed") || (!n
 function renderFeed() {
   const all = S.state.notifications, rows = S.tab === "action" ? all.filter(needsAction) : all;
   const feed = $("#feed"); const keep = feed.scrollTop;
-  const sig = [S.tab, S.state.crew.autopilot, Math.floor(Date.now() / 60000), ...rows.map(n => [n.Notif_ID, n.Status, n.approval && n.approval.status, n.incident_status].join(":"))].join("|");
+  const sig = [S.tab, S.state.crew.autopilot, Math.floor(Date.now() / 60000), ...rows.map(n => [n.Notif_ID, n.Status, n.approval && n.approval.status, n.incident_status, n.scenario_status, n.Updated].join(":"))].join("|");
   if (sig === S.feedSig) return;          // rebuilding on every poll would swallow clicks that land mid-refresh
   S.feedSig = sig;
   if (!rows.length) {
@@ -100,6 +100,7 @@ function card(n) {
   if (n.Kind === "verified") actions += `<button class="btn primary" data-act="report" data-id="${esc(n.Ref_ID)}" data-nid="${esc(n.Notif_ID)}">${T("View report")}</button>`;
   if (n.Kind === "verified" && n.incident_status === "Confirmed" && n.active_work_order) actions += `<button class="btn" data-act="simrepair" data-id="${esc(n.Incident_ID)}" title="${T("Report the repair as a simulated crew so the incident can be closed")}">${T("Simulate repair")}</button>`;
   if (n.Kind === "dispatch" && ap && ap.status === "Executed" && ap.worker_id) actions += `<button class="btn" data-act="investigator" data-id="${esc(ap.worker_id)}" title="${T("Open the page the assigned investigator sees (new tab)")}">${T("Open investigator view")}</button>`;
+  if (n.scenario_id && n.scenario_status === "Completed" && n.Lon != null) actions += `<button class="btn" data-act="impact" data-id="${esc(n.scenario_id)}" title="${T("Show the closed road, the worse road sections and the detours (modelled)")}">${T("View impact on map")}</button>`;
   if (n.Kind === "change") actions += `<button class="link" data-act="compare" data-id="${esc(n.Notif_ID)}">${T("Compare epochs")}</button>`;
   if (n.Lon != null) actions += `<button class="link" data-act="show" data-id="${esc(n.Notif_ID)}">${T("Show on map")}</button>`;
   const trail = n.Trail.map(t => `<li>${avatar(t.agent, true)}<span><b style="--ac:${(S.agents[t.agent] || {}).color}">${esc(aName(t.agent))}</b> ${esc(t.did)}</span></li>`).join("");
@@ -117,6 +118,11 @@ async function act(kind, id, btn) {
   try {
     if (kind === "report") { openReport(id); if (btn.dataset.nid) api("nccc/notifications/" + btn.dataset.nid + "/ack", "POST").then(poll).catch(() => {}); return; }
     if (kind === "investigator") { window.open("/field.html?worker=" + encodeURIComponent(id), "_blank", "noopener"); return; }
+    if (kind === "impact") {
+      if (M && M.mob) { M.mob.showImpact(id); const r = $(".mapbox").getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 10) window.scrollTo({ top: Math.max(0, scrollY + r.top - 80) }); }
+      else toast(T("The impact drawing needs the map, which needs internet access."), "High");
+      return;
+    }
     if (kind === "compare") { const n = S.state.notifications.find(x => x.Notif_ID === id); if (n) openCompare(n.Area_Name, n.Incident_ID); return; }
     if (kind === "show") { const n = S.state.notifications.find(x => x.Notif_ID === id); if (n) { goTo(n.Lon, n.Lat, n.Incident_ID); api("nccc/notifications/" + id + "/ack", "POST").catch(() => {}); } return; }
     btn.disabled = true;
@@ -412,7 +418,7 @@ function initMap() {
     M = { view, map, layer, rep, sel, chg, Graphic, MapView, SceneView, makeView, wire, three };
     if (window.Mobility) {                                  // traffic (modelled), metro, bus and hospitals: off until switched on
       if (matchMedia("(max-width:640px)").matches) $("#maplayers").open = false;
-      M.mob = Mobility.attach({ map, GraphicsLayer, Graphic, panel: $("#maplayers"), host: document.querySelector(".mapbox") });
+      M.mob = Mobility.attach({ map, GraphicsLayer, Graphic, panel: $("#maplayers"), host: document.querySelector(".mapbox"), view: () => M.view });
     }
     wire(view); showMapMode();
     let on = false; try { on = localStorage.getItem("geoai.layer.change") === "1"; } catch (e) { /* off by default */ }
@@ -487,7 +493,7 @@ async function updateChanges(force) {
 
 async function updateMap(force) {
   if (!M || !S.state) return;
-  updateReports(); updateChanges(force);
+  updateReports(); updateChanges(force); if (M.mob) M.mob.refreshClosures();
   const pend = new Set(S.state.approvals.map(a => a.Incident_ID));
   let gj; try { gj = await api("layers/Riyadh_Operational_Incidents"); } catch { return; }
   const open = gj.features.filter(f => !CLOSED.includes(f.properties.Status));

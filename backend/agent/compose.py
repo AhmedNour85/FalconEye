@@ -193,7 +193,7 @@ def count_incidents(r: dict) -> str:
     if not r["count"]:
         return f"There are **no {'open ' if r['open_only'] else ''}{scope}** right now ({r['total_all_time']} incidents recorded in total)."
     lines = [f"**{r['count']} {'open ' if r['open_only'] else ''}{scope}** ({r['critical']} critical)."]
-    names = {"water": "water", "lighting": "streetlight", "change": "urban change", "distortion": "visual distortion", "land_use": "land-use"}
+    names = {"water": "water", "lighting": "streetlight", "change": "urban change", "distortion": "visual distortion", "land_use": "land-use", "mobility": "traffic and mobility"}
     if len(r["by_area"]) > 1 or not sc.get("area"):
         lines.append("- By area: " + ", ".join(f"{k} {v}" for k, v in r["by_area"].items()))
     if len(r["by_category"]) > 1 or not sc.get("category"):

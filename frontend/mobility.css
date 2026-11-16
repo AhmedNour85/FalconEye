@@ -19,6 +19,9 @@
 .mob-note b { color: #ffe08a; }
 .mob-credit { font-size: 11.5px; }
 .mob-wait { margin-top: 4px; color: #ffe08a; }
+.mob-clear { margin-top: 6px; background: #12304f; color: #dbe7f5; border: 1px solid var(--line, var(--border, #27405f)); border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+.mob-clear:hover { border-color: #38bdf8; }
+.mob-clear:focus-visible { outline: 2px solid #4aa3ff; outline-offset: 2px; }
 
 /* Operation page: the legend and credits sit above the incident legend row (bottom: 52px above), so the two never cover each other.
    The layer box sits under the search box, clear of the zoom buttons on the other side */

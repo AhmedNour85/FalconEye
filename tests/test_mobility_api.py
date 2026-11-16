@@ -124,3 +124,65 @@ def test_traffic_state_refuses_a_bad_hour_directly():
     for bad in (24, -1, 8.0, "8", True):
         with pytest.raises(ValueError):
             traffic.state(bad)
+
+
+# ---------------------------------------------------------------- Plan 3, task 9: closures, simulation results and map drawings
+def _closure(platform, cid, status, lanes=1):
+    from backend.gis import schema as S
+    platform.store.upsert(S.CLOSURES, {"Closure_ID": cid, "Corridor": "King Fahd Road", "Section": "King Fahd Road", "Segment_IDs": "X", "Lanes_Closed": lanes, "Full_Closure": "No",
+                                       "Start_Time": "2026-11-17T08:00:00Z", "End_Time": "2026-11-17T16:00:00Z", "Reason": "Water leak repair", "Status": status,
+                                       "Incident_ID": "INC-0001", "Data_Classification": S.OPERATIONAL}, {"type": "LineString", "coordinates": [[46.67, 24.70], [46.68, 24.71]]})
+
+
+def test_the_closures_route_returns_only_closures_that_matter(client, platform):
+    for cid, st in (("CLS-0001", "Requested"), ("CLS-0002", "Approved"), ("CLS-0003", "In Place"), ("CLS-0004", "Ended"), ("CLS-0005", "Rejected")):
+        _closure(platform, cid, st)
+    gj = client.get("/api/mobility/closures").json()
+    assert gj["type"] == "FeatureCollection"
+    assert sorted(f["id"] for f in gj["features"]) == ["CLS-0001", "CLS-0002", "CLS-0003"]
+    p = next(f for f in gj["features"] if f["id"] == "CLS-0002")["properties"]
+    assert p["road"] == "King Fahd Road" and p["lanes_closed"] == 1 and p["status"] == "Approved" and p["incident_id"] == "INC-0001" and p["start_time"] and p["end_time"]
+    assert next(f for f in gj["features"] if f["id"] == "CLS-0002")["geometry"]["type"] == "LineString"
+
+
+def _scenario(platform):
+    from backend.mobility import network_model
+    s = next(x for x in network_model.get_model().segments.values() if x["corridor"] == "King Fahd Road" and int(x["lanes"]) >= 3)
+    return platform.jobs.submit("incident", {"segment_id": s["id"], "corridor": s["corridor"], "lanes_blocked": 2}, "INC-0001", "noura")
+
+
+def test_a_scenario_route_gives_the_stored_row_and_404_for_an_unknown_one(client, platform):
+    sid = _scenario(platform)
+    r = client.get(f"/api/mobility/scenarios/{sid}").json()
+    assert r["Scenario_ID"] == sid and r["Status"] == "Completed" and isinstance(r["summary"], dict) and r["summary"]["lanes_closed"] == 2
+    assert r["job"]["status"] == "Completed"
+    assert client.get("/api/mobility/scenarios/SCN-9999").status_code == 404
+
+
+def test_the_map_route_waits_while_the_drawing_is_recalculated_and_404s_for_an_unknown_scenario(client, platform, monkeypatch):
+    sid = _scenario(platform)
+    first = client.get(f"/api/mobility/scenarios/{sid}/map")
+    assert first.status_code == 200 and set(first.json()) == {"closed", "segments", "routes"}
+    real = platform.jobs.request_preview
+    calls = []                                                           # the preview is no longer held: the first ask starts the recalculation and gets "not yet"
+    monkeypatch.setattr(platform.jobs, "request_preview", lambda i: None if not calls.append(1) and len(calls) == 1 else real(i))
+    wait = client.get(f"/api/mobility/scenarios/{sid}/map")
+    assert wait.status_code == 503 and wait.headers["Retry-After"] == "3" and wait.json()["ready"] is False
+    assert client.get(f"/api/mobility/scenarios/{sid}/map").status_code == 200
+    assert client.get("/api/mobility/scenarios/SCN-9999/map").status_code == 404
+
+
+def test_a_scenario_that_did_not_complete_has_no_drawing(client, platform):
+    from backend.gis import schema as S
+    platform.store.upsert(S.SCENARIOS, {"Scenario_ID": "SCN-0200", "Scenario_Type": "incident", "Status": "Failed", "Subject_ID": "INC-0001", "Error": "x"})
+    r = client.get("/api/mobility/scenarios/SCN-0200/map")
+    assert r.status_code == 409 and "no result" in r.json()["detail"]
+
+
+def test_a_notification_about_a_simulated_incident_carries_the_scenario(client, platform):
+    client.post("/api/nccc/events/traffic_incident")
+    rows = client.get("/api/nccc/state").json()["notifications"]
+    n = next(x for x in rows if x["Incident_ID"] and x["scenario_id"])
+    assert n["scenario_id"].startswith("SCN-") and n["scenario_status"] == "Completed"
+    assert all("scenario_id" in x and "scenario_status" in x for x in rows)
+    assert any(x["scenario_id"] == "" for x in rows) or len(rows) == 1

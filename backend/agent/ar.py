@@ -57,9 +57,9 @@ def augment(text: str) -> str:
 VALUES = {"Open": "مفتوحة", "Assigned": "مُكلَّفة", "In Progress": "قيد التنفيذ", "Resolved": "تم الحل", "Confirmed": "مؤكدة", "Rejected": "مرفوضة", "Escalated": "مصعَّدة",
           "Critical": "حرج", "High": "عالٍ", "Medium": "متوسط", "Low": "منخفض", "Info": "معلومة", "Suspected": "مشتبه به", "Predicted": "متوقع", "Candidate": "مرشّح",
           "Repaired": "تم الإصلاح", "Escalate": "تصعيد", "None": "لا شيء", "none": "لا شيء", "Moderate": "متوسط", "Severe": "شديد", "moderate": "متوسط", "severe": "شديد", "low": "خفيف",
-          "water": "المياه", "lighting": "الإنارة", "change": "التغيّر العمراني", "distortion": "التشوّه البصري", "land_use": "استخدام الأراضي", "other": "أخرى",
+          "water": "المياه", "lighting": "الإنارة", "change": "التغيّر العمراني", "distortion": "التشوّه البصري", "land_use": "استخدام الأراضي", "mobility": "المرور والتنقّل", "other": "أخرى",
           "New": "جديد", "Linked": "مرتبط", "pending": "قيد الانتظار"}
-NAMES = {"water": "مياه", "lighting": "إنارة", "change": "تغيّر عمراني", "distortion": "تشوّه بصري", "land_use": "استخدام أراضٍ"}
+NAMES = {"water": "مياه", "lighting": "إنارة", "change": "تغيّر عمراني", "distortion": "تشوّه بصري", "land_use": "استخدام أراضٍ", "mobility": "مرور وتنقّل"}
 
 
 def tv(v) -> str:

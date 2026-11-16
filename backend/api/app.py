@@ -197,6 +197,41 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
             raise HTTPException(404, "unknown mobility layer: use " + ", ".join(transit.KINDS))
         return transit.geojson(kind, p.store)
 
+    # closures that matter on a map: asked for, approved or in place (ended and rejected ones are history)
+    @app.get("/api/mobility/closures")
+    def mobility_closures():
+        feats = []
+        for f in p.store.all(S.CLOSURES):
+            a = f["attrs"]
+            if a.get("Status") not in ("Requested", "Approved", "In Place") or not f.get("geom"):
+                continue
+            feats.append({"type": "Feature", "id": f["id"], "geometry": f["geom"],
+                          "properties": {"id": f["id"], "road": a.get("Section") or a.get("Corridor") or "", "corridor": a.get("Corridor") or "", "lanes_closed": a.get("Lanes_Closed"),
+                                         "full_closure": a.get("Full_Closure") == "Yes", "start_time": a.get("Start_Time") or "", "end_time": a.get("End_Time") or "",
+                                         "status": a["Status"], "reason": a.get("Reason") or "", "incident_id": a.get("Incident_ID") or ""}})
+        return {"type": "FeatureCollection", "features": feats}
+
+    @app.get("/api/mobility/scenarios/{scenario_id}")
+    def mobility_scenario(scenario_id: str):
+        row = p.jobs.row(scenario_id)
+        if not row:
+            raise HTTPException(404, f"simulation {scenario_id} not found")
+        return {**row, "job": p.jobs.status(scenario_id)}
+
+    @app.get("/api/mobility/scenarios/{scenario_id}/map")
+    def mobility_scenario_map(scenario_id: str):
+        """The drawing of a simulation: the closed section, the road sections that change and the detour routes. When it is no longer held it is
+        calculated again in the background; the page asks again in a few seconds."""
+        try:
+            hit = p.jobs.request_preview(scenario_id)
+        except KeyError:
+            raise HTTPException(404, f"simulation {scenario_id} not found")
+        except ValueError as exc:
+            raise HTTPException(409, str(exc))
+        if hit is None:
+            return JSONResponse(status_code=503, headers={"Retry-After": "3"}, content={"detail": "The map drawing is being calculated again. Try again in a few seconds.", "ready": False})
+        return hit
+
     @app.get("/api/sensors/{sensor_id}/series")
     def series(sensor_id: str):
         rows = sorted((f["attrs"] for f in p.store.all(S.SENSORS) if f["attrs"]["Sensor_ID"] == sensor_id), key=lambda a: a["Timestamp"])

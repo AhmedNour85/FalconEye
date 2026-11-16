@@ -37,7 +37,7 @@ def impact_rows(platform, iid):
 
 
 # ---------------------------------------------------------------- the small rules
-def test_the_nearest_road_is_found_within_the_radius_only():
+def test_the_nearest_road_is_found_within_the_radius_only(platform):      # the platform fixes the network (skeleton), so the test does not depend on test order
     r = wide_road()
     c = r["geometry"]["coordinates"]
     mid = ((c[0][0] + c[1][0]) / 2, (c[0][1] + c[1][1]) / 2)

@@ -110,8 +110,11 @@ def test_a_crew_scan_reaches_arcgis_online_as_one_request_per_layer():
     n = len(gw.writes)
     res = p.crew.run_cycle()
     scan = gw.writes[n:]
-    assert res["new_incidents"] and scan and all(w[0] == "many" for w in scan), scan
-    assert len({w[1] for w in scan}) == len(scan)        # each layer once: not one request per row
+    first = next((i for i, w in enumerate(scan) if w[1] == "Riyadh_Mobility_Scenarios"), len(scan))
+    batch, after = scan[:first], scan[first:]            # the scan's own batch, then the road-impact run of the repair (a background job writes its own row)
+    assert res["new_incidents"] and batch and all(w[0] == "many" for w in batch), batch
+    assert len({w[1] for w in batch}) == len(batch)      # each layer once: not one request per row
+    assert all(w[1] in ("Riyadh_Mobility_Scenarios", "Riyadh_Approvals", "Riyadh_Notifications", "Riyadh_Agent_Audit_Log", "Riyadh_Mobility_Closures") for w in after), after
 
 
 def test_a_scan_arcgis_refuses_is_undone_as_a_whole():

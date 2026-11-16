@@ -20,8 +20,8 @@ def nearest_road(lonlat: tuple, radius_m: float) -> dict | None:
     best, hit = radius_m, None
     for r in sources.load_network()[0]:
         line = r["geometry"]["coordinates"]
-        if not any(abs(c[0] - p[0]) <= pad + 0.02 and abs(c[1] - p[1]) <= pad + 0.02 for c in line):
-            continue                                            # no vertex within about 2 km: not this section
+        if not (min(c[0] for c in line) - pad <= p[0] <= max(c[0] for c in line) + pad and min(c[1] for c in line) - pad <= p[1] <= max(c[1] for c in line) + pad):
+            continue                                            # outside the section's bounding box (plus the radius): not this section
         d = geo.dist_to_line(p, line)[0]
         if d <= best:
             best, hit = d, r
