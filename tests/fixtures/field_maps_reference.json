@@ -1,0 +1,1809 @@
+{
+ "map": {
+  "operationalLayers": [
+   {
+    "id": "WorkOrders_assignments",
+    "opacity": 1,
+    "title": "Work orders (my assignments)",
+    "url": "https://services-ap1.arcgis.com/qwwhDthY11oZUyqI/arcgis/rest/services/GeoAIOps_Riyadh_Work_Orders/FeatureServer/0",
+    "visibility": true,
+    "itemId": "f341df6a1a924a9c969ff542fe8a5259",
+    "layerType": "ArcGISFeatureLayer",
+    "layerDefinition": {
+     "definitionExpression": "Assigned_To_Username = 'story_viewer' AND Status IN ('Assigned','In Progress')",
+     "fieldConfigurations": [
+      {
+       "alias": "Work Order ID",
+       "name": "Work_Order_ID"
+      },
+      {
+       "alias": "Incident Type",
+       "name": "Incident_Type"
+      },
+      {
+       "alias": "Area Name",
+       "name": "Area_Name"
+      },
+      {
+       "alias": "Due Date",
+       "name": "Due_Date"
+      },
+      {
+       "alias": "Task Type",
+       "name": "Task_Type"
+      },
+      {
+       "alias": "Assigned Worker Name",
+       "name": "Assigned_Worker_Name"
+      },
+      {
+       "alias": "Field Maps Status",
+       "name": "Field_Maps_Status"
+      }
+     ],
+     "drawingInfo": {
+      "renderer": {
+       "type": "uniqueValue",
+       "visualVariables": [
+        {
+         "type": "sizeInfo",
+         "valueExpression": "$view.scale",
+         "stops": [
+          {
+           "size": 7.5,
+           "value": 9027.977411
+          },
+          {
+           "size": 6,
+           "value": 72223.819286
+          },
+          {
+           "size": 3,
+           "value": 577790.5542885
+          },
+          {
+           "size": 1.5,
+           "value": 4622324.434309
+          }
+         ]
+        }
+       ],
+       "field1": "Priority",
+       "uniqueValueGroups": [
+        {
+         "classes": [
+          {
+           "label": "P1",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             253,
+             127,
+             111,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "P1"
+            ]
+           ]
+          },
+          {
+           "label": "P2",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             126,
+             176,
+             213,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "P2"
+            ]
+           ]
+          },
+          {
+           "label": "P3",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             178,
+             224,
+             97,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "P3"
+            ]
+           ]
+          }
+         ]
+        }
+       ],
+       "uniqueValueInfos": [
+        {
+         "label": "P1",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           253,
+           127,
+           111,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "P1"
+        },
+        {
+         "label": "P2",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           126,
+           176,
+           213,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "P2"
+        },
+        {
+         "label": "P3",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           178,
+           224,
+           97,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "P3"
+        }
+       ]
+      }
+     }
+    },
+    "attributeTableInfo": {
+     "attributeTableElements": [
+      {
+       "type": "field",
+       "fieldName": "Work_Order_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Incident_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Assigned_Team"
+      },
+      {
+       "type": "field",
+       "fieldName": "Assigned_Worker"
+      },
+      {
+       "type": "field",
+       "fieldName": "Priority"
+      },
+      {
+       "type": "field",
+       "fieldName": "Due_Date"
+      },
+      {
+       "type": "field",
+       "fieldName": "Status"
+      },
+      {
+       "type": "field",
+       "fieldName": "Approval_Status"
+      },
+      {
+       "type": "field",
+       "fieldName": "Created_Date"
+      },
+      {
+       "type": "field",
+       "fieldName": "Task_Type"
+      },
+      {
+       "type": "field",
+       "fieldName": "Instructions"
+      },
+      {
+       "type": "field",
+       "fieldName": "Data_Classification"
+      },
+      {
+       "type": "field",
+       "fieldName": "Accepted_At"
+      },
+      {
+       "type": "field",
+       "fieldName": "Assigned_Worker_Name"
+      },
+      {
+       "type": "field",
+       "fieldName": "Assigned_To_Username"
+      },
+      {
+       "type": "field",
+       "fieldName": "Incident_Type"
+      },
+      {
+       "type": "field",
+       "fieldName": "Area_Name"
+      },
+      {
+       "type": "field",
+       "fieldName": "Assigned_At"
+      },
+      {
+       "type": "field",
+       "fieldName": "Field_Maps_Status"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_type"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_assignee"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_status"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_priority"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_duedate"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_description"
+      },
+      {
+       "type": "field",
+       "fieldName": "esritask_notes"
+      },
+      {
+       "type": "attachment",
+       "displayType": "auto"
+      }
+     ],
+     "orderByFields": []
+    },
+    "formInfo": {
+     "formElements": [
+      {
+       "label": "Task Type",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_type",
+       "inputType": {
+        "type": "combo-box",
+        "showNoValueOption": false
+       },
+       "requiredExpression": "expr/system/true"
+      },
+      {
+       "label": "Assignee",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_assignee",
+       "inputType": {
+        "type": "combo-box",
+        "noValueOptionLabel": "No Value",
+        "showNoValueOption": true
+       }
+      },
+      {
+       "label": "Status",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_status",
+       "inputType": {
+        "type": "combo-box",
+        "showNoValueOption": false
+       },
+       "requiredExpression": "expr/system/true"
+      },
+      {
+       "label": "Priority",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_priority",
+       "inputType": {
+        "type": "radio-buttons",
+        "showNoValueOption": false
+       },
+       "requiredExpression": "expr/system/true"
+      },
+      {
+       "label": "Due Date",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_duedate",
+       "inputType": {
+        "type": "datetime-picker",
+        "includeTime": false
+       }
+      },
+      {
+       "label": "Your task",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_description",
+       "inputType": {
+        "type": "text-area",
+        "minLength": 0
+       }
+      },
+      {
+       "label": "What did you see?",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "esritask_notes",
+       "inputType": {
+        "type": "text-area",
+        "minLength": 0
+       },
+       "hint": "Start with Confirmed, Not found, Need to look again or Escalate, then describe it. Then tap Finish."
+      },
+      {
+       "label": "General",
+       "type": "attachment",
+       "allowUserRename": true,
+       "attachmentKeyword": "general",
+       "displayFilename": false,
+       "editableExpression": "expr/system/true",
+       "filenameExpression": "StandardizeFilename(`${$formElement.attachmentKeyword}_${Text(Now(), \"YMMDDHHmmss\")}`)",
+       "inputType": {
+        "type": "attachment",
+        "attachmentAssociationType": "exact",
+        "inputTypes": [
+         {
+          "type": "audio",
+          "inputMethod": "any"
+         },
+         {
+          "type": "document"
+         },
+         {
+          "type": "image",
+          "inputMethod": "any"
+         },
+         {
+          "type": "video",
+          "inputMethod": "any"
+         }
+        ]
+       },
+       "useOriginalFilename": true
+      },
+      {
+       "type": "field",
+       "fieldName": "Field_Verdict",
+       "label": "Confirm the incident / أكّد الحادثة",
+       "editableExpression": "expr/geoai-editable",
+       "requiredExpression": "expr/geoai-required-when-completed",
+       "inputType": {
+        "type": "combo-box",
+        "showNoValueOption": true,
+        "noValueOptionLabel": "No value"
+       }
+      },
+      {
+       "type": "field",
+       "fieldName": "Field_Comment",
+       "label": "What did you see? / ماذا رأيت؟",
+       "hint": "For example: water seeping through the asphalt near the valve chamber / مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات",
+       "editableExpression": "expr/geoai-editable",
+       "requiredExpression": "expr/system/false",
+       "inputType": {
+        "type": "text-area",
+        "maxLength": 1000,
+        "minLength": 0
+       }
+      }
+     ],
+     "expressionInfos": [
+      {
+       "expression": "false",
+       "name": "expr/system/false",
+       "returnType": "boolean",
+       "title": "False"
+      },
+      {
+       "expression": "true",
+       "name": "expr/system/true",
+       "returnType": "boolean",
+       "title": "True"
+      },
+      {
+       "name": "geoai-required",
+       "title": "Required",
+       "expression": "true",
+       "returnType": "boolean"
+      },
+      {
+       "name": "geoai-editable",
+       "title": "Editable",
+       "expression": "true",
+       "returnType": "boolean"
+      },
+      {
+       "name": "geoai-required-when-completed",
+       "title": "Required when completed",
+       "expression": "$feature.esritask_status == 3",
+       "returnType": "boolean"
+      }
+     ],
+     "supportsAttachmentElements": true,
+     "title": "Work orders (my assignments)"
+    },
+    "popupInfo": {
+     "popupElements": [
+      {
+       "type": "fields",
+       "fieldInfos": [
+        {
+         "fieldName": "esritask_assignee",
+         "isEditable": false,
+         "label": "Assignee",
+         "visible": true
+        },
+        {
+         "fieldFormat": {
+          "type": "number",
+          "maximumFractionDigits": 0,
+          "useGrouping": "always"
+         },
+         "fieldName": "esritask_status",
+         "format": {
+          "digitSeparator": true,
+          "places": 0
+         },
+         "isEditable": false,
+         "label": "Status",
+         "visible": true
+        },
+        {
+         "fieldFormat": {
+          "type": "number",
+          "maximumFractionDigits": 0,
+          "useGrouping": "always"
+         },
+         "fieldName": "esritask_priority",
+         "format": {
+          "digitSeparator": true,
+          "places": 0
+         },
+         "isEditable": false,
+         "label": "Priority",
+         "visible": true
+        },
+        {
+         "fieldFormat": {
+          "type": "date-time",
+          "dateStyle": "short",
+          "hour12": "always"
+         },
+         "fieldName": "esritask_duedate",
+         "format": {
+          "dateFormat": "shortDate",
+          "digitSeparator": false
+         },
+         "isEditable": false,
+         "label": "Due Date",
+         "visible": true
+        },
+        {
+         "fieldName": "esritask_description",
+         "isEditable": false,
+         "label": "Description",
+         "visible": true
+        },
+        {
+         "fieldName": "esritask_notes",
+         "isEditable": false,
+         "label": "Notes",
+         "visible": true
+        }
+       ]
+      },
+      {
+       "type": "attachments",
+       "displayType": "auto"
+      }
+     ],
+     "showAttachments": true,
+     "fieldInfos": [
+      {
+       "fieldName": "OBJECTID",
+       "isEditable": false,
+       "label": "OBJECTID",
+       "visible": false
+      },
+      {
+       "fieldName": "Work_Order_ID",
+       "isEditable": false,
+       "label": "Work_Order_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Incident_ID",
+       "isEditable": false,
+       "label": "Incident_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Assigned_Team",
+       "isEditable": false,
+       "label": "Assigned_Team",
+       "visible": false
+      },
+      {
+       "fieldName": "Assigned_Worker",
+       "isEditable": false,
+       "label": "Assigned_Worker",
+       "visible": false
+      },
+      {
+       "fieldName": "Priority",
+       "isEditable": false,
+       "label": "Priority",
+       "visible": false
+      },
+      {
+       "fieldName": "Due_Date",
+       "isEditable": false,
+       "label": "Due_Date",
+       "visible": false
+      },
+      {
+       "fieldName": "Status",
+       "isEditable": false,
+       "label": "Status",
+       "visible": false
+      },
+      {
+       "fieldName": "Approval_Status",
+       "isEditable": false,
+       "label": "Approval_Status",
+       "visible": false
+      },
+      {
+       "fieldName": "Created_Date",
+       "isEditable": false,
+       "label": "Created_Date",
+       "visible": false
+      },
+      {
+       "fieldName": "Task_Type",
+       "isEditable": false,
+       "label": "Task_Type",
+       "visible": false
+      },
+      {
+       "fieldName": "Instructions",
+       "isEditable": false,
+       "label": "Instructions",
+       "visible": false
+      },
+      {
+       "fieldName": "Data_Classification",
+       "isEditable": false,
+       "label": "Data_Classification",
+       "visible": false
+      },
+      {
+       "fieldName": "GlobalID",
+       "isEditable": false,
+       "label": "GlobalID",
+       "visible": false
+      },
+      {
+       "fieldName": "Accepted_At",
+       "isEditable": false,
+       "label": "Accepted_At",
+       "visible": false
+      },
+      {
+       "fieldName": "Assigned_Worker_Name",
+       "isEditable": false,
+       "label": "Assigned_Worker_Name",
+       "visible": false
+      },
+      {
+       "fieldName": "Assigned_To_Username",
+       "isEditable": false,
+       "label": "Assigned_To_Username",
+       "visible": false
+      },
+      {
+       "fieldName": "Incident_Type",
+       "isEditable": false,
+       "label": "Incident_Type",
+       "visible": false
+      },
+      {
+       "fieldName": "Area_Name",
+       "isEditable": false,
+       "label": "Area_Name",
+       "visible": false
+      },
+      {
+       "fieldName": "Assigned_At",
+       "isEditable": false,
+       "label": "Assigned_At",
+       "visible": false
+      },
+      {
+       "fieldName": "Field_Maps_Status",
+       "isEditable": false,
+       "label": "Field_Maps_Status",
+       "visible": false
+      },
+      {
+       "fieldName": "esritask_type",
+       "format": {
+        "digitSeparator": true,
+        "places": 0
+       },
+       "isEditable": false,
+       "label": "Task Type",
+       "visible": false
+      },
+      {
+       "fieldName": "esritask_assignee",
+       "isEditable": false,
+       "label": "Assignee",
+       "visible": true
+      },
+      {
+       "fieldName": "esritask_status",
+       "format": {
+        "digitSeparator": true,
+        "places": 0
+       },
+       "isEditable": false,
+       "label": "Status",
+       "visible": true
+      },
+      {
+       "fieldName": "esritask_priority",
+       "format": {
+        "digitSeparator": true,
+        "places": 0
+       },
+       "isEditable": false,
+       "label": "Priority",
+       "visible": true
+      },
+      {
+       "fieldName": "esritask_duedate",
+       "format": {
+        "dateFormat": "shortDate",
+        "digitSeparator": false
+       },
+       "isEditable": false,
+       "label": "Due Date",
+       "visible": true
+      },
+      {
+       "fieldName": "esritask_description",
+       "isEditable": false,
+       "label": "Description",
+       "visible": true
+      },
+      {
+       "fieldName": "esritask_notes",
+       "isEditable": false,
+       "label": "Notes",
+       "visible": true
+      }
+     ],
+     "showLastEditInfo": false,
+     "title": "{esritask_type}"
+    }
+   },
+   {
+    "id": "FieldVerification_reports",
+    "opacity": 1,
+    "title": "Field verification (add a report here)",
+    "url": "https://services-ap1.arcgis.com/qwwhDthY11oZUyqI/arcgis/rest/services/GeoAIOps_Riyadh_Field_Verification/FeatureServer/0",
+    "visibility": true,
+    "itemId": "72464caa84b94c2db60baeba2757e050",
+    "layerType": "ArcGISFeatureLayer",
+    "attributeTableInfo": {
+     "attributeTableElements": [
+      {
+       "type": "field",
+       "fieldName": "Verification_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Work_Order_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Incident_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Worker_ID"
+      },
+      {
+       "type": "field",
+       "fieldName": "Observation"
+      },
+      {
+       "type": "field",
+       "fieldName": "Verification_Status"
+      },
+      {
+       "type": "field",
+       "fieldName": "GPS_Location"
+      },
+      {
+       "type": "field",
+       "fieldName": "Photo_URL"
+      },
+      {
+       "type": "field",
+       "fieldName": "Timestamp"
+      },
+      {
+       "type": "field",
+       "fieldName": "Distance_To_Detection_M"
+      },
+      {
+       "type": "field",
+       "fieldName": "Agent_Assessment"
+      },
+      {
+       "type": "field",
+       "fieldName": "Simulated_Worker"
+      },
+      {
+       "type": "field",
+       "fieldName": "Data_Classification"
+      },
+      {
+       "type": "field",
+       "fieldName": "Investigator_Name"
+      },
+      {
+       "type": "attachment",
+       "displayType": "auto"
+      }
+     ],
+     "orderByFields": []
+    },
+    "layerDefinition": {
+     "fieldConfigurations": [
+      {
+       "alias": "Work Order ID",
+       "name": "Work_Order_ID"
+      },
+      {
+       "alias": "Verification Status",
+       "name": "Verification_Status"
+      }
+     ],
+     "drawingInfo": {
+      "renderer": {
+       "type": "uniqueValue",
+       "visualVariables": [
+        {
+         "type": "sizeInfo",
+         "valueExpression": "$view.scale",
+         "stops": [
+          {
+           "size": 7.5,
+           "value": 2256.9943525
+          },
+          {
+           "size": 6,
+           "value": 18055.9548215
+          },
+          {
+           "size": 3,
+           "value": 144447.638572
+          },
+          {
+           "size": 1.5,
+           "value": 1155581.1085775
+          }
+         ]
+        }
+       ],
+       "field1": "Verification_Status",
+       "uniqueValueGroups": [
+        {
+         "classes": [
+          {
+           "label": "Confirmed",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             253,
+             127,
+             111,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "Confirmed"
+            ]
+           ]
+          },
+          {
+           "label": "Rejected",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             126,
+             176,
+             213,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "Rejected"
+            ]
+           ]
+          },
+          {
+           "label": "Repaired",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             178,
+             224,
+             97,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "Repaired"
+            ]
+           ]
+          },
+          {
+           "label": "Escalate",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             189,
+             126,
+             190,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "Escalate"
+            ]
+           ]
+          },
+          {
+           "label": "Needs Further Inspection",
+           "symbol": {
+            "type": "esriSMS",
+            "color": [
+             255,
+             181,
+             90,
+             255
+            ],
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "size": 6,
+            "style": "esriSMSCircle",
+            "outline": {
+             "type": "esriSLS",
+             "color": [
+              26,
+              26,
+              26,
+              64
+             ],
+             "width": 0.75,
+             "style": "esriSLSSolid"
+            }
+           },
+           "values": [
+            [
+             "Needs Further Inspection"
+            ]
+           ]
+          }
+         ]
+        }
+       ],
+       "uniqueValueInfos": [
+        {
+         "label": "Confirmed",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           253,
+           127,
+           111,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "Confirmed"
+        },
+        {
+         "label": "Rejected",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           126,
+           176,
+           213,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "Rejected"
+        },
+        {
+         "label": "Repaired",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           178,
+           224,
+           97,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "Repaired"
+        },
+        {
+         "label": "Escalate",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           189,
+           126,
+           190,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "Escalate"
+        },
+        {
+         "label": "Needs Further Inspection",
+         "symbol": {
+          "type": "esriSMS",
+          "color": [
+           255,
+           181,
+           90,
+           255
+          ],
+          "angle": 0,
+          "xoffset": 0,
+          "yoffset": 0,
+          "size": 6,
+          "style": "esriSMSCircle",
+          "outline": {
+           "type": "esriSLS",
+           "color": [
+            26,
+            26,
+            26,
+            64
+           ],
+           "width": 0.75,
+           "style": "esriSLSSolid"
+          }
+         },
+         "value": "Needs Further Inspection"
+        }
+       ]
+      }
+     }
+    },
+    "formInfo": {
+     "title": "Confirm the incident / أكّد الحادثة",
+     "formElements": [
+      {
+       "label": "Work order (leave blank to match by location) / أمر العمل (اتركه فارغًا ليُطابق حسب الموقع)",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "Work_Order_ID",
+       "inputType": {
+        "type": "text-box",
+        "maxLength": 255,
+        "minLength": 0
+       }
+      },
+      {
+       "label": "What did you find? / ماذا وجدت؟",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "Verification_Status",
+       "inputType": {
+        "type": "radio-buttons",
+        "showNoValueOption": false
+       },
+       "requiredExpression": "expr/system/true"
+      },
+      {
+       "label": "What did you see? / ماذا رأيت؟",
+       "type": "field",
+       "editableExpression": "expr/system/true",
+       "fieldName": "Observation",
+       "hint": "For example: water seeping through the asphalt near the valve chamber / مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات",
+       "inputType": {
+        "type": "text-area",
+        "minLength": 0
+       },
+       "requiredExpression": "expr/system/true"
+      },
+      {
+       "label": "Photo (optional) / صورة (اختياري)",
+       "type": "attachment",
+       "allowUserRename": true,
+       "attachmentKeyword": "photo",
+       "displayFilename": false,
+       "editableExpression": "expr/system/true",
+       "useOriginalFilename": true,
+       "inputType": {
+        "type": "attachment",
+        "attachmentAssociationType": "exact",
+        "inputTypes": [
+         {
+          "type": "image",
+          "inputMethod": "any"
+         }
+        ]
+       }
+      }
+     ],
+     "expressionInfos": [
+      {
+       "expression": "false",
+       "name": "expr/system/false",
+       "returnType": "boolean",
+       "title": "False"
+      },
+      {
+       "expression": "true",
+       "name": "expr/system/true",
+       "returnType": "boolean",
+       "title": "True"
+      }
+     ],
+     "supportsAttachmentElements": true,
+     "description": "Inspect the site, photograph evidence, then confirm or reject what the AI found. Your location is recorded automatically."
+    },
+    "popupInfo": {
+     "popupElements": [
+      {
+       "type": "attachments",
+       "displayType": "auto"
+      }
+     ],
+     "showAttachments": true,
+     "fieldInfos": [
+      {
+       "fieldName": "OBJECTID",
+       "isEditable": false,
+       "label": "OBJECTID",
+       "visible": false
+      },
+      {
+       "fieldName": "Verification_ID",
+       "isEditable": false,
+       "label": "Verification_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Work_Order_ID",
+       "isEditable": false,
+       "label": "Work_Order_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Incident_ID",
+       "isEditable": false,
+       "label": "Incident_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Worker_ID",
+       "isEditable": false,
+       "label": "Worker_ID",
+       "visible": false
+      },
+      {
+       "fieldName": "Observation",
+       "isEditable": false,
+       "label": "Observation",
+       "visible": false
+      },
+      {
+       "fieldName": "Verification_Status",
+       "isEditable": false,
+       "label": "Verification_Status",
+       "visible": false
+      },
+      {
+       "fieldName": "GPS_Location",
+       "isEditable": false,
+       "label": "GPS_Location",
+       "visible": false
+      },
+      {
+       "fieldName": "Photo_URL",
+       "isEditable": false,
+       "label": "Photo_URL",
+       "visible": false
+      },
+      {
+       "fieldName": "Timestamp",
+       "isEditable": false,
+       "label": "Timestamp",
+       "visible": false
+      },
+      {
+       "fieldName": "Distance_To_Detection_M",
+       "format": {
+        "digitSeparator": true,
+        "places": 2
+       },
+       "isEditable": false,
+       "label": "Distance_To_Detection_M",
+       "visible": false
+      },
+      {
+       "fieldName": "Agent_Assessment",
+       "isEditable": false,
+       "label": "Agent_Assessment",
+       "visible": false
+      },
+      {
+       "fieldName": "Simulated_Worker",
+       "isEditable": false,
+       "label": "Simulated_Worker",
+       "visible": false
+      },
+      {
+       "fieldName": "Data_Classification",
+       "isEditable": false,
+       "label": "Data_Classification",
+       "visible": false
+      },
+      {
+       "fieldName": "GlobalID",
+       "isEditable": false,
+       "label": "GlobalID",
+       "visible": false
+      },
+      {
+       "fieldName": "Investigator_Name",
+       "isEditable": false,
+       "label": "Investigator_Name",
+       "visible": false
+      }
+     ],
+     "showLastEditInfo": false,
+     "title": "{Work_Order_ID} - {Verification_Status}"
+    }
+   }
+  ],
+  "baseMap": {
+   "baseMapLayers": [
+    {
+     "id": "VectorTile_2846",
+     "opacity": 1,
+     "title": "Dark Gray Base",
+     "visibility": true,
+     "layerType": "VectorTileLayer",
+     "styleUrl": "https://cdn.arcgis.com/sharing/rest/content/items/5e9b3685f4c24d8781073dd928ebda50/resources/styles/root.json"
+    },
+    {
+     "id": "VectorTile_1645",
+     "opacity": 1,
+     "title": "Dark Gray Reference",
+     "visibility": true,
+     "layerType": "VectorTileLayer",
+     "styleUrl": "https://cdn.arcgis.com/sharing/rest/content/items/747cb7a5329c478cbe6981076cc879c5/resources/styles/root.json",
+     "isReference": true
+    }
+   ],
+   "title": "Dark Gray Canvas"
+  },
+  "authoringApp": "ArcGISMapViewer",
+  "authoringAppVersion": "2026.2",
+  "initialState": {
+   "viewpoint": {
+    "targetGeometry": {
+     "spatialReference": {
+      "wkid": 102100
+     },
+     "xmin": 5147452.593148242,
+     "ymin": 2813880.8474950106,
+     "xmax": 5244221.870957312,
+     "ymax": 2864023.5380501053
+    }
+   }
+  },
+  "spatialReference": {
+   "latestWkid": 3857,
+   "wkid": 102100
+  },
+  "timeZone": "system",
+  "version": "2.37"
+ },
+ "cfg": {
+  "displayOptions": [
+   {
+    "id": "633379f6-db51-44b5-a0f5-bb9aea8d06e4",
+    "title": "Assigned to me",
+    "definitionExpression": "esritask_assignee%20%3D%20'CURRENT_USER'%20AND%20NOT(esritask_status%20%3D%203)"
+   },
+   {
+    "id": "19757897-f8ed-44df-9bd8-a893f35c9c80",
+    "title": "Unassigned",
+    "definitionExpression": "esritask_status%20%3D%200"
+   },
+   {
+    "id": "b47716ab-a891-4105-83dd-a657075a8339",
+    "title": "Completed",
+    "definitionExpression": "esritask_assignee%20%3D%20'CURRENT_USER'%20AND%20esritask_status%20%3D%203"
+   }
+  ],
+  "expressionInfos": [
+   {
+    "name": "expr/unassigned",
+    "expression": "%24feature%5B%22esritask_status%22%5D%20%3D%3D%200",
+    "title": "Unassigned",
+    "returnType": "boolean"
+   },
+   {
+    "name": "expr/assigned",
+    "expression": "%24feature%5B%22esritask_status%22%5D%20%3D%3D%201",
+    "title": "Assigned",
+    "returnType": "boolean"
+   },
+   {
+    "name": "expr/in-progress",
+    "expression": "%24feature%5B%22esritask_status%22%5D%20%3D%3D%202",
+    "title": "In progress",
+    "returnType": "boolean"
+   },
+   {
+    "name": "expr/completed",
+    "expression": "%24feature%5B%22esritask_status%22%5D%20%3D%3D%203",
+    "title": "Completed",
+    "returnType": "boolean"
+   },
+   {
+    "name": "expr/set-assignee-to-current-user",
+    "expression": "'CURRENT_USER'",
+    "title": "Assignee = 'Current user'",
+    "returnType": "string"
+   },
+   {
+    "name": "expr/set-status-assigned",
+    "expression": "1",
+    "title": "Status = 'Assigned'",
+    "returnType": "number"
+   },
+   {
+    "name": "expr/set-status-in-progress",
+    "expression": "2",
+    "title": "Status = 'In progress'",
+    "returnType": "number"
+   },
+   {
+    "name": "expr/set-status-completed",
+    "expression": "3",
+    "title": "Status = 'Completed'",
+    "returnType": "number"
+   }
+  ],
+  "featureActions": [
+   {
+    "id": "f66dd6ce-4c69-4dda-b988-5bc0d9cf4c77",
+    "type": "edit",
+    "title": "Pick up",
+    "icon": "user-plus",
+    "updates": [
+     {
+      "field": "esritask_status",
+      "valueExpression": "expr/set-status-assigned"
+     },
+     {
+      "field": "esritask_assignee",
+      "valueExpression": "expr/set-assignee-to-current-user"
+     }
+    ],
+    "updateType": "automatic"
+   },
+   {
+    "id": "751677ec-7037-47df-b15d-1643882dd1cf",
+    "type": "edit",
+    "title": "Start",
+    "icon": "play",
+    "updates": [
+     {
+      "field": "esritask_status",
+      "valueExpression": "expr/set-status-in-progress"
+     }
+    ],
+    "updateType": "automatic"
+   },
+   {
+    "id": "a16070f0-a124-4195-8edb-3db7b800104b",
+    "type": "edit",
+    "title": "Finish",
+    "icon": "check",
+    "updates": [
+     {
+      "field": "esritask_status",
+      "valueExpression": "expr/set-status-completed"
+     }
+    ],
+    "updateType": "automatic"
+   },
+   {
+    "id": "269d08d5-53b9-4459-ba76-bef5f9f3c805",
+    "type": "edit",
+    "title": "Status",
+    "icon": "list-bullet",
+    "promptField": "esritask_status",
+    "updates": [],
+    "updateType": "manual"
+   },
+   {
+    "id": "e8993af5-cac2-4f12-8959-6e2bb7db8e29",
+    "type": "edit",
+    "title": "Status",
+    "icon": "list-bullet",
+    "promptField": "esritask_status",
+    "updates": [],
+    "updateType": "manual"
+   },
+   {
+    "id": "fe4cd0af-59a5-473c-93ea-985db6d8b4ec",
+    "actions": [
+     {
+      "featureActionId": "choose-file",
+      "id": "0fab784a-9afb-4f4d-9e5f-89c1e208d10f"
+     },
+     {
+      "featureActionId": "choose-media",
+      "id": "696581e8-e363-4c03-bc48-28241998f4f6"
+     },
+     {
+      "featureActionId": "record-audio",
+      "id": "c3333702-a213-4931-a586-3b16aca4b3ae"
+     },
+     {
+      "featureActionId": "take-photo",
+      "id": "e82d4a52-12df-4065-a7a5-bcba0cafd49b"
+     },
+     {
+      "featureActionId": "take-video",
+      "id": "0dd718e8-259c-4bc6-9831-c50e0ce9b906"
+     }
+    ],
+    "icon": "attachment",
+    "title": "Attach",
+    "type": "group"
+   },
+   {
+    "id": "57375048-08d5-4201-8548-eafeac67510a",
+    "type": "edit",
+    "title": "Note",
+    "icon": "pencil",
+    "promptField": "esritask_notes",
+    "updates": [],
+    "updateType": "manual"
+   },
+   {
+    "id": "e62e0078-a091-402d-afed-edfc0ea9723c",
+    "type": "edit",
+    "title": "Answer",
+    "icon": "list-bullet",
+    "promptField": "Field_Verdict",
+    "updateType": "manual",
+    "updates": []
+   }
+  ],
+  "featureActionLayouts": [
+   {
+    "id": "f2134321-6de2-40a3-9c30-06465e7c324f",
+    "title": "Unassigned",
+    "visibilityExpression": "expr/unassigned",
+    "actions": [
+     {
+      "featureActionId": "f66dd6ce-4c69-4dda-b988-5bc0d9cf4c77",
+      "predominant": true,
+      "id": "2ad3a5cd-e5bd-494f-b7dc-d1e3099dc6f3"
+     },
+     {
+      "featureActionId": "directions",
+      "id": "6d6d0381-ffb5-404b-9bef-648b54972ec3"
+     },
+     {
+      "featureActionId": "compass",
+      "id": "315d3b7c-dcf0-4647-8592-615c3b5aca22"
+     }
+    ]
+   },
+   {
+    "id": "94135dab-d1b0-4ab6-ae67-50eee799a7de",
+    "title": "Assigned",
+    "visibilityExpression": "expr/assigned",
+    "actions": [
+     {
+      "featureActionId": "751677ec-7037-47df-b15d-1643882dd1cf",
+      "predominant": true,
+      "id": "d515a395-1785-4c58-b0fa-92e5e8fd740d"
+     },
+     {
+      "featureActionId": "directions",
+      "id": "7121a261-e040-45a6-99f8-ea9063a05fc3"
+     },
+     {
+      "featureActionId": "compass",
+      "id": "e5fa0849-40bd-4657-a864-ad8093124430"
+     }
+    ]
+   },
+   {
+    "id": "fd7b1a4e-dac8-439b-9abd-ee898dac9b06",
+    "title": "In progress",
+    "visibilityExpression": "expr/in-progress",
+    "actions": [
+     {
+      "featureActionId": "a16070f0-a124-4195-8edb-3db7b800104b",
+      "predominant": true,
+      "id": "aae67251-28e0-442c-812e-5fb7ada77653"
+     },
+     {
+      "featureActionId": "e62e0078-a091-402d-afed-edfc0ea9723c",
+      "id": "3259b978-634a-4764-b5a8-c9bf1caa232b"
+     },
+     {
+      "featureActionId": "57375048-08d5-4201-8548-eafeac67510a",
+      "id": "2244dc2b-a2eb-499d-8f32-190a1bdfcb6c"
+     },
+     {
+      "featureActionId": "fe4cd0af-59a5-473c-93ea-985db6d8b4ec",
+      "id": "d34accef-06bb-4b97-82b5-575248b26001"
+     },
+     {
+      "featureActionId": "269d08d5-53b9-4459-ba76-bef5f9f3c805",
+      "id": "758cc585-f950-4b1f-92e9-f2712ab92f3b"
+     },
+     {
+      "featureActionId": "directions",
+      "id": "33f6a0c2-5e62-4ea7-b350-77bcf8dc8be5"
+     },
+     {
+      "featureActionId": "compass",
+      "id": "da64a936-b862-4032-8034-8fdd725d6669"
+     }
+    ]
+   },
+   {
+    "id": "fac903b8-92bd-4f8b-8031-d5babfbb2074",
+    "title": "Completed",
+    "visibilityExpression": "expr/completed",
+    "actions": [
+     {
+      "featureActionId": "e8993af5-cac2-4f12-8959-6e2bb7db8e29",
+      "id": "c4ff75f7-6f50-426f-ae43-e2d6000be089"
+     },
+     {
+      "featureActionId": "directions",
+      "id": "29cd2a2b-5566-46c6-9c0b-518e3f6dfcd3"
+     },
+     {
+      "featureActionId": "compass",
+      "id": "b2aae14f-2feb-4304-82ca-7a63e6df379a"
+     }
+    ]
+   }
+  ],
+  "fieldSchema": {
+   "assigneeField": {
+    "name": "esritask_assignee",
+    "codedValueDomain": {
+     "name": "ESRITASK_ASSIGNEE_DOMAIN_86ace6c8-bc08-4627-99b8-fa35614bc47c"
+    }
+   },
+   "statusField": {
+    "name": "esritask_status",
+    "codedValueDomain": {
+     "name": "ESRITASK_STATUS_DOMAIN_c50caa78-d409-461f-bbb9-91d01497a12a",
+     "keyMap": {
+      "unassigned": "Unassigned",
+      "assigned": "Assigned",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+     }
+    }
+   },
+   "taskTypeField": {
+    "name": "esritask_type",
+    "codedValueDomain": {
+     "name": "ESRITASK_TYPE_DOMAIN_2dfd8564-d5c8-4d46-a68d-fcb1bbf92694"
+    }
+   }
+  },
+  "groupOptions": [
+   {
+    "title": "Distance"
+   },
+   {
+    "title": "Type",
+    "field": "esritask_type"
+   },
+   {
+    "title": "Priority",
+    "field": "esritask_priority",
+    "descending": true
+   },
+   {
+    "title": "Due date",
+    "field": "esritask_duedate"
+   },
+   {
+    "title": "Status",
+    "field": "esritask_status",
+    "descending": true
+   }
+  ],
+  "layerId": "WorkOrders_assignments",
+  "version": "1.0.0"
+ }
+}
