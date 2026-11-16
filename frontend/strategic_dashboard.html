@@ -99,6 +99,8 @@ html.rtl body.rc .collapse svg { transform: none; }
   body.rc .right > :not(h2) { display: revert; }
   .collapse { display: none; }
   .hotbar { max-height: none; }
+  body.role, body.rc { height: auto; min-height: 100%; }   /* phone: the page scrolls; the side columns show all their cards instead of a 60 px strip */
+  .role .left, .role .right { overflow: visible; min-height: auto; }
 }
 /* tabs */
 .tabs { display: flex; gap: 6px; padding: 0 14px 10px; }
