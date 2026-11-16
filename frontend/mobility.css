@@ -39,3 +39,14 @@ html.rtl .mob-info { right: auto; left: 12px; }
 html.rtl .role .mob-info { left: 14px; }
 /* Phone: the incident legend wraps inside the map instead of running off its edge, and an open box may not grow past the map */
 @media (max-width: 640px) { .mapbox > .legend { flex-wrap: wrap; max-width: calc(100% - 24px); row-gap: 2px; } .mob-info { max-width: calc(100% - 24px); font-size: 12px; bottom: 70px; max-height: calc(100% - 130px); overflow-y: auto; } }
+
+/* Lifecycle strip: seven steps on every alert, the current one highlighted */
+.life { list-style: none; display: flex; gap: 2px; margin: 8px 0 2px; padding: 0; }
+.life li { flex: 1 1 0; min-width: 0; text-align: center; font-size: 10px; color: #8aa0ba; }
+.life li i { display: block; height: 4px; border-radius: 2px; background: #27405f; margin-bottom: 3px; }
+.life li span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.life li.ls-done i { background: #3fb68b; } .life li.ls-done { color: #b7c7da; }
+.life li.ls-current i { background: #4aa3ff; } .life li.ls-current { color: #fff; font-weight: 600; }
+.life li.ls-stopped i { background: #e5484d; } .life li.ls-stopped { color: #ff8a8e; font-weight: 600; }
+.life-note { margin: 2px 0 0; }
+@media (max-width: 640px) { .life li { font-size: 9px; } }

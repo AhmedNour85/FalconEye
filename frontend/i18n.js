@@ -194,6 +194,8 @@
     "Metro station": "محطة مترو", "Hospital": "مستشفى",
     /* ---- mobility crew, closures and the impact drawing (Plan 3) */
     "City services": "خدمات المدينة", "Mobility": "التنقل", "Traffic incident": "حادثة مرورية", "Road closure": "إغلاق طريق", "Major event": "فعالية كبرى",
+    "Detected": "رُصدت", "Analysed": "حُلِّلت", "Dispatched": "أُسنِدت", "Verified": "تحقّق منها", "Progress of this incident": "تقدّم هذه الحادثة",
+    "The proposal was rejected. Nothing was carried out.": "رُفض المقترح. لم يُنفَّذ أي شيء.",
     "Planned closures": "الإغلاقات المخططة", "Planned closure": "إغلاق مخطط", "Requested": "مطلوب", "Approved": "معتمد", "In Place": "قيد التنفيذ", "Ended": "انتهى",
     "whole road closed": "الطريق مغلق بالكامل", "{n} lane(s) closed": "{n} حارة مغلقة",
     "Impact of {id}": "أثر {id}", "Closed section": "المقطع المغلق", "Worse after the closure": "أسوأ بعد الإغلاق", "Detour": "مسار التحويل", "Usual route": "المسار المعتاد",

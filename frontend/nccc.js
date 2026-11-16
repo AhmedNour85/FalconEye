@@ -90,6 +90,12 @@ function renderFeed() {
   feed.querySelectorAll("details.how").forEach(d => { d.ontoggle = () => { S.open = S.open || new Set(); d.open ? S.open.add(d.dataset.id) : S.open.delete(d.dataset.id); }; });
 }
 
+function lifeStrip(l) {
+  if (!l || !l.steps) return "";
+  const dots = l.steps.map(s => `<li class="ls-${esc(s.state)}"${s.state === "current" ? ' aria-current="step"' : ""}><i></i><span>${T(s.key)}</span></li>`).join("");
+  return `<ol class="life" aria-label="${T("Progress of this incident")}">${dots}</ol>` + (l.outcome === "rejected" ? `<p class="c-meta life-note">${T("The proposal was rejected. Nothing was carried out.")}</p>` : "");
+}
+
 function card(n) {
   const ap = n.approval, pend = ap && ap.status === "Proposed", c = S.agents[n.Agent] || { color: "#7df0b3" };
   let actions = "";
@@ -108,6 +114,7 @@ function card(n) {
   return `<article class="card ${esc(n.Severity)}${n.Status === "New" ? " new" : ""}${ap && ap.status !== "Proposed" ? " done" : ""}" id="n-${esc(n.Notif_ID)}" data-inc="${esc(n.Incident_ID)}" style="--ac:${c.color}">
     <div class="c-top">${avatar(n.Agent)}<div class="c-main"><div class="c-title">${esc(n.Title)}</div>
       <div class="c-meta"><span class="sev">${esc(TV(n.Severity))}</span><span>${ago(n.Created)}</span>${n.Incident_ID ? `<span>${esc(n.Incident_ID)}</span>` : ""}</div></div></div>
+    ${lifeStrip(n.lifecycle)}
     <p class="c-msg">${esc(n.Message)}</p>
     ${ap && pend && ap.expected ? `<p class="c-meta" style="margin:6px 0 0">${T("If approved: ")}${esc(ap.expected)}</p>` : ""}
     <div class="c-act">${actions}</div>
