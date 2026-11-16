@@ -258,3 +258,49 @@ def test_the_scripts_refuse_a_geoaiops_item_and_a_missing_reference(tmp_path, ca
         M.main(["--reference", "REF1", "--update", "CITY1", "--apply"], gateway=gw, settings=Settings(), backups=tmp_path)       # not a CityView map
     with pytest.raises(SystemExit):
         M.main(["--reference", "REF1", "--title", "GeoAIOps Map"], gateway=gw, settings=Settings(), backups=tmp_path)
+
+
+# ---- the form and the Answer button (carried from the City project) ----
+def test_the_form_plan_is_bilingual_when_asked():
+    from scripts import setup_field_maps_form as F
+    form, changes = F.plan_form(None, "both")
+    labels = {e["fieldName"]: e["label"] for e in form["formElements"]}
+    assert len(changes) >= 2 and all(" / " in v for v in labels.values())
+    choices = F.coded_values("both")
+    assert [c["code"] for c in choices] == ["Confirmed", "Rejected", "Needs Further Inspection", "Escalate", "Repaired"] and all(" / " in c["name"] for c in choices)
+    assert F.plan_form(form, "both")[1] == []                                                 # nothing more to add the second time
+    en, _ = F.plan_report_form(REF["map"]["operationalLayers"][1]["formInfo"], "en")
+    rep, rc = F.plan_report_form(en, "both")
+    assert rc and any("/" in r for r in rc)
+    assert F.plan_report_form(rep, "both")[1] == []
+
+
+def test_the_answer_hint_suits_city_and_road_tasks():
+    from scripts import setup_field_maps_form as F
+    for lang in ("en", "ar", "both"):
+        hint = next(e["hint"] for e in F.form_elements(lang) if e["fieldName"] == "Field_Comment")
+        assert (("water" in hint and "road" in hint) if lang != "ar" else "الطريق" in hint), hint
+
+
+def test_the_answer_action_is_added_once_after_finish():
+    from scripts import add_task_answer_action as A
+    cfg = copy.deepcopy(REF["cfg"])
+    cfg["featureActions"] = [a for a in cfg["featureActions"] if a.get("promptField") != "Field_Verdict"]
+    for lay in cfg["featureActionLayouts"]:
+        ids = {a["id"] for a in REF["cfg"]["featureActions"] if a.get("promptField") == "Field_Verdict"}
+        lay["actions"] = [x for x in lay["actions"] if x["featureActionId"] not in ids]
+    once, c1 = A.plan_tasks_config(cfg)
+    twice, c2 = A.plan_tasks_config(once)
+    assert c1 and c2 == [] and sum(a.get("promptField") == "Field_Verdict" for a in twice["featureActions"]) == 1
+    in_progress = next(l for l in twice["featureActionLayouts"] if l["title"].lower() == "in progress")
+    answer = next(a for a in twice["featureActions"] if a.get("promptField") == "Field_Verdict")
+    ids = [x["featureActionId"] for x in in_progress["actions"]]
+    assert ids.count(answer["id"]) == 1 and ids.index(answer["id"]) == 1                          # right after Finish
+
+
+def test_the_scripts_refuse_an_item_without_the_prefix():
+    from scripts._guard import own_item_or_exit
+    with pytest.raises(SystemExit):
+        own_item_or_exit(FakeItem("CITY1", "GeoAI Field Maps - Investigator Map"), "CityView", "CITY1", "story_viewer")
+    with pytest.raises(SystemExit):
+        own_item_or_exit(FakeItem("X", "CityView map", owner="someone_else"), "CityView", "X", "story_viewer")

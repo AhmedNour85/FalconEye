@@ -38,6 +38,11 @@ from config.settings import load_settings  # noqa: E402
 REQUIRED = "expr/geoai-required"
 
 
+# one example for a city service and one for a road task: the same comment box serves both crews
+HINT = ("For example: water seeping through the asphalt near the valve chamber, or barriers and signs in place on the road",
+        "مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات، أو حواجز ولوحات مثبتة على الطريق")
+
+
 def coded_values(lang: str) -> list[dict]:
     return [{"name": i18n.verdict_label(code, lang), "code": code} for code, *_ in i18n.VERDICT_CHOICES]
 
@@ -45,8 +50,7 @@ def coded_values(lang: str) -> list[dict]:
 def form_elements(lang: str) -> list[dict]:
     title = {"en": "Confirm the incident", "ar": "أكّد الحادثة", "both": "Confirm the incident / أكّد الحادثة"}[lang]
     comment = {"en": "What did you see?", "ar": "ماذا رأيت؟", "both": "What did you see? / ماذا رأيت؟"}[lang]
-    hint = {"en": "For example: water seeping through the asphalt near the valve chamber", "ar": "مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات",
-            "both": "For example: water seeping through the asphalt near the valve chamber / مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات"}[lang]
+    hint = {"en": HINT[0], "ar": HINT[1], "both": f"{HINT[0]} / {HINT[1]}"}[lang]
     return [
         {"type": "field", "fieldName": "Field_Verdict", "label": title, "editableExpression": "expr/geoai-editable", "requiredExpression": REQUIRED,
          "inputType": {"type": "radio-buttons", "showNoValueOption": False}},
@@ -66,7 +70,7 @@ REPORT_TEXT = {   # label key -> (English, Arabic)
     "Verification_Status": ("What did you find?", "ماذا وجدت؟"),
     "Observation": ("What did you see?", "ماذا رأيت؟"),
     "Photo": ("Photo (optional)", "صورة (اختياري)"),
-    "hint": ("For example: water seeping through the asphalt near the valve chamber", "مثلًا: مياه تتسرب عبر الأسفلت قرب غرفة الصمامات"),
+    "hint": HINT,
 }
 
 
