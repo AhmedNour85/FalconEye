@@ -13,6 +13,8 @@ from backend.services import visual_types
 TASK_TYPES = ["Water Leak (Suspected)", "Water Leak", "Streetlight Failure (Predicted)", "Streetlight Failure", "Streetlight Cluster Maintenance", "Streetlight Pole Inspection",
               "Visual Distortion Review", "Visual Distortion", "Urban Change Review", "Urban Change", "Land-Use Violation Review", "Urban Case", "Other"]
 TASK_TYPES += [v["name"] for v in visual_types.VISUAL_TYPES.values()]          # appended after "Other": the codes of the existing types stay the same
+TASK_TYPES += ["Traffic Incident", "Planned Road Closure", "Major Event Traffic Plan"]          # the mobility crew's types, appended last for the same reason
+DESCRIPTION_LIMIT = 4000          # the hosted esritask_description field
 # the coded values Field Maps creates for esritask_status and esritask_priority
 STATUS = {"Created": 0, "Assigned": 1, "In Progress": 2, "Completed": 3, "Cancelled": 3}
 STATUS_NAMES = {0: "Unassigned", 1: "Assigned", 2: "In Progress", 3: "Completed"}
@@ -63,13 +65,26 @@ def _description_ar(wo: dict, finding: str = "") -> str:
     return "\n\n".join("⁧" + x + "⁩" for x in lines if x)
 
 
+def _fit(text: str) -> str:
+    """Never longer than the hosted field: a longer text is cut at the last sentence end (or space) and marked with an ellipsis, not rejected."""
+    if len(text) <= DESCRIPTION_LIMIT:
+        return text
+    cut = text[:DESCRIPTION_LIMIT - 1]
+    stop = max(cut.rfind(". "), cut.rfind("\n"))
+    if stop > DESCRIPTION_LIMIT // 2:
+        cut = cut[:stop + 1]
+    elif " " in cut:
+        cut = cut[:cut.rfind(" ")]
+    return cut.rstrip() + "…"
+
+
 def description(wo: dict, finding: str = "") -> str:
     """The task text shown in Field Maps, laid out like the in-app investigator card (English, Arabic, or Arabic then English)."""
     if LANG == "ar":
-        return _description_ar(wo, finding)
+        return _fit(_description_ar(wo, finding))
     if LANG == "both":
-        return _description_ar(wo, finding) + "\n\n――――――――\n\n" + _description_en(wo, finding)
-    return _description_en(wo, finding)
+        return _fit(_description_ar(wo, finding) + "\n\n――――――――\n\n" + _description_en(wo, finding))
+    return _fit(_description_en(wo, finding))
 
 
 def task_fields(wo: dict, finding: str = "") -> dict:

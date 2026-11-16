@@ -263,3 +263,53 @@ def test_form_choices_match_the_in_app_form():
     assert i18n.verdict_label("Confirmed") == "Yes, confirmed" and i18n.verdict_label("Rejected", "ar") == "لم يتم العثور"
     assert i18n.verdict_label("Escalate", "both") == "Escalate / تصعيد"
     assert "Field_Verdict" in S.LAYERS[S.WORK_ORDERS].fields and "Field_Comment" in S.LAYERS[S.WORK_ORDERS].fields
+
+
+# ---- Plan 4, Task 1: mobility task types, nine assignees, safe text length ----
+MOBILITY_TYPES = ["Traffic Incident", "Planned Road Closure", "Major Event Traffic Plan"]
+
+
+def test_mobility_task_types_are_appended_and_existing_codes_are_unchanged():
+    from backend.services import tasks
+    assert tasks.TASK_TYPES[:13] == ["Water Leak (Suspected)", "Water Leak", "Streetlight Failure (Predicted)", "Streetlight Failure", "Streetlight Cluster Maintenance",
+                                     "Streetlight Pole Inspection", "Visual Distortion Review", "Visual Distortion", "Urban Change Review", "Urban Change",
+                                     "Land-Use Violation Review", "Urban Case", "Other"]
+    assert tasks.TASK_TYPES[-3:] == MOBILITY_TYPES
+    for t in MOBILITY_TYPES:
+        assert tasks.TASK_TYPES[tasks.task_fields({"Status": "Created", "Incident_Type": t})["esritask_type"]] == t
+
+
+def test_a_mobility_task_for_an_investigator_without_a_login_stays_unassigned():
+    from backend.services import tasks
+    wo = {"Status": "Assigned", "Assigned_Worker": "WRK-008", "Incident_Type": "Planned Road Closure"}
+    f = tasks.task_fields({**wo, "Assigned_To_Username": ""})
+    assert f["esritask_status"] == 0 and f["esritask_assignee"] is None
+    f = tasks.task_fields({**wo, "Assigned_To_Username": "bandar.shehri"})
+    assert f["esritask_status"] == 1 and f["esritask_assignee"] == "bandar.shehri"
+
+
+def test_the_assignee_list_covers_all_nine_workers():
+    users = {f"WRK-{i:03d}": f"user{i}" for i in range(1, 10)}
+    p = Platform(settings=Settings(anthropic_api_key="", arcgis_username="", arcgis_password="", field_users=users))
+    seen = {}
+
+    class Rec:
+        def ensure_task_domains(self, layer, types, u):
+            seen.update(types=list(types), users=dict(u))
+            return True
+    p.gateway = Rec()
+    assert p.setup_field_tasks() is True
+    assert len(seen["users"]) == 9 and seen["types"][-3:] == MOBILITY_TYPES
+
+
+def test_a_bilingual_description_never_passes_the_hosted_limit():
+    from backend.services import tasks
+    old = tasks.LANG
+    tasks.LANG = "both"
+    try:
+        wo = {"Work_Order_ID": "WO-1", "Task_Type": "Confirm the closure is in place", "Instructions": "Confirm the closure is set up."}
+        d = tasks.description(wo, "The road section is blocked by a crash. " * 120)
+        assert len(d) <= tasks.DESCRIPTION_LIMIT == 4000 and d.rstrip().endswith("…")
+        assert tasks.description({"Work_Order_ID": "WO-1"}, "") .rstrip()[-1] != "…"          # a short text is never marked as cut
+    finally:
+        tasks.LANG = old
