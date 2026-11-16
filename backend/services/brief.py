@@ -17,7 +17,7 @@ from backend.tools import executive, ops
 from backend.tools.common import ToolContext
 
 TEXT = {   # label: (English, Arabic)
-    "title": ("Falcon Eye - Daily brief", "منظور مدينة الرياض - الملخص اليومي"),
+    "title": ("Falcon Eye - Daily brief", "عيون الصقر - الملخص اليومي"),
     "label": ("Synthetic and modelled data. Not measured. Nothing here is carried out without a person's approval.",
               "بيانات اصطناعية ومحسوبة وليست قياسات فعلية. لا يُنفَّذ شيء هنا دون موافقة شخص."),
     "city": ("City services", "خدمات المدينة"), "mobility": ("Mobility (modelled)", "التنقل (محسوب)"),
