@@ -158,3 +158,12 @@ Steps 1 to 3 are enough for 5.x. Step 4 is the larger piece of work and is only 
 - ArcGIS Online rolls back inside one edit request, not across requests. A batch that fails part-way leaves the earlier requests applied. The error says how many changes had been written, and the app then reloads the affected layers from ArcGIS Online so its working copy matches the record.
 - A row deleted outside the app is noticed within 60 seconds, not 15.
 - Only one server may run against the `CityView` layers at a time. A second one refuses to start.
+
+## Field Maps tasks (Plan 4, 2026-11-17)
+
+- Seven task fields added to `CityView_Riyadh_Work_Orders` (type list of 24 titles, assignee, status, priority, due date, description, notes); read back.
+- New private web map `CityView Field Maps - Investigator Map`, item `b1e8f3e18def4a53ae6e0cc3a749a0f5`, 6 layers, task settings pointing at layer id `WorkOrders_tasks`; bilingual answer lists and report hint applied. Not yet opened in the Field Maps app.
+- Live server check with a road-closure event (CLS-0002, INC-0037, WO-0026): the hosted work order held `esritask_type` 22 (Planned Road Closure), the assignee, status 1 (Assigned) and a 1,622-character Arabic then English description.
+  Writing Answer, Note and Finish to the hosted row (as Field Maps does) moved the incident to Confirmed and filed VER-0025 within 27 seconds (including the 3-second polling of this check), with the 15-second refresh and 32 layers.
+- Found and fixed: investigators had no `ArcGIS_Username` at start-up, so tasks stayed Unassigned. The server now fills the logins from `GEOAI_FIELD_USERS` at every start.
+- The live record holds these demo rows (INC-0037, CLS-0002, SCN-0004, WO-0026, VER-0025).
