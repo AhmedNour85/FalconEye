@@ -114,14 +114,15 @@ def build(ref: dict) -> dict:
         return {"width": w, "height": h, "id": new_id(), "elements": kids, "type": "tabsLayoutElement"}
 
     # left: the latest incidents; centre: the map; right: the widgets (the three counts side by side, then the three charts)
+    top = box(1, 0.2, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col")      # the three counts across the top
     left = box(0.24, 1, [item(1, 1, l_new["id"])], "row")
     centre = box(0.44, 1, [item(1, 1, m["id"])], "row")
-    right = box(0.32, 1, [box(1, 0.22, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col"),
-                          item(1, 0.22, p_sev["id"]), item(1, 0.22, p_stat["id"]), item(1, 0.34, p_type["id"])], "row")
+    right = box(0.32, 1, [item(1, 0.3, p_sev["id"]), item(1, 0.3, p_stat["id"]), item(1, 0.4, p_type["id"])], "row")
+    body = box(1, 0.8, [left, centre, right], "col")
     out = copy.deepcopy(ref)
     header = {**view["header"], "title": "Falcon Eye · عيون الصقر — Strategic Dashboard · لوحة القيادة الاستراتيجية", "showSignOutMenu": False}
     header.pop("logoImageURL", None)
-    out["desktopView"] = {"widgets": widgets, "header": header, "layout": {"type": "dockingLayout", "rootElement": box(1, 1, [left, centre, right], "col")},
+    out["desktopView"] = {"widgets": widgets, "header": header, "layout": {"type": "dockingLayout", "rootElement": box(1, 1, [top, body], "row")},
                           "type": "desktop", "settings": view["settings"]}
     return out
 
