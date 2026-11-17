@@ -17,6 +17,8 @@
   const AR = {
     /* ---- shared / navigation */
     "Falcon Eye": "عيون الصقر",
+    "More": "المزيد", "Confirm": "تأكيد", "Press again to confirm": "اضغط مرة أخرى للتأكيد",
+    "memory only (tests and development; nothing is stored)": "في الذاكرة فقط (للاختبار والتطوير؛ لا يُخزَّن شيء)",
     "Records: {s}": "السجلات: {s}",
     "Your report was saved, but the photo was not. You can send the photo again later.": "تم حفظ تقريرك، لكن الصورة لم تُحفظ. يمكنك إرسال الصورة مرة أخرى لاحقًا.",
     "ArcGIS Online did not accept a change: {m}": "لم يقبل ArcGIS Online التغيير: {m}",
@@ -254,5 +256,8 @@
   const AGENT_AR = { faisal: "فيصل", mansour: "منصور", sarah: "سارة", abdullah: "عبدالله", zayed: "زايد", reem: "ريم", turki: "تركي", maha: "مها", nasser: "ناصر", noura: "نورة", fahad: "فهد" };
   const agentName = id => (rtl && AGENT_AR[id]) || id;
 
-  window.I18N = { lang, rtl, T, TV, locale, apiUrl, agentName, translateNode, dict: AR };
+  // Roads with no name are stored as "unnamed trunk", "unnamed primary_link" (an internal road class). Show them as plain words.
+  const road = s => String(s).replace(/\bunnamed[ _][a-z]+(?:_link)?\b/gi, rtl ? "طريق غير مسمّى" : "unnamed road");
+
+  window.I18N = { lang, rtl, T, TV, locale, apiUrl, agentName, translateNode, road, dict: AR };
 })();

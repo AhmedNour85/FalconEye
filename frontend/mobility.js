@@ -24,7 +24,7 @@
 
   /* Plain fetch: these answers hold ids, numbers and coordinates only, so they are not sent through the translation step. */
   async function get(path) {
-    const r = await fetch("/api/mobility/" + path);
+    const r = await fetch(/^(closures|layers\/hospitals)/.test(path) && window.I18N ? I18N.apiUrl("/api/mobility/" + path) : "/api/mobility/" + path);
     if (r.status === 503) { const j = await r.json().catch(() => ({})); const e = new Error("building"); e.building = j; throw e; }
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.detail || r.statusText); }
     return r.json();

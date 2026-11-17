@@ -32,7 +32,7 @@ body.role { display: grid; grid-template-rows: 56px 1fr; grid-template-columns: 
   background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--border); font-weight: 600; font-size: var(--fs-sm); backdrop-filter: blur(8px); }
 .role .pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
 .role .left > h2, .role .right > h2 { margin: 0; padding: 16px 18px 10px; font-size: var(--fs-sm); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
-.role .badge { background: var(--bad); color: #fff; border-radius: var(--r-full); padding: 1px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0; }
+.role .badge { background: var(--bad); color: #fff; border-radius: var(--r-full); padding: 1px 8px; font-size: 12px; font-weight: 700; letter-spacing: 0; }
 .role .stack { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
 .role .card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; }
 .role .card.click { cursor: pointer; transition: border-color .15s, transform .15s; }
@@ -44,9 +44,9 @@ body.role { display: grid; grid-template-rows: 56px 1fr; grid-template-columns: 
 .role .kpi .label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .role .kpi .val { font-size: var(--fs-3xl); font-weight: 700; margin-top: 4px; }
 .role .kpi .sub { font-size: var(--fs-sm); margin-top: 2px; color: var(--muted); }
-.role .sev { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--bad-soft); color: var(--bad); margin-left: 6px; }
-.role .sev.High { background: var(--warn-soft); color: var(--warn); }
-.role .sev.Medium, .role .sev.Low { background: var(--info-soft); color: var(--info); }
+.role .sev { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--bad-soft); color: #b42318; margin-left: 6px; }
+.role .sev.High { background: var(--warn-soft); color: #b54708; }
+.role .sev.Medium, .role .sev.Low { background: var(--info-soft); color: #175cd3; }
 .role .agents { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 14px 14px; }
 .role .chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; }
 .role .chip b { font-size: var(--fs-sm); display: block; }

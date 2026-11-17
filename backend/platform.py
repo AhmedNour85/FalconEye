@@ -184,11 +184,15 @@ class Platform:
                     self.crew.field_accepted(w["id"], a["Assigned_Worker"])
             assessed = self._assess_field_reports()
             for w in self.store.all(S.WORK_ORDERS):
-                if w["attrs"].get("esritask_status") == 3 and w["id"] not in done_before and w["attrs"].get("Assigned_Worker") and w["attrs"]["Status"] != "Completed":
-                    if self._report_from_finished_task(w):
-                        assessed += 1                                  # Finish + Note is the report: the verified alert says it all
-                    else:
-                        self.crew.field_task_done(w["id"], w["attrs"]["Assigned_Worker"])
+                a = w["attrs"]
+                if a.get("esritask_status") != 3 or a["Status"] == "Completed":
+                    continue
+                # Finished in Field Maps. The task may have been taken by a Field Maps account nobody assigned in this app (a "Request inspection" task),
+                # and it may already have been finished when the server first read it (a restart): both still count. A report is filed once per work order.
+                if self._report_from_finished_task(w):
+                    assessed += 1                                      # Finish + Note is the report: the verified alert says it all
+                elif w["id"] not in done_before and a.get("Assigned_Worker"):
+                    self.crew.field_task_done(w["id"], a["Assigned_Worker"])
             if assessed:
                 self.crew.field_update()
             return {"pulled": pulled, "assessed": assessed}
@@ -296,7 +300,9 @@ class Platform:
         from backend.services import tasks
 
         for w in self.store.all(S.WORK_ORDERS):         # Field Maps task fields for work orders created before they were derived
-            want = tasks.task_fields(w["attrs"], self._ai_finding(w["attrs"]))
+            if w["attrs"].get("esritask_status") == 3 and w["attrs"].get("Status") != "Completed":
+                continue                                # finished in Field Maps, report not filed yet: never overwrite the investigator's Finish
+            want =tasks.task_fields(w["attrs"], self._ai_finding(w["attrs"]))
             if any(w["attrs"].get(k) != v and not (v in (None, "") and not w["attrs"].get(k)) for k, v in want.items()):
                 self.store.upsert(S.WORK_ORDERS, w["attrs"], w["geom"])
                 n += 1
@@ -343,7 +349,7 @@ class Platform:
         vid = self.store.next_id("VER")
         worker = a["Assigned_Worker"]
         self.store.upsert(S.VERIFICATION, {
-            "Verification_ID": vid, "Work_Order_ID": wo["id"], "Incident_ID": inc["id"], "Worker_ID": worker, "Investigator_Name": field.investigator_name(self.store, worker),
+            "Verification_ID": vid, "Work_Order_ID": wo["id"], "Incident_ID": inc["id"], "Worker_ID": worker, "Investigator_Name": field.investigator_name(self.store, worker) or (a.get("esritask_assignee") or ""),
             "Observation": ("[Field Maps task] " + (text or "Marked complete with no comment.")), "Verification_Status": verdict, "GPS_Location": f"{lat:.6f},{lon:.6f}", "Photo_URL": "",
             "Timestamp": utcnow(), "Distance_To_Detection_M": 0.0, "Agent_Assessment": "", "Simulated_Worker": "No", "Data_Classification": S.OPERATIONAL}, geo.point(lon, lat))
         self.audit.log("field", "FIELD SUBMISSION", "arcgis_field_maps_task", inc["id"], {"wo": wo["id"], "status": verdict}, {"verification": vid, "source": "task Finish + " + ("answer" if chosen in field.STATUSES else "Note")}, actor=worker)

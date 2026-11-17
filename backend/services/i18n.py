@@ -369,7 +369,7 @@ def verdict_label(code: str, lang: str = "en") -> str:
     return code
 
 # Arabic verdict openers accepted in a Field Maps note (the first words decide the verdict; see Platform._report_from_finished_task)
-AR_VERDICTS = {"تم التأكيد": "Confirmed", "تأكيد": "Confirmed", "تأكد": "Confirmed", "نعم": "Confirmed", "مؤكد": "Confirmed", "أكدت": "Confirmed",
+AR_VERDICTS = {"تم التأكيد": "Confirmed", "تأكيد": "Confirmed", "تأكد": "Confirmed", "نعم": "Confirmed", "مؤكد": "Confirmed", "موكد": "Confirmed", "موكّد": "Confirmed", "أكدت": "Confirmed",
                "لم يتم العثور": "Rejected", "لم أجد": "Rejected", "لا يوجد خلل": "Rejected", "لا شيء": "Rejected", "مرفوض": "Rejected",
                "أحتاج إلى معاينة أخرى": "Needs Further Inspection", "أحتاج معاينة أخرى": "Needs Further Inspection", "يحتاج معاينة": "Needs Further Inspection",
                "تم الإصلاح": "Repaired", "إصلاح": "Repaired", "تصعيد": "Escalate", "صعّد": "Escalate", "أصعّد": "Escalate"}

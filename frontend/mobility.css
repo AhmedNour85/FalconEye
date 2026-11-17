@@ -42,14 +42,14 @@ html.rtl .role .mob-info { left: 14px; }
 
 /* Lifecycle strip: seven steps on every alert, the current one highlighted */
 .life { list-style: none; display: flex; gap: 2px; margin: 8px 0 2px; padding: 0; }
-.life li { flex: 1 1 0; min-width: 0; text-align: center; font-size: 10px; color: #6b7280; }
+.life li { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11.5px; color: #4b5563; }
 .life li i { display: block; height: 4px; border-radius: 2px; background: #d1d5db; margin-bottom: 3px; }
 .life li span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .life li.ls-done i { background: #1b8354; } .life li.ls-done { color: #4b5563; }
 .life li.ls-current i { background: #1570ef; } .life li.ls-current { color: var(--text, #111827); font-weight: 600; }
 .life li.ls-stopped i { background: #d92d20; } .life li.ls-stopped { color: #b42318; font-weight: 600; }
 .life-note { margin: 2px 0 0; }
-@media (max-width: 640px) { .life li { font-size: 9px; } }
+@media (max-width: 640px) { .life li { font-size: 11px; } }
 
 /* Strategy comparison table */
 .tablewrap { overflow-x: auto; }

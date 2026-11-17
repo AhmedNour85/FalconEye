@@ -1,7 +1,7 @@
 /* NCCC command center: one screen = alerts + map + the digital crew. Vanilla JS, no build step. */
 "use strict";
 const $ = (s, r = document) => r.querySelector(s);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const esc = s => (window.I18N ? I18N.road(String(s ?? "")) : String(s ?? "")).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const { T, TV } = I18N;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const SEV_COLOR = { Critical: "#d92d20", High: "#dc6803", Medium: "#f79009", Low: "#1570ef", Info: "#6b7280" };
@@ -44,7 +44,7 @@ function render(st) {
   $("#k-pend").textContent = k.pending_approvals; $("#k-open").textContent = k.open_incidents; $("#k-crit").textContent = k.critical; $("#k-res").textContent = k.resolved;
   const u = $("#unread"); u.hidden = !k.unread; u.textContent = k.unread; document.title = (k.unread ? `(${k.unread}) ` : "") + T("Falcon Eye");
   if (document.activeElement !== $("#autopilot")) $("#autopilot").checked = st.crew.autopilot;
-  $("#mode").textContent = T("Planner: {p}", { p: plannerName(st.planner) }) + " · " + T("Records: {s}", { s: st.store || "" });
+  $("#mode").textContent = T("Planner: {p}", { p: plannerName(st.planner) }) + " · " + T("Records: {s}", { s: T(st.store || "") });
   { const e = st.crew.record_error, key = e ? e.at : "";        // an automatic scan that ArcGIS Online refused: say so once per failure
     if (key && key !== S.recordError) toast(T("ArcGIS Online did not accept a change: {m}", { m: e.message }), "Critical");
     S.recordError = key; }
@@ -86,7 +86,7 @@ function renderFeed() {
   }
   feed.innerHTML = rows.map(card).join("");
   feed.scrollTop = keep;
-  feed.querySelectorAll("[data-act]").forEach(b => b.onclick = () => act(b.dataset.act, b.dataset.id, b));
+  feed.querySelectorAll("[data-act]").forEach(b => b.onclick = () => (b.dataset.act === "approve" || b.dataset.act === "reject") ? confirmStep(b) : act(b.dataset.act, b.dataset.id, b));
   feed.querySelectorAll("details.how").forEach(d => { d.ontoggle = () => { S.open = S.open || new Set(); d.open ? S.open.add(d.dataset.id) : S.open.delete(d.dataset.id); }; });
 }
 
@@ -98,18 +98,19 @@ function lifeStrip(l) {
 
 function card(n) {
   const ap = n.approval, pend = ap && ap.status === "Proposed", c = S.agents[n.Agent] || { color: "#1b8354" };
+  const ref = [n.Incident_ID || n.Notif_ID, n.Title].filter(Boolean).join(" · "), lab = t => ` aria-label="${esc(t + " · " + ref)}"`;   // the same words on every card need the incident to tell them apart
   let actions = "";
-  if (pend) actions = `<button class="btn primary" data-act="approve" data-id="${esc(ap.id)}">${T("Approve")}</button><button class="btn" data-act="reject" data-id="${esc(ap.id)}">${T("Reject")}</button>`;
+  if (pend) actions = `<button class="btn primary" data-act="approve" data-id="${esc(ap.id)}"${lab(T("Approve"))}>${T("Approve")}</button><button class="btn" data-act="reject" data-id="${esc(ap.id)}"${lab(T("Reject"))}>${T("Reject")}</button>`;
   else if (ap) actions = `<span class="state ${ap.status === "Executed" ? "" : "no"}">${ap.status === "Executed" ? T("✓ Approved and done") : esc(TV(ap.status))}</span>`;
-  else if (n.Status === "New") actions = `<button class="btn" data-act="ack" data-id="${esc(n.Notif_ID)}">${T("Got it")}</button>`;
-  if (!ap && n.Incident_ID && n.incident_status === "Open" && !n.active_work_order && (n.Kind === "fault" || n.Kind === "change")) actions += `<button class="btn" data-act="inspect" data-id="${esc(n.Incident_ID)}" title="${T("Prepare a work order to send a team to check this")}">${T("Request inspection")}</button>`;
-  if (n.Kind === "verified") actions += `<button class="btn primary" data-act="report" data-id="${esc(n.Ref_ID)}" data-nid="${esc(n.Notif_ID)}">${T("View report")}</button>`;
-  if (n.Kind === "verified" && n.incident_status === "Confirmed" && n.active_work_order) actions += `<button class="btn" data-act="simrepair" data-id="${esc(n.Incident_ID)}" title="${T("Report the repair as a simulated crew so the incident can be closed")}">${T("Simulate repair")}</button>`;
-  if (n.Kind === "dispatch" && ap && ap.status === "Executed" && ap.worker_id) actions += `<button class="btn" data-act="investigator" data-id="${esc(ap.worker_id)}" title="${T("Open the page the assigned investigator sees (new tab)")}">${T("Open investigator view")}</button>`;
-  if (n.scenario_id && n.scenario_status === "Completed" && n.Lon != null) actions += `<button class="btn" data-act="impact" data-id="${esc(n.scenario_id)}" title="${T("Show the closed road, the worse road sections and the detours (modelled)")}">${T("View impact on map")}</button>`;
-  if (n.scenario_id && n.scenario_type === "closure" && n.scenario_status === "Completed") actions += `<button class="btn" data-act="strategies" data-id="${esc(n.scenario_id)}" title="${T("The five response strategies side by side, with the recommended one highlighted (modelled)")}">${T("Compare strategies")}</button>`;
-  if (n.Kind === "change") actions += `<button class="link" data-act="compare" data-id="${esc(n.Notif_ID)}">${T("Compare epochs")}</button>`;
-  if (n.Lon != null) actions += `<button class="link" data-act="show" data-id="${esc(n.Notif_ID)}">${T("Show on map")}</button>`;
+  else if (n.Status === "New") actions = `<button class="btn" data-act="ack" data-id="${esc(n.Notif_ID)}"${lab(T("Got it"))}>${T("Got it")}</button>`;
+  if (!ap && n.Incident_ID && n.incident_status === "Open" && !n.active_work_order && (n.Kind === "fault" || n.Kind === "change")) actions += `<button class="btn" data-act="inspect" data-id="${esc(n.Incident_ID)}"${lab(T("Request inspection"))} title="${T("Prepare a work order to send a team to check this")}">${T("Request inspection")}</button>`;
+  if (n.Kind === "verified") actions += `<button class="btn primary" data-act="report" data-id="${esc(n.Ref_ID)}" data-nid="${esc(n.Notif_ID)}"${lab(T("View report"))}>${T("View report")}</button>`;
+  if (n.Kind === "verified" && n.incident_status === "Confirmed" && n.active_work_order) actions += `<button class="btn" data-act="simrepair" data-id="${esc(n.Incident_ID)}"${lab(T("Simulate repair"))} title="${T("Report the repair as a simulated crew so the incident can be closed")}">${T("Simulate repair")}</button>`;
+  if (n.Kind === "dispatch" && ap && ap.status === "Executed" && ap.worker_id) actions += `<button class="btn" data-act="investigator" data-id="${esc(ap.worker_id)}"${lab(T("Open investigator view"))} title="${T("Open the page the assigned investigator sees (new tab)")}">${T("Open investigator view")}</button>`;
+  if (n.scenario_id && n.scenario_status === "Completed" && n.Lon != null) actions += `<button class="btn" data-act="impact" data-id="${esc(n.scenario_id)}"${lab(T("View impact on map"))} title="${T("Show the closed road, the worse road sections and the detours (modelled)")}">${T("View impact on map")}</button>`;
+  if (n.scenario_id && n.scenario_type === "closure" && n.scenario_status === "Completed") actions += `<button class="btn" data-act="strategies" data-id="${esc(n.scenario_id)}"${lab(T("Compare strategies"))} title="${T("The five response strategies side by side, with the recommended one highlighted (modelled)")}">${T("Compare strategies")}</button>`;
+  if (n.Kind === "change") actions += `<button class="link" data-act="compare" data-id="${esc(n.Notif_ID)}"${lab(T("Compare epochs"))}>${T("Compare epochs")}</button>`;
+  if (n.Lon != null) actions += `<button class="link" data-act="show" data-id="${esc(n.Notif_ID)}"${lab(T("Show on map"))}>${T("Show on map")}</button>`;
   const trail = n.Trail.map(t => `<li>${avatar(t.agent, true)}<span><b style="--ac:${(S.agents[t.agent] || {}).color}">${esc(aName(t.agent))}</b> ${esc(t.did)}</span></li>`).join("");
   const open = S.open && S.open.has(n.Notif_ID) ? " open" : "";
   return `<article class="card ${esc(n.Severity)}${n.Status === "New" ? " new" : ""}${ap && ap.status !== "Proposed" ? " done" : ""}" id="n-${esc(n.Notif_ID)}" data-inc="${esc(n.Incident_ID)}" style="--ac:${c.color}">
@@ -119,7 +120,16 @@ function card(n) {
     <p class="c-msg">${esc(n.Message)}</p>
     ${ap && pend && ap.expected ? `<p class="c-meta" style="margin:6px 0 0">${T("If approved: ")}${esc(ap.expected)}</p>` : ""}
     <div class="c-act">${actions}</div>
-    <details class="how" data-id="${esc(n.Notif_ID)}"${open}><summary>${T("How the crew handled this")}</summary><ul class="trail">${trail}</ul></details></article>`;
+    <details class="how" data-id="${esc(n.Notif_ID)}"${open}><summary${lab(T("How the crew handled this"))}>${T("How the crew handled this")}</summary><ul class="trail">${trail}</ul></details></article>`;
+}
+
+// Approve and Reject change real records, so the first press only arms the button; a second press within 5 seconds does it.
+function confirmStep(b) {
+  if (b.dataset.armed) { clearTimeout(b._t); delete b.dataset.armed; return act(b.dataset.act, b.dataset.id, b); }
+  const text = b.textContent, label = b.getAttribute("aria-label");
+  b.dataset.armed = "1"; b.textContent = T("Confirm") + (I18N.rtl ? "؟" : "?");
+  b.setAttribute("aria-label", T("Press again to confirm") + " — " + (label || text));
+  b._t = setTimeout(() => { delete b.dataset.armed; b.textContent = text; if (label) b.setAttribute("aria-label", label); }, 5000);
 }
 
 async function act(kind, id, btn) {
@@ -434,6 +444,7 @@ function initMap() {
   ], (Map, MapView, SceneView, GraphicsLayer, Graphic, Search) => {
     const chg = new GraphicsLayer(), rep = new GraphicsLayer(), layer = new GraphicsLayer(), sel = new GraphicsLayer();
     const map = new Map({ basemap: (window.THEME ? THEME.basemap() : "gray-vector"), layers: [chg, rep, layer, sel] });
+    if (window.THEME) THEME.onChange(b => { map.basemap = b; });
     const makeView = three => three
       ? new SceneView({ container: "map", map, camera: { position: [46.67, 24.54, 12000], tilt: 45 }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } })
       : new MapView({ container: "map", map, center: [46.68, 24.70], zoom: 11, constraints: { snapToZoom: false }, popup: { autoOpenEnabled: false }, ui: { components: ["zoom"] } });

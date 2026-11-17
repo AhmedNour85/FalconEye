@@ -93,6 +93,9 @@ def task_fields(wo: dict, finding: str = "") -> dict:
     assignee = (wo.get("Assigned_To_Username") or None) if wo.get("Assigned_Worker") else None
     if status == 1 and not assignee:
         status = 0                      # nobody to hand it to in Field Maps yet: it stays in the Unassigned list
+    if wo.get("esritask_status") == 3 and wo.get("Status") != "Completed":
+        status = 3                      # the investigator tapped Finish and the report is not filed yet: no edit of ours may take that back
+        assignee = wo.get("esritask_assignee") or assignee
     desc = description(wo, finding)
     return {"esritask_type": type_code(wo.get("Incident_Type", "")), "esritask_assignee": assignee, "esritask_status": status,
             "esritask_priority": PRIORITY.get(wo.get("Priority", ""), 0), "esritask_duedate": iso_ms(wo.get("Due_Date")),

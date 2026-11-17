@@ -78,6 +78,7 @@
         }
         
         .role-faisal { border-bottom: 4px solid #1b8354; }
+        .role-icon svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
         .role-faisal .role-icon { background: rgba(31, 179, 107, 0.2); color: #1b8354; }
         
         .role-mansour { border-bottom: 4px solid #1b8354; }
@@ -93,20 +94,20 @@
 <body>
     <div class="portal-container">
         <div class="header">
-            <svg viewBox="0 0 24 24" class="logo" style="width:64px;height:64px;fill:none;stroke:#1b8354;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 12px" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/><circle cx="12" cy="11" r="1.5" fill="#1b8354" stroke="none"/><path d="M12 17.5c0 2-.8 3.2-2.6 4.2"/></svg>
+            <svg viewBox="0 0 24 24" class="logo" style="width:64px;height:64px;fill:none;stroke:var(--accent,#1b8354);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 12px" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/><circle cx="12" cy="11" r="1.5" fill="#1b8354" stroke="none"/><path d="M12 17.5c0 2-.8 3.2-2.6 4.2"/></svg>
             <h1>Falcon Eye</h1>
             <p>City services and mobility in one command center. Select your role to enter.</p>
         </div>
         
         <div class="role-grid">
             <a href="strategic_dashboard.html" class="role-card role-faisal">
-                <div class="role-icon">🏛️</div>
+                <div class="role-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5 12 4l9 5.5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></div>
                 <div class="role-name">Executive Hub</div>
                 <div class="role-desc">Strategic oversight, City Health KPIs, and high-level risk management.</div>
             </a>
 
             <a href="index.html" class="role-card role-classic">
-                <div class="role-icon">🗺️</div>
+                <div class="role-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 3 6-2.5v-13L15 7 9 4ZM9 4v13M15 7v13"/></svg></div>
                 <div class="role-name">Operational Center</div>
                 <div class="role-desc">Real-time triage, agent coordination, imagery comparison and field dispatch control.</div>
             </a>

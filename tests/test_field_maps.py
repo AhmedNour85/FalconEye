@@ -397,3 +397,48 @@ def test_start_up_gives_every_investigator_a_login_and_repairs_assigned_tasks(tm
     assert all(w["attrs"]["ArcGIS_Username"] == "story_viewer" for w in p.store.all(S.WORKERS))
     a = p.store.get(S.WORK_ORDERS, wo["id"])["attrs"]
     assert a["Assigned_To_Username"] == "story_viewer" and a["esritask_assignee"] == "story_viewer" and a["esritask_status"] == 1
+
+
+def _unassigned_finished(platform):
+    """A work order made by 'Request inspection': nobody is assigned in the app, and the Field Maps user took the task and finished it."""
+    iid, wo = _assigned_work_order(platform)
+    platform.store.update(S.WORK_ORDERS, wo["id"], Assigned_Worker="", Assigned_Worker_Name="", Assigned_To_Username="", Status="Created")
+    return iid, wo
+
+
+def test_a_task_finished_by_someone_nobody_assigned_is_still_the_report(platform):
+    iid, wo = _unassigned_finished(platform)
+    platform.mirror = _FinishingWithForm(wo["id"], Field_Verdict="Confirmed", Field_Comment="Exposed wiring on the building front.", esritask_assignee="story_viewer")
+    out = platform.pull_field_updates()
+    assert out["assessed"] == 1
+    v = platform.store.query(S.VERIFICATION, Incident_ID=iid)
+    assert len(v) == 1 and v[0]["attrs"]["Verification_Status"] == "Confirmed" and v[0]["attrs"]["Agent_Assessment"]
+    assert v[0]["attrs"]["Investigator_Name"] == "story_viewer"                  # the Field Maps account that finished it
+    assert platform.store.get(S.INCIDENTS, iid)["attrs"]["Verification_Outcome"] == "Confirmed"
+    assert any(n["Kind"] == "verified" and n["Incident_ID"] == iid for n in platform.crew.notifications(limit=100))
+    platform.pull_field_updates()
+    assert len(platform.store.query(S.VERIFICATION, Incident_ID=iid)) == 1        # once only
+
+
+def test_a_task_already_finished_before_the_app_looked_is_picked_up_too(platform):
+    """The server was restarted after the finish: the row is already 'done' when it is first read, so there is no change to notice."""
+    iid, wo = _unassigned_finished(platform)
+    cur = platform.store.get(S.WORK_ORDERS, wo["id"])
+    platform.store.upsert(S.WORK_ORDERS, {**cur["attrs"], "esritask_status": 3, "Field_Verdict": "Confirmed", "Field_Comment": "Seen and confirmed."}, cur["geom"], persist=False)
+    platform.mirror = FakeFieldMaps([])
+    platform.pull_field_updates()
+    assert len(platform.store.query(S.VERIFICATION, Incident_ID=iid)) == 1
+
+
+def test_a_misspelled_arabic_confirmed_in_the_note_still_confirms():
+    from backend.services import i18n
+    assert i18n.verdict_from_note("موكد") == "Confirmed" and i18n.verdict_from_note("موكد، أسلاك مكشوفة") == "Confirmed"
+
+
+def test_the_startup_repair_never_overwrites_a_task_finished_in_field_maps(platform):
+    wo = platform.store.get(S.WORK_ORDERS, "WO-0001")
+    hook = platform.store.write_hooks.pop(S.WORK_ORDERS)             # what a pull from ArcGIS Online does: take the values as they are
+    platform.store.upsert(S.WORK_ORDERS, {**wo["attrs"], "esritask_status": 3, "Status": "Created"}, wo["geom"], persist=False)
+    platform.store.write_hooks[S.WORK_ORDERS] = hook
+    platform.backfill_investigator_names()
+    assert platform.store.get(S.WORK_ORDERS, "WO-0001")["attrs"]["esritask_status"] == 3

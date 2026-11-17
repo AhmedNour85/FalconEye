@@ -28,7 +28,7 @@ body.role { grid-template-rows: auto 1fr auto; }
 .role nav a { background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 8px 14px; color: var(--text); }
 .role nav a:hover { filter: brightness(1.15); background: var(--surface-3); }
 .role nav a.active { background: var(--role-accent); border-color: var(--role-accent); color: var(--on-accent); }
-.updated { font-size: var(--fs-xs); color: #14573a; display: flex; align-items: center; gap: 8px; margin-inline-end: 12px; background: #f9fafb88; border: 1px solid var(--border); border-radius: var(--r-full); padding: 7px 12px; }
+.updated { font-size: var(--fs-sm); color: #14573a; display: flex; align-items: center; gap: 8px; margin-inline-end: 12px; background: #f9fafb88; border: 1px solid var(--border); border-radius: var(--r-full); padding: 7px 12px; }
 .updated i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: pulse 2s infinite; }
 @keyframes pulse { 50% { opacity: .3; } }
 .topright { display: flex; align-items: center; gap: 0; flex-wrap: wrap; row-gap: 8px; }
@@ -63,9 +63,9 @@ html.rtl .kgrid .kpi .sub { font-size: 14px; }
 @keyframes sh { to { background-position: -200% 0; } }
 /* trend + hotspot bars */
 .spark-wrap { display: flex; gap: 6px; align-items: stretch; }
-.spark-y { display: flex; flex-direction: column; justify-content: space-between; font-size: 10px; color: var(--muted); text-align: right; min-width: 16px; padding: 2px 0; }
+.spark-y { display: flex; flex-direction: column; justify-content: space-between; font-size: 11.5px; color: var(--muted); text-align: right; min-width: 16px; padding: 2px 0; }
 .spark { flex: 1; min-width: 0; height: 110px; display: block; }
-.spark-x { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin: 3px 0 0 22px; }
+.spark-x { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin: 3px 0 0 22px; }
 .spark-x .sq { opacity: .6; font-size: 9px; }
 .legend-inline span { white-space: nowrap; }
 .legend-inline b { color: var(--text, #111827); font-weight: 600; margin-inline-start: 2px; }
@@ -116,6 +116,7 @@ html.rtl body.rc .collapse svg { transform: none; }
 </head>
 <body class="role">
 <header class="top">
+  <h1 class="sr-only">Falcon Eye</h1>
   <div class="brand">
     <svg viewBox="0 0 24 24" class="logo" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/><circle cx="12" cy="11" r="1.5" fill="#1b8354" stroke="none"/><path d="M12 17.5c0 2-.8 3.2-2.6 4.2"/></svg>
     <div><b>Falcon Eye</b><span>Executive Hub</span></div>
