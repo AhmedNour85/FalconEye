@@ -50,6 +50,21 @@ def data_layer(layer_id, title, url, item_id):
     return {"id": layer_id, "title": title, "url": url, "itemId": item_id, "layerType": "ArcGISFeatureLayer", "visibility": False, "opacity": 1}
 
 
+OPEN = "Status NOT IN ('Resolved', 'Closed - False Positive')"          # the Strategic page's "open": not closed
+COUNT_LAYERS = [   # (layer id, title, source layer, filter): hidden layers the dashboard counts from, so its numbers equal the Strategic page's
+    ("OpenIncidents", "Open incidents", S.INCIDENTS, OPEN),
+    ("OpenCritical", "Critical open incidents", S.INCIDENTS, OPEN + " AND Severity = 'Critical'"),
+    ("ResolvedLive", "Resolved (this run)", S.INCIDENTS, "Status IN ('Resolved', 'Closed - False Positive') AND Description NOT LIKE 'Historical%'"),
+    ("ChangesSignificant", "Significant urban changes", S.CHANGES, "Significant = 'Yes'"),
+]
+
+
+def count_layer(layer_id, title, url, item_id, where):
+    lyr = data_layer(layer_id, title, url, item_id)
+    lyr["layerDefinition"] = {"definitionExpression": where}
+    return lyr
+
+
 def build(reference: dict, layers: list) -> dict:
     """The new web map: the Field Maps map's basemap and view, with the strategic layers (changes below incidents)."""
     return {"operationalLayers": layers, "tables": [], "baseMap": reference["baseMap"], "initialState": reference.get("initialState", {}),
@@ -60,6 +75,7 @@ def build(reference: dict, layers: list) -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--update", help="id of the strategic web map this script made earlier: replace its layers (a backup is saved first)")
     ap.add_argument("--dashboard", help="id of the test dashboard to point at the new map")
     args = ap.parse_args(argv)
     from backend.gis.agol import ArcGISGateway
@@ -77,6 +93,8 @@ def main(argv=None) -> int:
     makers = [(change_layer, S.CHANGES), (incident_layer, S.INCIDENTS),
               (lambda u, i: data_layer("WorkOrders_tasks", "Work orders", u, i), S.WORK_ORDERS),
               (lambda u, i: data_layer("CityView_verification", "Field verification", u, i), S.VERIFICATION)]
+    for lid, title, name, where in COUNT_LAYERS:
+        makers.append(((lambda u, i, lid=lid, title=title, where=where: count_layer(lid, title, u, i, where)), name))
     for make, name in makers:
         try:
             layers.append(make(gw.layer(name).url, gw._item(name).id))
@@ -87,6 +105,15 @@ def main(argv=None) -> int:
     print("basemap:", new["baseMap"].get("title"))
     if not args.apply:
         print("DRY RUN: nothing was written.")
+        return 0
+    if args.update:
+        m = gis.content.get(args.update)
+        if m is None or m.title != TITLE or m.owner != gis.users.me.username:
+            sys.exit("Refused: --update only changes the strategic web map this project created.")
+        backup = ROOT / "data" / "backups" / f"webmap_{m.id[:8]}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        backup.write_text(json.dumps(m.get_data(), ensure_ascii=False, indent=1), encoding="utf-8")
+        m.update(data=json.dumps(new))
+        print("Updated web map:", m.id, "backup:", backup.name)
         return 0
     if gis.content.search(f'title:"{TITLE}" AND owner:{gis.users.me.username}', item_type="Web Map"):
         sys.exit("Refused: the strategic web map already exists. Nothing was changed.")

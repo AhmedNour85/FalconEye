@@ -25,6 +25,8 @@ INC, WO, VER = "CityView_incidents", "WorkOrders_tasks", "CityView_verification"
 TYPES = ["Water Leak", "Streetlight Failure", "Urban Change", "Urban Case", "Unlicensed Canopies and Hangars", "Unregulated Street Vendors", "Neglected Vacant Land",
          "Exposed Wiring and Neglected Utilities", "Abandoned Vehicles", "Illegal Graffiti", "Non-compliant Billboards", "Construction Waste"]
 PALETTE = ["#4cc9f0", "#f9c74f", "#90be6d", "#43aa8b", "#f94144", "#f3722c", "#f8961e", "#b5179e", "#7209b7", "#577590", "#e5989b", "#c9ada7"]
+RED = "#ff6b5e"
+AREAS = ["Al Malaz", "Diplomatic Quarter", "Diriyah", "KAFD", "King Salman Park", "Olaya"]
 GREEN, AMBER, BLUE = "#3cb87f", "#ff9a3d", "#5aa9ff"
 
 LIST_EXPRESSION = """var sev = $datapoint.Severity
@@ -72,9 +74,9 @@ def build(ref: dict) -> dict:
         ds["bottomSection"] = {"fontSize": 80, "textInfo": {"text": None}}
         return w
 
-    def pie(name, caption, field, colours=()):
+    def pie(name, caption, field, colours=(), layer=INC):
         w = copy.deepcopy(pie_t)
-        w.update(id=new_id(), name=name, caption=f"<h3><strong>{caption}</strong></h3>\n", datasets=[_ds(INC, group=[field], stats=_count())], events=[])
+        w.update(id=new_id(), name=name, caption=f"<h3><strong>{caption}</strong></h3>\n", datasets=[_ds(layer, group=[field], stats=_count())], events=[])
         w["category"]["fieldName"] = field                          # the reference chart groups by its own field; ours group by this one
         w["caption"] = f'<p><span style="font-size:22px"><strong>{caption}</strong></span></p>'
         w["category"]["sliceProperties"] = [{"key": k, "label": k, "color": c} for k, c in colours]
@@ -88,16 +90,18 @@ def build(ref: dict) -> dict:
         w.update(id=new_id(), name=name, datasets=[_ds(INC, order=order, max_features=100)], events=[], expression=LIST_EXPRESSION, text=LIST_TEXT)
         return w
 
-    k_inc = indicator("Incidents", "Incidents · الحوادث", INC, GREEN)
-    k_wo = indicator("Work orders", "Work orders · أوامر العمل", WO, AMBER)
-    k_ver = indicator("Field reports", "Field reports · التقارير الميدانية", VER, BLUE)
-    p_sev = pie("By severity", "By severity · حسب الخطورة", "Severity", [("Critical", "#ff6b5e"), ("High", "#ff9a3d"), ("Medium", "#f5b84a"), ("Low", "#5aa9ff")])
-    p_stat = pie("By status", "By status · حسب الحالة", "Status", [("Open", "#5aa9ff"), ("Resolved", "#3cb87f"), ("Closed - False Positive", "#7f9488")])
-    p_type = pie("By type", "By type · حسب النوع", "Incident_Type", list(zip(TYPES, PALETTE)))
+    # the same four numbers as the Strategic page (open, not closed; "resolved" counts this run's work only; significant urban changes)
+    k_crit = indicator("Critical incidents", "Critical incidents · الحوادث الحرجة", "OpenCritical", RED)
+    k_chg = indicator("Urban changes", "Urban changes · التغيّرات العمرانية", "ChangesSignificant", BLUE)
+    k_res = indicator("Resolved", "Resolved · تم حلها", "ResolvedLive", GREEN)
+    k_open = indicator("Open incidents", "Open incidents · الحوادث المفتوحة", "OpenIncidents", AMBER)
+    p_sev = pie("Open by severity", "Open by severity · المفتوحة حسب الخطورة", "Severity", [("Critical", "#ff6b5e"), ("High", "#ff9a3d"), ("Medium", "#f5b84a"), ("Low", "#5aa9ff")], layer="OpenIncidents")
+    p_area = pie("Open by area", "Hotspots: open by area · البؤر حسب المنطقة", "Area_Name", list(zip(AREAS, PALETTE)), layer="OpenIncidents")
+    p_type = pie("Open by type", "Open by type · المفتوحة حسب النوع", "Incident_Type", list(zip(TYPES, PALETTE)), layer="OpenIncidents")
     l_new = lst("Latest incidents", ["Created_Date DESC"])
     m = copy.deepcopy(map_t)
     m.update(id=new_id(), name="Operations map", itemId=WEB_MAP)
-    follow = [l_new, k_inc, k_wo, k_ver, p_sev, p_stat, p_type]
+    follow = [l_new, k_crit, k_chg, k_res, k_open, p_sev, p_area, p_type]
     m["events"] = [{"type": "extentChanged", "actions": [{"type": "filter", "targets": [{"targetId": w["id"] + "#main", "by": "geometry", "requiresSelection": False} for w in follow]}]}]
     widgets = [m] + follow
 
@@ -114,10 +118,10 @@ def build(ref: dict) -> dict:
         return {"width": w, "height": h, "id": new_id(), "elements": kids, "type": "tabsLayoutElement"}
 
     # left: the latest incidents; centre: the map; right: the widgets (the three counts side by side, then the three charts)
-    top = box(1, 0.2, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col")      # the three counts across the top
+    top = box(1, 0.2, [item(0.25, 1, k_crit["id"]), item(0.25, 1, k_chg["id"]), item(0.25, 1, k_res["id"]), item(0.25, 1, k_open["id"])], "col")      # the four counts across the top
     left = box(0.24, 1, [item(1, 1, l_new["id"])], "row")
     centre = box(0.44, 1, [item(1, 1, m["id"])], "row")
-    right = box(0.32, 1, [item(1, 0.3, p_sev["id"]), item(1, 0.3, p_stat["id"]), item(1, 0.4, p_type["id"])], "row")
+    right = box(0.32, 1, [item(1, 0.3, p_sev["id"]), item(1, 0.3, p_area["id"]), item(1, 0.4, p_type["id"])], "row")
     body = box(1, 0.8, [left, centre, right], "col")
     out = copy.deepcopy(ref)
     header = {**view["header"], "title": "Falcon Eye · عيون الصقر — Strategic Dashboard · لوحة القيادة الاستراتيجية", "showSignOutMenu": False}
