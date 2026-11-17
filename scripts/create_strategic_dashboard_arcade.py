@@ -88,10 +88,9 @@ def build(ref: dict) -> dict:
     p_stat = pie("By status", "By status · حسب الحالة", "Status", [("Open", "#5aa9ff"), ("Resolved", "#3cb87f"), ("Closed - False Positive", "#7f9488")])
     p_type = pie("By type", "By type · حسب النوع", "Incident_Type")
     l_new = lst("Latest incidents", ["Created_Date DESC"])
-    l_crit = lst("Most severe", ["Risk_Score DESC"])
     m = copy.deepcopy(map_t)
     m.update(id=new_id(), name="Operations map", itemId=WEB_MAP)
-    follow = [l_new, l_crit, k_inc, k_wo, k_ver, p_sev, p_stat, p_type]
+    follow = [l_new, k_inc, k_wo, k_ver, p_sev, p_stat, p_type]
     m["events"] = [{"type": "extentChanged", "actions": [{"type": "filter", "targets": [{"targetId": w["id"] + "#main", "by": "geometry", "requiresSelection": False} for w in follow]}]}]
     widgets = [m] + follow
 
@@ -107,9 +106,11 @@ def build(ref: dict) -> dict:
     def tabs(w, h, kids):
         return {"width": w, "height": h, "id": new_id(), "elements": kids, "type": "tabsLayoutElement"}
 
-    left = box(0.21, 1, [item(1, 0.25, k_inc["id"]), tabs(1, 0.75, [item(1, 1, l_new["id"], "Latest incidents"), item(1, 1, p_stat["id"], "Status chart")])], "row")
-    centre = box(0.59, 1, [item(1, 0.63, m["id"]), box(1, 0.37, [item(0.4, 1, p_sev["id"]), box(0.6, 1, [item(1, 0.45, k_wo["id"]), item(1, 0.55, p_type["id"])], "row")], "col")], "row")
-    right = box(0.20, 1, [item(1, 0.25, k_ver["id"]), item(1, 0.75, l_crit["id"])], "row")
+    # left: the latest incidents; centre: the map; right: the widgets (the three counts side by side, then the three charts)
+    left = box(0.24, 1, [item(1, 1, l_new["id"])], "row")
+    centre = box(0.44, 1, [item(1, 1, m["id"])], "row")
+    right = box(0.32, 1, [box(1, 0.2, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col"),
+                          item(1, 0.267, p_sev["id"]), item(1, 0.267, p_stat["id"]), item(1, 0.266, p_type["id"])], "row")
     out = copy.deepcopy(ref)
     header = {**view["header"], "title": "Falcon Eye · عيون الصقر — Strategic Dashboard · لوحة القيادة الاستراتيجية", "showSignOutMenu": False}
     header.pop("logoImageURL", None)
