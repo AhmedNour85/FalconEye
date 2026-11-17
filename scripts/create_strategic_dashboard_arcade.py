@@ -1,87 +1,178 @@
-"""Create a SEPARATE test dashboard with Arcade data expressions and a map (the first dashboard item is not touched).
+"""Build the Falcon Eye strategic dashboard in the style of an existing ArcGIS Dashboards design (a docking layout with a map, indicators, pie charts and
+Arcade-formatted lists), and write it to a SEPARATE test item. The first dashboard item is never touched.
 
-    python scripts/create_strategic_dashboard_arcade.py            # DRY RUN: prints the definition, writes nothing
-    python scripts/create_strategic_dashboard_arcade.py --apply    # creates ONE new private item "CityView Strategic Dashboard (Arcade test)"
+    python scripts/create_strategic_dashboard_arcade.py                          # DRY RUN: checks the definition, writes nothing
+    python scripts/create_strategic_dashboard_arcade.py --apply                  # creates the item "CityView Strategic Dashboard (Arcade test)"
+    python scripts/create_strategic_dashboard_arcade.py --apply --update <id>    # replaces the content of that test item (a backup is saved first)
 
-Esri does not document how data expressions are stored in a dashboard item, so this is a best-effort format: open the new item to check it.
+The widget formats come from a reference dashboard saved in data/backups (read only), so the JSON follows the schema the current ArcGIS Dashboards writes.
 """
 import argparse
 import copy
 import json
-import re
 import sys
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 TITLE = "CityView Strategic Dashboard (Arcade test)"
-SOURCE = ROOT / "data" / "backups" / "dashboard_b70d972b_original.json"
-WEB_MAP = "b1e8f3e18def4a53ae6e0cc3a749a0f5"
-INCIDENTS = "1514541f9358445ba3269ef20a83c381"
-PORTAL = "https://esrisaudi-ai.maps.arcgis.com"
+REFERENCE = ROOT / "data" / "backups" / "reference_dashboard_05c6992a.json"
+WEB_MAP = "b1e8f3e18def4a53ae6e0cc3a749a0f5"                     # CityView Field Maps - Investigator Map (its layers feed the dashboard)
+INC, WO, VER = "CityView_incidents", "WorkOrders_tasks", "CityView_verification"
+GREEN, AMBER, BLUE = "#3cb87f", "#ff9a3d", "#5aa9ff"
 
-KPI_SCRIPT = f"""var fs = FeatureSetByPortalItem(Portal('{PORTAL}'), '{INCIDENTS}', 0, ['Status', 'Severity', 'Created_Date', 'Last_Updated'], false)
-var open = 0, crit = 0, res = 0, hrs = 0
-for (var f in fs) {{
-  if (f.Status == 'Resolved') {{ res += 1; hrs += DateDiff(Date(f.Last_Updated), Date(f.Created_Date), 'hours') }}
-  else if (f.Status != 'Closed - False Positive') {{ open += 1; if (f.Severity == 'Critical') {{ crit += 1 }} }}
-}}
-return FeatureSet(Text({{ fields: [{{ name: 'open', type: 'esriFieldTypeInteger' }}, {{ name: 'critical_open', type: 'esriFieldTypeInteger' }},
-    {{ name: 'resolved', type: 'esriFieldTypeInteger' }}, {{ name: 'avg_hours', type: 'esriFieldTypeDouble' }}],
-  geometryType: '', features: [{{ attributes: {{ open: open, critical_open: crit, resolved: res, avg_hours: IIf(res > 0, Round(hrs / res, 1), 0) }} }}] }}))"""
-KPIS = [("open", "Open incidents · الحوادث المفتوحة"), ("critical_open", "Critical open · حرجة مفتوحة"),
-        ("resolved", "Resolved · تم حلها"), ("avg_hours", "Hours to resolve · ساعات الحل")]
+LIST_EXPRESSION = """var sev = $datapoint.Severity
+var color = Decode(sev, 'Critical', '#ff6b5e', 'High', '#ff9a3d', 'Medium', '#f5b84a', '#5aa9ff')
+var closed = $datapoint.Status == 'Resolved' || Find('Closed', $datapoint.Status) == 0
+return {
+  textColor: '', backgroundColor: '', separatorColor: '', selectionColor: '', selectionTextColor: '',
+  attributes: { id: $datapoint.Incident_ID, kind: $datapoint.Incident_Type, area: $datapoint.Area_Name, sev: sev, status: $datapoint.Status,
+                color: IIf(closed, '#7f9488', color) }
+}
+"""
+LIST_TEXT = ('<div style="background-color:#363636; border-left:10px solid {expression/color}; margin:5px; padding:6px 10px; width:100%">'
+             '<span style="color:white; font-size:16px"><strong>{expression/id}</strong> · {expression/kind}</span><br>'
+             '<span style="color:#cbd8d0; font-size:13px">{expression/area} · {expression/sev} · {expression/status}</span></div>')
 
 
-def build(original: dict) -> dict:
-    d = copy.deepcopy(original)
-    tmpl = next(w for w in d["widgets"] if w["type"] == "indicatorWidget")
-    pies = [w for w in d["widgets"] if w["type"] == "pieChartWidget"]
-    lst = next(w for w in d["widgets"] if w["type"] == "listWidget")
-    for p in pies:
-        p["category"]["sliceProperties"] = []                      # the sample slices from the Python library did not match the data
-    d["dataExpressions"] = [{"name": "expression/kpis", "title": "KPIs", "script": KPI_SCRIPT, "returnType": "featureSet"}]
-    widgets = []
-    for field, caption in KPIS:
-        w = copy.deepcopy(tmpl)
-        w.update(id=str(uuid.uuid4()), name=field, caption=caption, valueType="field", valueField=field)
-        w["defaultSettings"]["topSection"]["textInfo"] = {"text": caption}
-        w["datasets"] = [{"type": "serviceDataset", "dataSource": {"type": "expressionDataSource", "dataSourceName": "expression/kpis"}, "outFields": ["*"],
-                          "groupByFields": [], "orderByFields": [], "statisticDefinitions": [], "returnGeometry": False, "clientSideStatistics": False, "name": "main"}]
-        widgets.append(w)
-    map_w = {"type": "mapWidget", "id": str(uuid.uuid4()), "name": "Map", "itemId": WEB_MAP, "showPopup": True, "legend": {"enabled": True}, "events": []}
-    d["widgets"] = widgets + [map_w] + pies[:2] + [lst]
-    ids = [w["id"] for w in d["widgets"]]
-    cell = lambda i, w, h: {"type": "itemLayoutElement", "id": i, "width": w, "height": h}
-    d["layout"] = {"rootElement": {"type": "stackLayoutElement", "orientation": "row", "width": 1, "height": 1, "elements": [
-        {"type": "stackLayoutElement", "orientation": "col", "width": 1, "height": 0.25, "elements": [cell(i, 0.25, 1) for i in ids[:4]]},
-        {"type": "stackLayoutElement", "orientation": "col", "width": 1, "height": 0.45, "elements": [cell(ids[4], 0.6, 1), cell(ids[7], 0.4, 1)]},
-        {"type": "stackLayoutElement", "orientation": "col", "width": 1, "height": 0.3, "elements": [cell(ids[5], 0.5, 1), cell(ids[6], 0.5, 1)]}]}}
+def _ds(layer, group=(), order=(), stats=None, max_features=None):
+    d = {"type": "serviceDataset", "name": "main", "dataSource": {"type": "layerDataSource", "itemId": WEB_MAP, "layerId": layer}, "groupByFields": list(group),
+         "orderByFields": list(order), "statisticDefinitions": stats or [], "clientSideStatistics": False, "outFields": ["*"], "returnDistinctValues": False,
+         "allowSourceDownload": False, "allowSummaryDownload": False}
+    if max_features:
+        d["maxFeatures"] = max_features
     return d
+
+
+def _count(field="OBJECTID"):
+    return [{"onStatisticField": field, "outStatisticFieldName": "value", "statisticType": "count"}]
+
+
+def build(ref: dict) -> dict:
+    view = ref["desktopView"]
+    ind_t = next(w for w in view["widgets"] if w["type"] == "indicatorWidget")
+    pie_t = next(w for w in view["widgets"] if w["type"] == "pieChartWidget")
+    list_t = next(w for w in view["widgets"] if w["type"] == "listWidget")
+    map_t = next(w for w in view["widgets"] if w["type"] == "mapWidget")
+    new_id = lambda: str(uuid.uuid4())
+
+    def indicator(name, caption, layer, color):
+        w = copy.deepcopy(ind_t)
+        w.update(id=new_id(), name=name, datasets=[_ds(layer, stats=_count())], events=[], valueType="statistic")
+        ds = w["defaultSettings"]
+        ds["caption"] = f"<h3><strong>{caption}</strong></h3>\n"
+        ds["topSection"] = {"fontSize": 80, "textInfo": {}}
+        ds["middleSection"] = {"fontSize": 160, "textInfo": {"text": "{value}", "fillColor": color}}
+        ds["bottomSection"] = {"fontSize": 80, "textInfo": {"text": None}}
+        return w
+
+    def pie(name, caption, field):
+        w = copy.deepcopy(pie_t)
+        w.update(id=new_id(), name=name, caption=f"<h3><strong>{caption}</strong></h3>\n", datasets=[_ds(INC, group=[field], stats=_count())], events=[])
+        if isinstance(w.get("category"), dict):
+            w["category"]["sliceProperties"] = []
+        return w
+
+    def lst(name, order):
+        w = copy.deepcopy(list_t)
+        w.update(id=new_id(), name=name, datasets=[_ds(INC, order=order, max_features=100)], events=[], expression=LIST_EXPRESSION, text=LIST_TEXT)
+        return w
+
+    k_inc = indicator("Incidents", "Incidents · الحوادث", INC, GREEN)
+    k_wo = indicator("Work orders", "Work orders · أوامر العمل", WO, AMBER)
+    k_ver = indicator("Field reports", "Field reports · التقارير الميدانية", VER, BLUE)
+    p_sev = pie("By severity", "By severity · حسب الخطورة", "Severity")
+    p_stat = pie("By status", "By status · حسب الحالة", "Status")
+    p_type = pie("By type", "By type · حسب النوع", "Incident_Type")
+    l_new = lst("Latest incidents", ["Created_Date DESC"])
+    l_crit = lst("Most severe", ["Risk_Score DESC"])
+    m = copy.deepcopy(map_t)
+    m.update(id=new_id(), name="Operations map", itemId=WEB_MAP)
+    follow = [l_new, l_crit, k_inc, k_wo, k_ver, p_sev, p_stat, p_type]
+    m["events"] = [{"type": "extentChanged", "actions": [{"type": "filter", "targets": [{"targetId": w["id"] + "#main", "by": "geometry", "requiresSelection": False} for w in follow]}]}]
+    widgets = [m] + follow
+
+    def item(w, h, wid, tab=None):
+        e = {"width": w, "height": h, "type": "itemLayoutElement", "id": wid}
+        if tab:
+            e["tabName"] = tab
+        return e
+
+    def box(w, h, kids, orient):
+        return {"width": w, "height": h, "id": new_id(), "elements": kids, "type": "stackLayoutElement", "orientation": orient}
+
+    def tabs(w, h, kids):
+        return {"width": w, "height": h, "id": new_id(), "elements": kids, "type": "tabsLayoutElement"}
+
+    left = box(0.21, 1, [item(1, 0.25, k_inc["id"]), tabs(1, 0.75, [item(1, 1, l_new["id"], "Latest incidents"), item(1, 1, p_stat["id"], "Status chart")])], "row")
+    centre = box(0.59, 1, [item(1, 0.63, m["id"]), box(1, 0.37, [item(0.4, 1, p_sev["id"]), box(0.6, 1, [item(1, 0.45, k_wo["id"]), item(1, 0.55, p_type["id"])], "row")], "col")], "row")
+    right = box(0.20, 1, [item(1, 0.25, k_ver["id"]), item(1, 0.75, l_crit["id"])], "row")
+    out = copy.deepcopy(ref)
+    header = {**view["header"], "title": "Falcon Eye · عيون الصقر — Strategic Dashboard · لوحة القيادة الاستراتيجية", "showSignOutMenu": False}
+    header.pop("logoImageURL", None)
+    out["desktopView"] = {"widgets": widgets, "header": header, "layout": {"type": "dockingLayout", "rootElement": box(1, 1, [left, centre, right], "col")},
+                          "type": "desktop", "settings": view["settings"]}
+    return out
+
+
+def check(d: dict) -> list:
+    """Offline checks: every layout item is a widget, every widget is placed exactly once, every event target exists."""
+    v = d["desktopView"]
+    ids = {w["id"] for w in v["widgets"]}
+    placed = []
+
+    def walk(e):
+        if e.get("type") == "itemLayoutElement":
+            placed.append(e["id"])
+        for c in e.get("elements", []):
+            walk(c)
+
+    walk(v["layout"]["rootElement"])
+    problems = [f"layout item {i} is not a widget" for i in placed if i not in ids] + [f"widget {i} is placed {placed.count(i)} times" for i in ids if placed.count(i) != 1]
+    for w in v["widgets"]:
+        for ev in w.get("events", []):
+            for a in ev.get("actions", []):
+                problems += [f"event target {t['targetId']} is not a widget" for t in a.get("targets", []) if t["targetId"].split("#")[0] not in ids]
+    return problems
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--update", help="id of the test item this script created earlier")
     args = ap.parse_args(argv)
-    new = build(json.loads(SOURCE.read_text(encoding="utf-8")))
-    print(json.dumps({"dataExpressions": [{k: (v[:80] + "…" if k == "script" else v) for k, v in e.items()} for e in new["dataExpressions"]],
-                      "widgets": [(w["type"], w.get("name")) for w in new["widgets"]], "layout": new["layout"]}, indent=1, ensure_ascii=False))
+    new = build(json.loads(REFERENCE.read_text(encoding="utf-8")))
+    problems = check(new)
+    print("widgets:", [(w["type"], w["name"]) for w in new["desktopView"]["widgets"]])
+    print("checks:", problems or "layout and event targets are consistent")
+    if problems:
+        return 1
     if not args.apply:
-        print("\nDRY RUN: nothing was written.")
+        print("DRY RUN: nothing was written.")
         return 0
     from backend.gis.agol import ArcGISGateway
     from config.settings import load_settings
+
     settings = load_settings()
+    gis = ArcGISGateway(settings).gis
+    if args.update:
+        item = gis.content.get(args.update)
+        if item is None or item.title != TITLE or item.owner != gis.users.me.username:
+            sys.exit("Refused: --update only replaces the test item this script created (matching title and owner).")
+        backup = ROOT / "data" / "backups" / f"dashboard_{item.id[:8]}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        backup.write_text(json.dumps(item.get_data(), ensure_ascii=False, indent=1), encoding="utf-8")
+        item.update(data=json.dumps(new, ensure_ascii=False))
+        print("Updated:", item.id, "backup:", backup.name)
+        return 0
     if not TITLE.startswith(settings.arcgis_layer_prefix):
         sys.exit("Refused: the title must start with the project prefix.")
-    gis = ArcGISGateway(settings).gis
     if gis.content.search(f'title:"{TITLE}" AND owner:{gis.users.me.username}', item_type="Dashboard"):
-        sys.exit("Refused: the test dashboard already exists. Nothing was changed.")
+        sys.exit("Refused: the test dashboard already exists (use --update <id>). Nothing was changed.")
     item = gis.content.add({"title": TITLE, "type": "Dashboard", "typeKeywords": "Dashboard,Operations Dashboard,Arcade", "tags": "CityView-Riyadh,SYNTHETIC-DEMO,Falcon Eye",
-                            "snippet": "Falcon Eye strategic overview with Arcade data expressions and a map (test, synthetic demo data).", "text": json.dumps(new, ensure_ascii=False)})
+                            "snippet": "Falcon Eye strategic overview (test, synthetic demo data)."}, data=json.dumps(new, ensure_ascii=False))
     print("Created:", item.id)
     return 0
 
