@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 TITLE = "CityView Strategic Dashboard (Arcade test)"
 REFERENCE = ROOT / "data" / "backups" / "reference_dashboard_05c6992a.json"
-WEB_MAP = "b1e8f3e18def4a53ae6e0cc3a749a0f5"                     # CityView Field Maps - Investigator Map (its layers feed the dashboard)
+WEB_MAP = "558e75041aa445289ad4db29e51f95a9"                     # CityView Strategic Map (made by create_strategic_web_map.py): the layers and counts the widgets read
 INC, WO, VER = "CityView_incidents", "WorkOrders_tasks", "CityView_verification"
 TYPES = ["Water Leak", "Streetlight Failure", "Urban Change", "Urban Case", "Unlicensed Canopies and Hangars", "Unregulated Street Vendors", "Neglected Vacant Land",
          "Exposed Wiring and Neglected Utilities", "Abandoned Vehicles", "Illegal Graffiti", "Non-compliant Billboards", "Construction Waste"]
