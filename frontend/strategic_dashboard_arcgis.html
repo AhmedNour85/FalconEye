@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Falcon Eye | Strategic (ArcGIS Dashboards)</title>
+<link rel="icon" type="image/svg+xml" href="/falcon-eye.svg">
+<script src="i18n.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="role.css">
+<link rel="stylesheet" href="mobility.css">
+<link rel="stylesheet" href="rtl.css">
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
+<script src="dashboard-config.js"></script>
+<style>
+body.role { --role-accent: #1b8354; display: grid; grid-template-rows: auto 1fr; height: 100%; }
+.role .top { padding: 12px 20px; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.role .brand { gap: 12px; }
+.role .brand .logo { width: 34px; height: 34px; fill: none; stroke: #1b8354; stroke-width: 1.7; stroke-linecap: round; flex: none; }
+.role .brand b { font-size: 20px; letter-spacing: .06em; display: block; line-height: 1.1; }
+.role .brand span { color: #4b5563; font-size: 12.5px; font-weight: 400; display: block; margin-top: 2px; }
+.role nav { gap: 8px; }
+.role nav a { background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: 10px; padding: 8px 14px; color: var(--text); }
+.role nav a.active { background: var(--role-accent); border-color: var(--role-accent); color: var(--on-accent); }
+#frame { width: 100%; height: 100%; border: 0; display: block; }
+.empty { padding: 40px 24px; max-width: 640px; margin: 0 auto; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body class="role">
+<header class="top">
+  <h1 class="sr-only">Falcon Eye</h1>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" class="logo" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/><circle cx="12" cy="11" r="1.5" fill="#1b8354" stroke="none"/><path d="M12 17.5c0 2-.8 3.2-2.6 4.2"/></svg>
+    <div><b>Falcon Eye</b><span>Executive Hub · ArcGIS Dashboards</span></div>
+  </div>
+  <div class="topright">
+    <nav><a href="home.html">Portal</a><a href="strategic_dashboard.html">Strategic</a><a class="active" href="strategic_dashboard_arcgis.html">Strategic (ArcGIS)</a><a href="index.html">Operation</a></nav>
+  </div>
+</header>
+<main id="main"></main>
+<script>
+(function () {
+  var url = window.ARCGIS_DASHBOARD_URL || "", main = document.getElementById("main");
+  if (/^https:\/\/[a-z0-9.-]+\.arcgis\.com\//i.test(url)) {
+    var f = document.createElement("iframe");
+    f.id = "frame"; f.src = url; f.title = "Strategic dashboard (ArcGIS Dashboards)"; f.allow = "fullscreen";
+    main.appendChild(f);
+  } else {
+    var d = document.createElement("div");
+    d.className = "empty";
+    d.textContent = "The ArcGIS Dashboards version has not been created yet. Open strategic_dashboard.html for the current Strategic Dashboard.";
+    main.appendChild(d);
+  }
+})();
+</script>
+</body>
+</html>

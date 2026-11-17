@@ -148,3 +148,16 @@ def test_response_time_starts_at_zero_after_a_reset(platform):
     c = client(platform)
     k = c.get("/api/kpis").json()
     assert k["avg_response_time_hours"] is None and k["incident_resolution_rate_pct"] is None and k["resolved_incidents"] == 0 and k["verified_incidents"] == 0
+
+
+def test_the_arcgis_dashboards_strategic_page_is_served_and_shows_a_notice_until_the_item_exists():
+    from fastapi.testclient import TestClient
+    from backend.api.app import create_app
+    from backend.platform import Platform
+    from config.settings import Settings
+
+    c = TestClient(create_app(Platform(Settings(arcgis_username="", arcgis_password=""))))
+    page = c.get("/strategic_dashboard_arcgis.html")
+    assert page.status_code == 200 and "dashboard-config.js" in page.text
+    assert c.get("/dashboard-config.js").status_code == 200
+    assert c.get("/strategic_dashboard.html").status_code == 200
