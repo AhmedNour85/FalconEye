@@ -154,11 +154,12 @@ class Platform:
             # An inspection requested in Field Maps and finished there by someone nobody assigned here: the simulated crew takes over the same work order.
             open_wos = [w for w in self.store.query(S.WORK_ORDERS, Incident_ID=incident_id) if w["attrs"]["Status"] != "Completed" and not w["attrs"]["Assigned_Worker"]]
             workers = self.store.all(S.WORKERS)
-            if open_wos and workers:
+            if open_wos:
                 w0 = open_wos[-1]
                 user = (w0["attrs"].get("esritask_assignee") or "").lower()
-                wk = next((x for x in workers if user and (x["attrs"].get("ArcGIS_Username") or "").lower() == user), workers[0])
-                self.store.upsert(S.WORK_ORDERS, {**w0["attrs"], "Assigned_Worker": wk["id"], "Assigned_Worker_Name": wk["attrs"]["Name"], "Status": "In Progress"}, w0["geom"])
+                wk = next((x for x in workers if user and (x["attrs"].get("ArcGIS_Username") or "").lower() == user), workers[0] if workers else None)
+                wid, wname = (wk["id"], wk["attrs"]["Name"]) if wk else (user or "field-user", user or "Field Maps user")      # no investigator rows: the Field Maps account itself
+                self.store.upsert(S.WORK_ORDERS, {**w0["attrs"], "Assigned_Worker": wid, "Assigned_Worker_Name": wname, "Status": "In Progress"}, w0["geom"])
                 wos = [self.store.get(S.WORK_ORDERS, w0["id"])]
         if not wos:
             raise ValueError(f"incident {incident_id} has no active work order with an assigned worker")

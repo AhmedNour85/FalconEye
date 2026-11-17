@@ -163,8 +163,9 @@ def assess(store: Store, audit: Audit, verification_id: str) -> dict:
     if wo and new_wo and wo["attrs"]["Status"] != "Completed":
         store.update(S.WORK_ORDERS, wo["id"], Status=new_wo)
         wid = wo["attrs"]["Assigned_Worker"]
-        if wid and new_wo == "Completed":
-            wk = store.get(S.WORKERS, wid)["attrs"]
+        wrow = store.get(S.WORKERS, wid) if wid else None           # a Field Maps account without an investigator row has no workload to update
+        if wrow and new_wo == "Completed":
+            wk = wrow["attrs"]
             n = max(0, wk["Open_Tasks"] - 1)
             store.update(S.WORKERS, wid, Open_Tasks=n, Status="Available" if n == 0 else "Assigned", Last_Update=utcnow())
     cal = learning.recalibrate(store) if changed_det else None

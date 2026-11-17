@@ -454,3 +454,13 @@ def test_simulate_repair_works_for_an_inspection_finished_in_field_maps_by_an_un
     platform.store.update(S.INCIDENTS, iid, Verification_Outcome="Confirmed", Status="Confirmed")
     out = platform.simulate_repair(iid)
     assert out["ok"] and out["work_order_id"] == "WO-0001"
+
+
+def test_simulate_repair_works_when_there_are_no_investigator_rows(platform):
+    for w in platform.store.all(S.WORKERS):
+        platform.store.delete(S.WORKERS, w["id"], persist=False)
+    wo = platform.store.get(S.WORK_ORDERS, "WO-0001")
+    platform.store.upsert(S.WORK_ORDERS, {**wo["attrs"], "Assigned_Worker": "", "Status": "In Progress", "esritask_assignee": "story_viewer"}, wo["geom"], persist=False)
+    iid = wo["attrs"]["Incident_ID"]
+    platform.store.update(S.INCIDENTS, iid, Verification_Outcome="Confirmed", Status="Confirmed")
+    assert platform.simulate_repair(iid)["ok"]
