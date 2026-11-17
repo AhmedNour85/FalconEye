@@ -90,8 +90,8 @@ def main(argv=None) -> int:
         return 0
     if gis.content.search(f'title:"{TITLE}" AND owner:{gis.users.me.username}', item_type="Web Map"):
         sys.exit("Refused: the strategic web map already exists. Nothing was changed.")
-    item = gis.content.add({"title": TITLE, "type": "Web Map", "tags": "CityView-Riyadh,SYNTHETIC-DEMO,Falcon Eye", "snippet": "Falcon Eye strategic map: incidents by severity and urban change."},
-                           data=json.dumps(new))
+    item = gis.content.add({"title": TITLE, "type": "Web Map", "tags": "CityView-Riyadh,SYNTHETIC-DEMO,Falcon Eye", "snippet": "Falcon Eye strategic map: incidents by severity and urban change.",
+                            "text": json.dumps(new)})
     print("Created web map:", item.id)
     if args.dashboard:
         dash = gis.content.get(args.dashboard)
