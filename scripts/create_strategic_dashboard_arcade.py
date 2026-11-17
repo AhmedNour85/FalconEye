@@ -69,11 +69,11 @@ def build(ref: dict) -> dict:
         ds["bottomSection"] = {"fontSize": 80, "textInfo": {"text": None}}
         return w
 
-    def pie(name, caption, field):
+    def pie(name, caption, field, colours=()):
         w = copy.deepcopy(pie_t)
         w.update(id=new_id(), name=name, caption=f"<h3><strong>{caption}</strong></h3>\n", datasets=[_ds(INC, group=[field], stats=_count())], events=[])
-        if isinstance(w.get("category"), dict):
-            w["category"]["sliceProperties"] = []
+        w["category"]["fieldName"] = field                          # the reference chart groups by its own field; ours group by this one
+        w["category"]["sliceProperties"] = [{"key": k, "label": k, "color": c} for k, c in colours]
         return w
 
     def lst(name, order):
@@ -84,8 +84,8 @@ def build(ref: dict) -> dict:
     k_inc = indicator("Incidents", "Incidents · الحوادث", INC, GREEN)
     k_wo = indicator("Work orders", "Work orders · أوامر العمل", WO, AMBER)
     k_ver = indicator("Field reports", "Field reports · التقارير الميدانية", VER, BLUE)
-    p_sev = pie("By severity", "By severity · حسب الخطورة", "Severity")
-    p_stat = pie("By status", "By status · حسب الحالة", "Status")
+    p_sev = pie("By severity", "By severity · حسب الخطورة", "Severity", [("Critical", "#ff6b5e"), ("High", "#ff9a3d"), ("Medium", "#f5b84a"), ("Low", "#5aa9ff")])
+    p_stat = pie("By status", "By status · حسب الحالة", "Status", [("Open", "#5aa9ff"), ("Resolved", "#3cb87f"), ("Closed - False Positive", "#7f9488")])
     p_type = pie("By type", "By type · حسب النوع", "Incident_Type")
     l_new = lst("Latest incidents", ["Created_Date DESC"])
     l_crit = lst("Most severe", ["Risk_Score DESC"])
