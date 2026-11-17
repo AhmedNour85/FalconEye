@@ -464,3 +464,15 @@ def test_simulate_repair_works_when_there_are_no_investigator_rows(platform):
     iid = wo["attrs"]["Incident_ID"]
     platform.store.update(S.INCIDENTS, iid, Verification_Outcome="Confirmed", Status="Confirmed")
     assert platform.simulate_repair(iid)["ok"]
+
+
+def test_a_task_taken_in_field_maps_by_an_unassigned_account_gets_that_account_as_its_worker(platform):
+    for w in platform.store.all(S.WORKERS):
+        platform.store.delete(S.WORKERS, w["id"], persist=False)
+    wo = platform.store.get(S.WORK_ORDERS, "WO-0001")
+    hook = platform.store.write_hooks.pop(S.WORK_ORDERS)
+    platform.store.upsert(S.WORK_ORDERS, {**wo["attrs"], "Assigned_Worker": "", "Status": "In Progress", "esritask_assignee": "story_viewer", "esritask_status": 3}, wo["geom"], persist=False)
+    platform.store.write_hooks[S.WORK_ORDERS] = hook
+    platform.mirror = FakeFieldMaps([])
+    platform.pull_field_updates()
+    assert platform.store.get(S.WORK_ORDERS, "WO-0001")["attrs"]["Assigned_Worker"] == "story_viewer"

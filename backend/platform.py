@@ -196,6 +196,9 @@ class Platform:
             assessed = self._assess_field_reports()
             for w in self.store.all(S.WORK_ORDERS):
                 a = w["attrs"]
+                if a.get("esritask_status") in (2, 3) and a["Status"] != "Completed":
+                    self._adopt_field_assignee(w)
+                    a = self.store.get(S.WORK_ORDERS, w["id"])["attrs"]
                 if a.get("esritask_status") != 3 or a["Status"] == "Completed":
                     continue
                 # Finished in Field Maps. The task may have been taken by a Field Maps account nobody assigned in this app (a "Request inspection" task),
@@ -210,6 +213,17 @@ class Platform:
         except Exception as exc:
             log.warning("ArcGIS Online pull failed: %s", exc)
             return {"pulled": 0, "assessed": 0, "error": str(exc)}
+
+    def _adopt_field_assignee(self, w: dict) -> dict:
+        """A task taken in Field Maps by an account nobody assigned here: the work order is assigned to that account's investigator
+        (matched by ArcGIS login), or to the login itself when there is no investigator row, so the app and Field Maps agree."""
+        a = w["attrs"]
+        user = (a.get("esritask_assignee") or "").strip()
+        if a.get("Assigned_Worker") or not user or a.get("Status") == "Completed":
+            return w
+        wk = next((x for x in self.store.all(S.WORKERS) if (x["attrs"].get("ArcGIS_Username") or "").lower() == user.lower()), None)
+        wid, wname = (wk["id"], wk["attrs"]["Name"]) if wk else (user, user)
+        return self.store.upsert(S.WORK_ORDERS, {**a, "Assigned_Worker": wid, "Assigned_Worker_Name": wname, "Assigned_To_Username": a.get("Assigned_To_Username") or user}, w["geom"])
 
     def _assess_field_reports(self) -> int:
         """Reports created in Field Maps arrive without an assessment, and possibly without a distance, worker or valid status. Complete and assess them."""
