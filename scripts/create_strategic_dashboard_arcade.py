@@ -22,6 +22,9 @@ TITLE = "CityView Strategic Dashboard (Arcade test)"
 REFERENCE = ROOT / "data" / "backups" / "reference_dashboard_05c6992a.json"
 WEB_MAP = "b1e8f3e18def4a53ae6e0cc3a749a0f5"                     # CityView Field Maps - Investigator Map (its layers feed the dashboard)
 INC, WO, VER = "CityView_incidents", "WorkOrders_tasks", "CityView_verification"
+TYPES = ["Water Leak", "Streetlight Failure", "Urban Change", "Urban Case", "Unlicensed Canopies and Hangars", "Unregulated Street Vendors", "Neglected Vacant Land",
+         "Exposed Wiring and Neglected Utilities", "Abandoned Vehicles", "Illegal Graffiti", "Non-compliant Billboards", "Construction Waste"]
+PALETTE = ["#4cc9f0", "#f9c74f", "#90be6d", "#43aa8b", "#f94144", "#f3722c", "#f8961e", "#b5179e", "#7209b7", "#577590", "#e5989b", "#c9ada7"]
 GREEN, AMBER, BLUE = "#3cb87f", "#ff9a3d", "#5aa9ff"
 
 LIST_EXPRESSION = """var sev = $datapoint.Severity
@@ -63,7 +66,7 @@ def build(ref: dict) -> dict:
         w = copy.deepcopy(ind_t)
         w.update(id=new_id(), name=name, datasets=[_ds(layer, stats=_count())], events=[], valueType="statistic")
         ds = w["defaultSettings"]
-        ds["caption"] = f"<h3><strong>{caption}</strong></h3>\n"
+        ds["caption"] = f'<p><span style="font-size:22px"><strong>{caption}</strong></span></p>'
         ds["topSection"] = {"fontSize": 80, "textInfo": {}}
         ds["middleSection"] = {"fontSize": 160, "textInfo": {"text": "{value}", "fillColor": color}}
         ds["bottomSection"] = {"fontSize": 80, "textInfo": {"text": None}}
@@ -73,7 +76,11 @@ def build(ref: dict) -> dict:
         w = copy.deepcopy(pie_t)
         w.update(id=new_id(), name=name, caption=f"<h3><strong>{caption}</strong></h3>\n", datasets=[_ds(INC, group=[field], stats=_count())], events=[])
         w["category"]["fieldName"] = field                          # the reference chart groups by its own field; ours group by this one
+        w["caption"] = f'<p><span style="font-size:22px"><strong>{caption}</strong></span></p>'
         w["category"]["sliceProperties"] = [{"key": k, "label": k, "color": c} for k, c in colours]
+        # vivid donut with a dark outline between slices and a larger legend with the counts
+        w["pie"].update(alpha=1, outlineAlpha=1, outlineColor="#2b2b2b", outlineThickness=2, innerRadius=55, fontSize=16)
+        w["legend"].update(enabled=True, position="right", markerSize=20, format="value")
         return w
 
     def lst(name, order):
@@ -86,7 +93,7 @@ def build(ref: dict) -> dict:
     k_ver = indicator("Field reports", "Field reports · التقارير الميدانية", VER, BLUE)
     p_sev = pie("By severity", "By severity · حسب الخطورة", "Severity", [("Critical", "#ff6b5e"), ("High", "#ff9a3d"), ("Medium", "#f5b84a"), ("Low", "#5aa9ff")])
     p_stat = pie("By status", "By status · حسب الحالة", "Status", [("Open", "#5aa9ff"), ("Resolved", "#3cb87f"), ("Closed - False Positive", "#7f9488")])
-    p_type = pie("By type", "By type · حسب النوع", "Incident_Type")
+    p_type = pie("By type", "By type · حسب النوع", "Incident_Type", list(zip(TYPES, PALETTE)))
     l_new = lst("Latest incidents", ["Created_Date DESC"])
     m = copy.deepcopy(map_t)
     m.update(id=new_id(), name="Operations map", itemId=WEB_MAP)
@@ -109,8 +116,8 @@ def build(ref: dict) -> dict:
     # left: the latest incidents; centre: the map; right: the widgets (the three counts side by side, then the three charts)
     left = box(0.24, 1, [item(1, 1, l_new["id"])], "row")
     centre = box(0.44, 1, [item(1, 1, m["id"])], "row")
-    right = box(0.32, 1, [box(1, 0.2, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col"),
-                          item(1, 0.267, p_sev["id"]), item(1, 0.267, p_stat["id"]), item(1, 0.266, p_type["id"])], "row")
+    right = box(0.32, 1, [box(1, 0.22, [item(1 / 3, 1, k_inc["id"]), item(1 / 3, 1, k_wo["id"]), item(1 / 3, 1, k_ver["id"])], "col"),
+                          item(1, 0.22, p_sev["id"]), item(1, 0.22, p_stat["id"]), item(1, 0.34, p_type["id"])], "row")
     out = copy.deepcopy(ref)
     header = {**view["header"], "title": "Falcon Eye · عيون الصقر — Strategic Dashboard · لوحة القيادة الاستراتيجية", "showSignOutMenu": False}
     header.pop("logoImageURL", None)
