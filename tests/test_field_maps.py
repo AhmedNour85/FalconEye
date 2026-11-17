@@ -442,3 +442,15 @@ def test_the_startup_repair_never_overwrites_a_task_finished_in_field_maps(platf
     platform.store.write_hooks[S.WORK_ORDERS] = hook
     platform.backfill_investigator_names()
     assert platform.store.get(S.WORK_ORDERS, "WO-0001")["attrs"]["esritask_status"] == 3
+
+
+def test_simulate_repair_works_for_an_inspection_finished_in_field_maps_by_an_unassigned_account(platform):
+    wo = platform.store.get(S.WORK_ORDERS, "WO-0001")
+    platform.store.upsert(S.WORK_ORDERS, {**wo["attrs"], "Assigned_Worker": "", "Status": "Created", "esritask_assignee": "story_viewer", "esritask_status": 3, "esritask_notes": "Confirmed"}, wo["geom"], persist=False)
+    for v in platform.store.query(S.VERIFICATION, Work_Order_ID="WO-0001"):
+        platform.store.delete(S.VERIFICATION, v["id"], persist=False)
+    platform.pull_field_updates()
+    iid = platform.store.get(S.WORK_ORDERS, "WO-0001")["attrs"]["Incident_ID"]
+    platform.store.update(S.INCIDENTS, iid, Verification_Outcome="Confirmed", Status="Confirmed")
+    out = platform.simulate_repair(iid)
+    assert out["ok"] and out["work_order_id"] == "WO-0001"
