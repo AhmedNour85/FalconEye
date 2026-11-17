@@ -31,7 +31,7 @@
     "The ArcGIS Dashboards version has not been created yet. Open strategic_dashboard.html for the current Strategic Dashboard.": "لم يُنشأ إصدار لوحات ArcGIS بعد. افتح strategic_dashboard.html للوحة الاستراتيجية الحالية.",
     "Falcon Eye | Strategic (ArcGIS Dashboards)": "عيون الصقر | الاستراتيجي (لوحات ArcGIS)",
     "Strategic oversight, City Health KPIs, and high-level risk management.": "إشراف استراتيجي ومؤشرات صحة المدينة وإدارة المخاطر على المستوى الأعلى.",
-    "Operational Center": "مركز العمليات",
+    "Operational Center": "مركز العمليات", "ArcGIS Dashboard": "لوحة ArcGIS", "The strategic view built in ArcGIS Dashboards: live map, incident counts and charts.": "العرض الاستراتيجي المبني في لوحات ArcGIS: خريطة مباشرة وأعداد الحوادث ومخططات.",
     "Real-time triage, agent coordination, imagery comparison and field dispatch control.": "فرز فوري للحالات، وتنسيق الوكلاء، ومقارنة الصور، والتحكم في التكليف الميداني.",
     "Portal": "البوابة", "Strategic": "الاستراتيجي", "Operation": "العمليات", "Language": "اللغة", "Switch language": "تغيير اللغة",
     "Executive Hub | GeoAI Riyadh": "المركز التنفيذي | الذكاء الاصطناعي المكاني الرياض",
