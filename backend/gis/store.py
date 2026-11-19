@@ -331,6 +331,12 @@ def _gone_from_this_computer(owner: str) -> bool:
         return True
 
 
+def lock_group() -> str:
+    """The hosting service this server belongs to: GEOAI_LOCK_GROUP, else Render's RENDER_SERVICE_ID. Empty on a PC.
+    A hosting service starts the new copy of a deploy before it stops the old one, so copies of the same service may hand the lock on."""
+    return (os.environ.get("GEOAI_LOCK_GROUP") or os.environ.get("RENDER_SERVICE_ID") or "").strip()
+
+
 def _same(a: dict, b: dict) -> bool:
     """Two attribute sets say the same thing (ArcGIS Online returns an empty text as null)."""
     return all(a.get(k) == b.get(k) or (a.get(k) in ("", None) and b.get(k) in ("", None)) for k in set(a) | set(b))
@@ -357,6 +363,9 @@ class ArcGISStore(Store):
         self.last_refresh: str | None = None
         self._owner = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
         self._locked = False
+        self._group = lock_group()
+        self._taken_at = 0.0                 # when this server took the lock: a later copy of the same service wins
+        self.on_lost_lock: Callable[[], None] | None = None    # set by the app; called when a newer copy took the lock over
         self.load()
         if lock:
             self._take_lock()
@@ -519,27 +528,68 @@ class ArcGISStore(Store):
             if ids:
                 changed[layer] = ids
         if reconcile and self._locked:
-            self._write_lock()
+            self._heartbeat()
         self.last_refresh = utcnow()
         return changed
 
     # -- one server at a time ----------------------------------------------------
     def _write_lock(self) -> None:
-        self.upsert(self.LOCK_LAYER, {"Config_ID": self.LOCK_ID, "Value": json.dumps({"owner": self._owner, "heartbeat": time.time()}), "Updated": utcnow()})
+        value = {"owner": self._owner, "heartbeat": time.time(), "group": self._group, "taken_at": self._taken_at}
+        self.upsert(self.LOCK_LAYER, {"Config_ID": self.LOCK_ID, "Value": json.dumps(value), "Updated": utcnow()})
+
+    def _held(self) -> dict:
+        cur = self.get(self.LOCK_LAYER, self.LOCK_ID)
+        try:
+            return json.loads((cur or {}).get("attrs", {}).get("Value") or "{}") if cur else {}
+        except ValueError:
+            return {}
+
+    def _same_service(self, held: dict) -> bool:
+        """The lock belongs to another copy of this hosting service (the copy a deploy is replacing). Never true on a PC."""
+        g = self._group
+        if not g:
+            return False
+        if held.get("group"):
+            return held["group"] == g
+        host = str(held.get("owner") or "").partition(":")[0]
+        return host == g or host.startswith(g + "-")          # Render names its instances after the service id
 
     def _take_lock(self) -> None:
-        cur = self.get(self.LOCK_LAYER, self.LOCK_ID)
-        if cur:
-            try:
-                held = json.loads(cur["attrs"].get("Value") or "{}")
-            except ValueError:
-                held = {}
+        held = self._held()
+        if held:
             fresh = time.time() - float(held.get("heartbeat") or 0) < self.LOCK_STALE_S
             if held.get("owner") != self._owner and fresh and not _gone_from_this_computer(str(held.get("owner") or "")):
-                raise StoreLockedError(f"another Riyadh City View server ({held.get('owner')}) is already running against the {self.gw.title('')}* layers. "
-                                       f"Stop it first, or wait {int(self.LOCK_STALE_S)} seconds if it has already stopped.")
+                if not self._same_service(held):
+                    raise StoreLockedError(f"another Riyadh City View server ({held.get('owner')}) is already running against the {self.gw.title('')}* layers. "
+                                           f"Stop it first, or wait {int(self.LOCK_STALE_S)} seconds if it has already stopped.")
+                log.warning("taking the server lock over from an older copy of this service (%s); it stops at its next heartbeat", held.get("owner"))
+        self._taken_at = max(time.time(), float(held.get("taken_at") or 0) + 0.001)   # always later than the lock it replaces, even within one clock tick
         self._write_lock()
         self._locked = True
+
+    def _held_online(self) -> dict:
+        """The lock as ArcGIS Online holds it now (the working copy may not have seen another server's write yet)."""
+        try:
+            row = next((r for r in self.gw.rows(self.LOCK_LAYER) if r["id"] == self.LOCK_ID), None)
+        except Exception as exc:                              # ArcGIS Online unreachable: keep going on what this copy knows
+            log.warning("could not read the server lock: %s", exc)
+            return self._held()
+        try:
+            return json.loads((row or {}).get("attrs", {}).get("Value") or "{}")
+        except ValueError:
+            return {}
+
+    def _heartbeat(self) -> None:
+        """Renew the lock, unless a newer copy of this service has taken it over: then stop working against the layers."""
+        held = self._held_online() if self._group else self._held()
+        owner = held.get("owner")
+        if owner and owner != self._owner and self._same_service(held) and float(held.get("taken_at") or 0) > self._taken_at:
+            self._locked = False                              # the lock is the new copy's now: never renew it, and never give it back
+            log.error("a newer copy of this service (%s) took the server lock over; this copy stops", owner)
+            if self.on_lost_lock:
+                self.on_lost_lock()
+            return
+        self._write_lock()
 
     def release(self) -> None:
         """Give the lock back (clean shutdown)."""

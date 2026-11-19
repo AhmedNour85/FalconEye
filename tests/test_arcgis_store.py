@@ -196,3 +196,71 @@ def test_a_fresh_lock_from_another_computer_blocks_and_an_old_one_does_not():
         ArcGISStore(gw)                                      # 100 s old: the heartbeat comes about every 60 s, so the server may well be alive
     gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "another-host:4321:zzz", "heartbeat": time.time() - 200})})
     ArcGISStore(gw)
+
+
+# -- a deploy on a hosting service: the new copy starts before the old one stops ----------------------------------------
+def _beat(s):
+    """Run refreshes until the store renews (or checks) the lock."""
+    for _ in range(s.RECONCILE_EVERY):
+        s.refresh()
+
+
+def test_a_newer_copy_of_the_same_service_takes_the_lock_over_and_the_old_one_steps_down(monkeypatch):
+    gw = FakeGateway()
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-abc")
+    old = ArcGISStore(gw)
+    stopped = []
+    old.on_lost_lock = lambda: stopped.append(True)
+    new = ArcGISStore(gw)                                    # same service: no StoreLockedError
+    assert json.loads(gw._find(S.CONFIG, "server.lock")["attrs"]["Value"])["owner"] == new._owner
+    _beat(old)
+    assert stopped == [True] and old._locked is False
+    old.release()                                            # the old copy's clean stop must not delete the new copy's lock
+    assert json.loads(gw._find(S.CONFIG, "server.lock")["attrs"]["Value"])["owner"] == new._owner
+    _beat(new)                                               # the new copy keeps its lock
+    assert new._locked is True and json.loads(gw._find(S.CONFIG, "server.lock")["attrs"]["Value"])["owner"] == new._owner
+
+
+def test_a_copy_of_the_same_service_running_older_code_is_recognised_by_its_host_name(monkeypatch):
+    import time
+    gw = FakeGateway()
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-abc")
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "srv-abc-hibernate-7475ff-jw5kb:39:c3e8b9", "heartbeat": time.time()})})
+    new = ArcGISStore(gw)
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "srv-abc-hibernate-7475ff-jw5kb:39:c3e8b9", "heartbeat": time.time()})})
+    _beat(new)                                               # the old copy wrote its heartbeat again: it is older, so the new copy keeps going
+    assert new._locked is True
+
+
+def test_another_service_or_a_pc_is_still_refused(monkeypatch):
+    import time
+    gw = FakeGateway()
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-abc")
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "my-laptop:1234:aaa", "heartbeat": time.time()})})
+    with pytest.raises(StoreLockedError, match="already running"):
+        ArcGISStore(gw)                                      # the PC server is running: the Render copy waits
+    gw.outside_edit(S.CONFIG, {"Config_ID": "server.lock", "Value": json.dumps({"owner": "srv-abcdef-x:1:b", "heartbeat": time.time(), "group": "srv-abcdef"})})
+    with pytest.raises(StoreLockedError):
+        ArcGISStore(gw)                                      # a different service whose id merely starts the same way
+
+
+def test_on_a_pc_a_second_server_is_refused_even_with_the_same_host(monkeypatch):
+    monkeypatch.delenv("RENDER_SERVICE_ID", raising=False)
+    monkeypatch.delenv("GEOAI_LOCK_GROUP", raising=False)
+    gw = FakeGateway()
+    ArcGISStore(gw)
+    with pytest.raises(StoreLockedError):
+        ArcGISStore(gw)
+
+
+def test_a_takeover_within_the_same_clock_tick_still_counts_as_newer(monkeypatch):
+    import backend.gis.store as store_mod
+    monkeypatch.setenv("RENDER_SERVICE_ID", "srv-abc")
+    monkeypatch.setattr(store_mod.time, "time", lambda: 1_000_000.0)   # Windows' clock moves in steps of about 15 ms
+    gw = FakeGateway()
+    old = ArcGISStore(gw)
+    stopped = []
+    old.on_lost_lock = lambda: stopped.append(True)
+    ArcGISStore(gw)
+    _beat(old)
+    assert stopped == [True]

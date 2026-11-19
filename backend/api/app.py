@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import signal
 from urllib.parse import quote
 from pathlib import Path
 
@@ -133,6 +135,13 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
         """The system of record did not take a change. Nothing was changed; the operator is told why."""
         logging.getLogger("geoai.api").warning("refused by the system of record: %s", exc)
         return JSONResponse(status_code=503, content={"detail": f"ArcGIS Online did not accept the change, so nothing was changed. {exc}", "layer": exc.layer, "id": exc.fid})
+
+    if hasattr(p.store, "on_lost_lock"):
+        def stop_this_copy():
+            """A newer copy of this hosting service took the one-server lock over during a deploy: shut down cleanly (the lock is not given back)."""
+            logging.getLogger("geoai.api").error("stopping: a newer copy of this service now works against the layers")
+            os.kill(os.getpid(), signal.SIGTERM)
+        p.store.on_lost_lock = stop_this_copy
 
     @app.on_event("shutdown")
     def give_the_lock_back():

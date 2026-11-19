@@ -78,12 +78,9 @@ A free Space has 2 CPUs and 16 GB of memory. It sleeps after 48 hours without vi
 
 ## Redeploying
 
-Render starts the new copy before it stops the old one. The new copy then finds the lock held and refuses to start. The old copy keeps running, so nothing breaks, but the update doesn't take effect. To redeploy:
+Render starts the new copy before it stops the old one. On Render the two copies belong to the same service (Render gives both its `RENDER_SERVICE_ID`), so the new copy takes the lock over and the old copy stops itself at its next heartbeat, within about a minute. A push to GitHub or a changed setting therefore deploys normally: no Suspend step is needed.
 
-1. In Render, choose **Suspend** for the service, then wait about 3 minutes. The old copy hands the lock back when it stops cleanly, and the 150 s timeout covers the rest.
-2. Choose **Resume**, then **Manual Deploy**.
-
-To avoid this, attach a small persistent disk to the service. Render then stops the old copy before it starts the new one, at the cost of a short break on each deploy.
+A server outside this service (your PC, or another host) is still refused while the Render copy runs. On another host that also starts the new copy first, set `GEOAI_LOCK_GROUP` to the same name on every copy of that service for the same behaviour.
 
 ## Checks after the first deploy
 
