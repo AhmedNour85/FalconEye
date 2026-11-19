@@ -51,6 +51,7 @@ TERMS = {
     # events and venues
     "Riyadh Season concert": "حفل موسم الرياض", "National festival evening": "أمسية المهرجان الوطني", "Football final screening": "عرض نهائي كرة القدم",
     "Heritage night": "ليلة التراث", "Graduation ceremony": "حفل التخرج", "An event": "فعالية",
+    "King Fahd International Stadium": "استاد الملك فهد الدولي",
     "King Abdullah Park": "حديقة الملك عبدالله", "Riyadh Front": "واجهة الرياض", "King Abdulaziz Historical Center": "مركز الملك عبدالعزيز التاريخي",
     "King Saud University": "جامعة الملك سعود",
     # roads the demo uses

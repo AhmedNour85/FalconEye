@@ -6,3 +6,7 @@ data/evidence/
 data/backups/
 *.sqlite
 .superpowers/
+
+# QA notes describe open weaknesses; keep them out of the public repository
+qa-reports/
+.ui-check/

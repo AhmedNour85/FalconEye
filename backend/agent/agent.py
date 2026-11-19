@@ -12,6 +12,7 @@ import json
 import logging
 from contextvars import ContextVar
 import re
+import threading
 import uuid
 from dataclasses import dataclass, field
 
@@ -34,6 +35,24 @@ def _M(key: str, **kw) -> str:
 
 APPROVE_RE = re.compile(r"^\s*(yes[,.!\s]*)?(please\s+)?(approve[ds]?|i approve|go ahead|confirm(ed)?|execute|proceed)\b(?P<rest>.*)$", re.I)
 REJECT_RE = re.compile(r"^\s*(no[,.!\s]*)?(please\s+)?(reject(ed)?|deny|denied|decline|cancel that|do not (do|proceed))\b(?P<rest>.*)$", re.I)
+# What may follow the approval word. Each digit run can match only one way (the lookaheads), so a long run of digits cannot make the check slow. Anything else ("Proceed to list the open incidents") makes the message an ordinary question, never an approval.
+TARGET_ONLY = re.compile(r"^(?:[\s,.:;!?،؟\"'«»“”]|APR-\d+(?![0-9])|[0-9٠-٩]+(?![0-9٠-٩])|\b(?:all|it|that|this|them|one|please|now|the|proposal|item|items)\b"
+                         r"|الكل|الجميع|جميعها|جميعا|كلها|هذا|هذه|ذلك|عليه|عليها|عليهم|من فضلك|الآن)*$", re.I)
+AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+# Invisible direction and zero-width marks. Arabic replies wrap ids in U+2066..U+2069, so text copied from a reply carries them.
+INVISIBLE = re.compile("[​-‏‪-‮⁦-⁩﻿]")
+
+
+def approval_words(text: str):
+    """(approve: bool, rest) when the whole message is an approval or a rejection, else None."""
+    if len(text) > 200:                                                   # an approval is short; a long message is never one
+        return None
+    text = INVISIBLE.sub("", text).strip().strip("\"'«»“”").strip()
+    m_ap, m_rj = APPROVE_RE.match(text) or ar.APPROVE_AR.match(text), REJECT_RE.match(text) or ar.REJECT_AR.match(text)
+    m = m_ap or m_rj
+    if not m or not TARGET_ONLY.match(m.group("rest")):
+        return None
+    return bool(m_ap), m.group("rest")
 
 
 def compact(o, depth: int = 0):
@@ -64,6 +83,7 @@ class GeoAIAgent:
     def __init__(self, platform: Platform, client=None):
         self.p = platform
         self.sessions: dict[str, Session] = {}
+        self._sessions_lock = threading.Lock()
         self.client = client
         if client is None and platform.settings.claude_enabled:
             try:
@@ -122,7 +142,7 @@ class GeoAIAgent:
         if preset["needs_key"] and not key and provider != "claude":
             raise providers.PlannerError(f"enter the {preset['label']} API key")
         self.cfg = providers.PlannerConfig(provider, model, base if provider in providers.OPENAI_COMPATIBLE else "", key)
-        for sess in self.sessions.values():
+        for sess in list(self.sessions.values()):
             sess.messages.clear()
             sess.oa.clear()
         return self.cfg.public()
@@ -142,11 +162,16 @@ class GeoAIAgent:
         return self.cfg.provider != "rules"
 
     # -- sessions -------------------------------------------------------------------------
+    MAX_SESSIONS = 300   # every browser tab has its own session; the least recently used ones are dropped
+
     def session(self, sid: str | None = None) -> Session:
         sid = sid or uuid.uuid4().hex[:8]
-        if sid not in self.sessions:
-            self.sessions[sid] = Session(sid, ToolContext(self.p, sid))
-        return self.sessions[sid]
+        with self._sessions_lock:
+            s = self.sessions.pop(sid, None) or Session(sid, ToolContext(self.p, sid))
+            self.sessions[sid] = s   # most recently used last
+            while len(self.sessions) > self.MAX_SESSIONS:
+                self.sessions.pop(next(iter(self.sessions)))
+            return s
 
     def run_tool(self, sid: str, name: str, args: dict | None = None) -> dict:
         """Execute a tool inside a session (used by the guided demo so it shares the same context as the chat)."""
@@ -165,9 +190,9 @@ class GeoAIAgent:
     def _chat(self, s: Session, text: str) -> dict:
         if not text:
             return self._pack(s, ar.MSG["empty"] if AR_REPLY.get() else "Please type a request, e.g. 'Detect possible water leaks in Riyadh.'", [], "system")
-        m_ap, m_rj = APPROVE_RE.match(text) or ar.APPROVE_AR.match(text), REJECT_RE.match(text) or ar.REJECT_AR.match(text)
-        if m_ap or m_rj:
-            return self._approval_turn(s, text, bool(m_ap), (m_ap or m_rj).group("rest"))
+        words = approval_words(text)
+        if words:
+            return self._approval_turn(s, text, *words)
         n_oa = len(s.oa)
         try:
             if self.mode == "claude":
@@ -197,18 +222,53 @@ class GeoAIAgent:
                 "context": {k: v for k, v in st.items() if k.startswith("focus_") or k == "pending_approval"}, "suggestions": self._suggestions(s)}
 
     # -- approvals (human-typed only) -------------------------------------------------------
+    def _approval_targets(self, s: Session, pend: list, approve: bool, rest: str) -> tuple[list, str]:
+        """Which waiting items a typed approval or rejection means: (targets, "") or ([], a question back to the person).
+        Named ids are taken as named. Without an id only what this conversation proposed is taken; anything else is listed and the person names it.
+        'all' over items this conversation did not propose needs the count repeated ('approve all 5'), so nobody approves a list they have not seen."""
+        st, ar_reply = s.ctx.state, AR_REPLY.get()
+        verb = ("موافقة" if approve else "رفض") if ar_reply else ("approve" if approve else "reject")
+        ids = [x.upper() for x in re.findall(r"APR-\d+", rest, re.I)]
+        if ids:
+            missing = [i for i in ids if i not in {a["Approval_ID"].upper() for a in pend}]
+            if missing:
+                return [], (f"{', '.join(missing)} لا ينتظر قرارًا. لم يتغيّر أي شيء." if ar_reply
+                            else f"{', '.join(missing)} is not waiting for a decision. Nothing was changed.")
+            return [a for a in pend if a["Approval_ID"].upper() in ids], ""
+
+        def listing() -> str:
+            return "\n".join(f"- {a['Approval_ID']}: {i18n.to_ar(a['Summary']) if ar_reply else a['Summary']}" for a in pend[:12]) + (
+                f"\n- … +{len(pend) - 12}" if len(pend) > 12 else "")
+
+        if re.search(r"\ball\b", rest, re.I) or ar.ALL_AR.search(rest) or re.search(r"كلها", rest):
+            if all(a["Session_ID"] == s.id for a in pend):          # this conversation proposed every one of them just now
+                st.pop("bulk_confirm", None)
+                return pend, ""
+            count = re.search(r"\d+", rest.translate(AR_DIGITS))
+            held = st.get("bulk_confirm")
+            if count and held and held["approve"] == approve and int(count.group(0)) == len(held["ids"]):
+                st.pop("bulk_confirm", None)
+                return [a for a in pend if a["Approval_ID"] in held["ids"]], ""
+            st["bulk_confirm"] = {"approve": approve, "ids": [a["Approval_ID"] for a in pend]}
+            n = len(pend)
+            if ar_reply:
+                return [], f"ينتظر قرارك {n} بنود:\n{listing()}\nلم يتغيّر أي شيء بعد. لتأكيدها كلها اكتب: {verb} الكل {n}"
+            return [], f"{n} items are waiting for a decision:\n{listing()}\nNothing has changed yet. To {verb} all of them, type: {verb} all {n}"
+        cur = st.get("pending_approval")
+        own = [a for a in pend if a["Approval_ID"] == cur] or [a for a in pend if a["Session_ID"] == s.id][-1:]
+        if own:
+            return own, ""
+        if ar_reply:
+            return [], f"ينتظر قرارك {len(pend)} بنود:\n{listing()}\nلم يتغيّر أي شيء. اكتب «موافقة» أو «رفض» مع رقم البند، مثل: {verb} {pend[0]['Approval_ID']}"
+        return [], f"{len(pend)} item(s) are waiting for a decision:\n{listing()}\nNothing was changed. Name the one you mean, for example: {verb} {pend[0]['Approval_ID']}"
+
     def _approval_turn(self, s: Session, text: str, approve: bool, rest: str) -> dict:
         pend = self.p.approvals.pending()
         if not pend:
             return self._pack(s, ar.MSG["none_waiting"] if AR_REPLY.get() else "There is nothing waiting for approval.", [], "system")
-        m = re.search(r"APR-\d+", rest, re.I)
-        if m:
-            targets = [a for a in pend if a["Approval_ID"].upper() == m.group(0).upper()]
-        elif re.search(r"\ball\b", rest, re.I) or ar.ALL_AR.search(rest):
-            targets = pend
-        else:
-            cur = s.ctx.state.get("pending_approval")
-            targets = [a for a in pend if a["Approval_ID"] == cur] or [pend[-1]]
+        targets, ask = self._approval_targets(s, pend, approve, rest)
+        if ask:
+            return self._pack(s, ask, [], "approval-gate")
         lines, trace = [], []
         for a in targets:
             if approve:
@@ -257,7 +317,7 @@ class GeoAIAgent:
         a = self.p.store.get(S.APPROVALS, approval_id)
         res = self.p.approvals.approve(approval_id, actor=actor)
         if a:
-            for s in self.sessions.values():
+            for s in list(self.sessions.values()):
                 if s.ctx.state.get("pending_approval") == approval_id or a["attrs"]["Session_ID"] == s.id:
                     self._after_action(s, a["attrs"], res)
         return res
@@ -265,12 +325,27 @@ class GeoAIAgent:
     # -- suggestions ----------------------------------------------------------------------
     def _suggestions(self, s: Session) -> list[str]:
         out = self._suggestions_en(s)
-        return [ar.SUGGESTIONS_AR.get(x, x) for x in out] if AR_REPLY.get() else out
+        if not AR_REPLY.get():
+            return out
+        def to_ar(x: str) -> str:
+            m = re.fullmatch(r"(Approve|Reject) (APR-\d+)", x)
+            return f"{ar.SUGGESTIONS_AR[m.group(1)]} {m.group(2)}" if m else ar.SUGGESTIONS_AR.get(x, x)
+        return [to_ar(x) for x in out]
 
     def _suggestions_en(self, s: Session) -> list[str]:
+        """Approve/Reject buttons only for what this conversation proposed, with the id on the button so pressing it acts.
+        Items proposed elsewhere (the crew, another operator) get 'Show pending approvals' instead: a bare approve cannot pick one of them."""
         st = s.ctx.state
-        if self.p.approvals.pending():
-            return ["Approve", "Reject", "Show pending approvals"]
+        pend = self.p.approvals.pending()
+        own = [a for a in pend if a["Approval_ID"] == st.get("pending_approval")] or [a for a in pend if a["Session_ID"] == s.id][-1:]
+        if own:
+            i = own[0]["Approval_ID"]
+            return [f"Approve {i}", f"Reject {i}", "Show pending approvals"]
+        nxt = self._next_steps(s)
+        return (["Show pending approvals"] + nxt[:2]) if pend else nxt
+
+    def _next_steps(self, s: Session) -> list[str]:
+        st = s.ctx.state
         inc = st.get("focus_incident") and self.p.store.get(S.INCIDENTS, st["focus_incident"])
         if inc:
             status = inc["attrs"]["Status"]

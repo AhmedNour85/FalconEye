@@ -56,21 +56,22 @@
 </header>
 
 <section class="kpis" aria-label="Key numbers">
-  <div class="kpi hot"><b id="k-pend">–</b><span>Waiting for your decision</span></div>
-  <div class="kpi"><b id="k-open">–</b><span>Open incidents</span></div>
-  <div class="kpi crit"><b id="k-crit">–</b><span>Critical</span></div>
-  <div class="kpi ok"><b id="k-res">–</b><span>Resolved</span></div>
+  <div class="kpi hot"><b id="k-pend">–</b><span>Waiting for your decision</span><i class="k-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1Z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2"/><path d="m9 14 2 2 4-4"/></svg></i></div>
+  <div class="kpi open"><b id="k-open">–</b><span>Open incidents</span><i class="k-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><path d="M12 7v3.5M12 13h.01"/></svg></i></div>
+  <div class="kpi crit"><b id="k-crit">–</b><span>Critical</span><i class="k-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg></i></div>
+  <div class="kpi ok"><b id="k-res">–</b><span>Resolved</span><i class="k-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg></i></div>
 </section>
 
+<div class="crewwrap">
+    <div class="panel crew crewline" aria-labelledby="crew-h">
+      <div class="crew-top"><h2 id="crew-h">Digital crew</h2><span class="crew-count" id="crew-count"></span><span class="now" id="now" hidden>Idle</span></div>
+      <div class="crew-row"><div class="stack" id="roster" role="group" aria-label="Crew members"></div><div class="ticker" id="ticker"><ul class="activity" id="activity" aria-label="Latest hand-offs"></ul></div><button class="tick-pause" id="tick-pause" type="button" aria-pressed="false" aria-label="Pause hand-offs" title="Pause hand-offs" hidden>❚❚</button></div>
+      <div class="agent-detail" id="agent-detail" hidden></div>
+    </div>
+</div>
 
 <main class="grid">
   <div class="leftcol">
-    <div class="panel crew" aria-labelledby="crew-h">
-      <div class="panel-h"><h2 id="crew-h">Digital crew</h2><span class="now" id="now">Idle</span></div>
-      <div class="tiers" id="roster"></div>
-      <div class="agent-detail" id="agent-detail" hidden></div>
-      <ul class="activity" id="activity" aria-label="Latest hand-offs"></ul>
-    </div>
   <section class="panel alerts" id="alerts" aria-labelledby="alerts-h">
     <div class="panel-h">
       <h2 id="alerts-h">Alerts</h2>

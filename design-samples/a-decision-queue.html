@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision queue · Falcon Eye sample</title>
+<meta name="description" content="Layout sample A for the Falcon Eye Operation page: decisions first, with the selected item and the map beside them.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="samples.css">
+<style>
+  .crewline{display:flex;align-items:center;gap:14px;padding:10px 16px}
+  .crewline .who{font-size:13px;color:var(--mut);white-space:nowrap}
+  .crewline .ticker{flex:1;min-width:0}
+  .grid{display:grid;grid-template-columns:minmax(380px,.95fr) 1.25fr;gap:14px;padding:14px 20px 20px;align-items:start}
+  .side{display:grid;gap:14px;position:sticky;top:12px}
+  .side .map{height:clamp(280px,38vh,420px)}
+  .tabs{display:flex;gap:4px;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .tabs button{border:0;background:none;border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--mut);font-size:13.5px}
+  .tabs button[aria-selected="true"]{background:var(--card);color:var(--tx);box-shadow:var(--sh)}
+  .empty{padding:28px 16px;text-align:center;color:var(--mut)}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;padding:12px 14px}.side{position:static}.crewline .ticker{display:none}.crewline{flex-wrap:wrap;gap:8px}.crewline .stack{flex-wrap:wrap;row-gap:4px;padding-inline-start:7px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#queue">Skip to decisions</a>
+<div id="bar"></div><div id="head"></div>
+<div class="wrap" style="padding-top:14px"><section class="kpis" id="kpis" aria-label="Key numbers, press one to filter the list"></section></div>
+<div class="wrap" style="padding-top:12px"><section class="panel crewline" aria-label="Digital crew">
+  <span class="who"><b style="color:var(--tx)">Digital crew</b> · 11 agents, 2 working</span><span class="stack" id="stack"></span><div class="ticker" id="ticker"></div></section></div>
+<main class="grid">
+  <section class="panel" aria-labelledby="q-h">
+    <div class="panel-h"><h2 id="q-h">Alerts</h2><div class="tabs" role="tablist"><button role="tab" data-tab="decision" aria-selected="true">Needs decision</button><button role="tab" data-tab="open" aria-selected="false">All</button></div><span class="count" id="count"></span></div>
+    <ul class="queue" id="queue" role="listbox" aria-label="Alerts"></ul>
+  </section>
+  <div class="side">
+    <section class="panel" id="detail" aria-live="polite" aria-label="Selected alert"></section>
+    <section class="panel map" id="map"></section>
+    <section class="panel"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input aria-label="Ask the crew" placeholder="Ask the crew… e.g. “Which incident needs attention first?”"><button class="btn primary">Ask</button></form></section>
+  </div>
+</main>
+<script src="samples.js"></script>
+<script>
+  let f = "decision", sel = "INC-0034";
+  $("#bar").innerHTML = sampleBar("A · Decision queue"); $("#head").innerHTML = header();
+  $("#stack").innerHTML = CREW.map(c => av(c.id, true)).join("");
+  $("#ticker").innerHTML = HANDOFFS.slice(0, 3).map(([a, d]) => `<span><b>${crew(a).name}</b> ${d}</span>`).join("");
+  function draw() {
+    $("#kpis").innerHTML = kpis(f);
+    $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === (f === "decision" ? "decision" : "open")));
+    const list = filtered(f);
+    $("#count").textContent = list.length + (list.length === 1 ? " item" : " items");
+    $("#queue").innerHTML = list.length ? list.map(i => row(i, sel)).join("") : `<li class="empty">Nothing here.</li>`;
+    $("#detail").innerHTML = detail(sel);
+    $("#map").innerHTML = mapSVG(sel) + `<div class="map-layers">${mapLayers()}</div>` + mapTag();
+  }
+  const pick = id => { sel = id; draw(); };
+  wire(document.body, pick);
+  $("#kpis").addEventListener("click", e => { const k = e.target.closest("[data-filter]"); if (k) { f = k.dataset.filter; draw(); } });
+  $$(".tabs button").forEach(b => b.onclick = () => { f = b.dataset.tab; draw(); });
+  draw();
+</script>
+</body>
+</html>

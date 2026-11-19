@@ -346,6 +346,12 @@ class NetworkModel:
         for k, (full, _, _) in RN.LOCATIONS.items():
             if q in (k.lower(), full.lower().replace(" ", "")) or (q and q in full.lower().replace(" ", "")):
                 return self.zones[k]
+        for k, (full, lon, lat, other) in RN.EVENT_VENUES.items():          # a venue only: its nearest junction, not a demand zone
+            names = [k, full, *other]
+            if q and any(q == n.lower().replace(" ", "") for n in names):
+                node = self._nearest(lon, lat)
+                lon2, lat2 = self.node_ll(node)
+                return node if ((lon2 - lon) * 101.0) ** 2 + ((lat2 - lat) * 110.6) ** 2 <= 3.0 ** 2 else None   # within 3 km, or the network does not reach it
         return None
 
 

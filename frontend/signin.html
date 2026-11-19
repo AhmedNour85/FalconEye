@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in · Falcon Eye</title>
+<link rel="icon" type="image/svg+xml" href="/falcon-eye.svg">
+<script src="theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="nccc.css">
+<link rel="stylesheet" href="rtl.css">
+<link rel="stylesheet" href="theme.css">
+<script src="i18n.js"></script>
+<style>
+  .si{flex:1;display:grid;place-items:center;padding:24px 16px}
+  .si-card{width:min(420px,100%);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);padding:28px 26px}
+  .si-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .si-brand b{font-size:20px;letter-spacing:.06em}
+  .si h1{font-size:20px;margin:0 0 6px}
+  .si p{margin:0 0 18px;color:var(--mut);font-size:14.5px}
+  .si label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+  .si input{width:100%;box-sizing:border-box;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card);color:var(--tx);font:inherit}
+  .si input:focus{outline:none;border-color:#1b8354;box-shadow:0 0 0 3px #1b835433}
+  .si .btn{width:100%;min-height:44px;margin-top:14px;justify-content:center}
+  .si-err{margin:12px 0 0;padding:9px 12px;border-radius:9px;background:#fef3f2;border:1px solid #fecdca;color:#b42318;font-size:14px}
+  .si-note{margin-top:16px;font-size:13px;color:var(--mut)}
+  html[data-theme="dark"] .si-err{background:#3d1d1a;border-color:#7a2e26;color:#ff9a8f}
+</style>
+</head>
+<body>
+<main class="si">
+  <section class="si-card" aria-labelledby="si-h">
+    <div class="si-brand"><svg viewBox="0 0 24 24" class="logo" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/><circle cx="12" cy="11" r="1.5" fill="#1b8354" stroke="none"/><path d="M12 17.5c0 2-.8 3.2-2.6 4.2"/></svg><b>Falcon Eye</b></div>
+    <h1 id="si-h">Sign in to the demo</h1>
+    <p>Enter the access code you were given. It decides what you can do: look only, or also approve.</p>
+    <form id="si-form" novalidate>
+      <label for="si-code">Access code</label>
+      <input id="si-code" name="code" type="password" autocomplete="current-password" required aria-describedby="si-err" spellcheck="false">
+      <button class="btn primary" type="submit" id="si-go">Sign in</button>
+      <p class="si-err" id="si-err" role="alert" hidden></p>
+    </form>
+    <p class="si-note">This demo works on live ArcGIS Online data. Approvals change real records.</p>
+  </section>
+</main>
+<script>
+  const T = window.I18N ? I18N.T : s => s;
+  // only a path on this site may be the page to return to
+  const next = (() => { const n = new URLSearchParams(location.search).get("next") || "/index.html"; return /^\/(?!\/)/.test(n) ? n : "/index.html"; })();
+  const err = document.getElementById("si-err"), go = document.getElementById("si-go"), code = document.getElementById("si-code");
+  const say = t => { err.textContent = T(t); err.hidden = false; code.setAttribute("aria-invalid", "true"); code.focus(); };
+  document.getElementById("si-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!code.value.trim()) return say("Enter your access code.");
+    go.disabled = true; go.textContent = T("Signing in…"); err.hidden = true;
+    try {
+      const r = await fetch("/api/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: code.value.trim() }) });
+      if (r.ok) { location.replace(next); return; }
+      say(r.status === 429 ? "Too many wrong access codes. Wait a few minutes and try again." : "That access code is not valid.");
+    } catch (x) { say("Can't reach the server. Check your connection and try again."); }
+    go.disabled = false; go.textContent = T("Sign in");
+  });
+  code.focus();
+</script>
+</body>
+</html>

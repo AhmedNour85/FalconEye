@@ -197,6 +197,8 @@ class SimEngine:
     EVENTS = (("Riyadh Season concert", "KAFD"), ("National festival evening", "King Abdullah Park"), ("Football final screening", "Riyadh Front"),
               ("Heritage night", "King Abdulaziz Historical Center"), ("Graduation ceremony", "King Saud University"))
 
+    LOADED_VC = 0.85        # volume / capacity at 08:00 from which a section counts as busy (the "heavy" class on the traffic map)
+
     def _wide_section(self, min_lanes: int = 3) -> dict:
         """A motorway or arterial section with at least this many lanes, on the named road with the fewest open incidents and earlier events."""
         from backend.mobility import sources
@@ -204,6 +206,16 @@ class SimEngine:
         roads = [r for r in sources.load_network()[0] if r["road_class"] in ("motorway", "arterial") and int(r["lanes"]) >= min_lanes and r.get("corridor")]
         if not roads:
             raise ValueError("the road network has no motorway or arterial section wide enough for this event")
+        # a section that is busy at the morning peak, so the simulated closure or crash has an impact worth showing (a quiet section gives an
+        # empty strategy table); without the traffic model the section is chosen as before
+        from backend.services import i18n
+
+        loads = {r["id"]: road_peak_load(r["id"]) for r in roads}
+        loaded = [r for r in roads if (loads[r["id"]] or 0) >= self.LOADED_VC and not r["corridor"].lower().startswith("unnamed")]
+        loaded = [r for r in loaded if r["corridor"] in i18n.TERMS] or loaded      # a road with an Arabic name reads properly in both languages
+        if loaded:
+            corridor = self.least_busy(sorted({r["corridor"] for r in loaded}))
+            return max((r for r in loaded if r["corridor"] == corridor), key=lambda r: (loads[r["id"]], r["id"]))
         corridor = self.least_busy(sorted({r["corridor"] for r in roads}))
         return self.rng.choice(sorted((r for r in roads if r["corridor"] == corridor), key=lambda r: r["id"]))
 
@@ -462,3 +474,19 @@ class SimEngine:
                    "land_use": "Structure is a permitted temporary works area; no violation found."}[cat]
             status = "Rejected"
         return {"observation": obs, "status": status, "gps": gps, "worker_id": wo["attrs"]["Assigned_Worker"]}
+
+
+def settle_sensor(store: Store, sensor_id: str, hours: int = 4) -> int:
+    """The SYNTHETIC sensor on a pipe whose incident is closed reads normal again: its last `hours` readings take the values of the same hours a day
+    earlier (the repair fixed the pipe, or the transient the field found has passed). Without this, the next scan would raise the same leak again.
+    A later Simulate > Water leak still injects a new drop from those reference readings. Returns the number of readings changed."""
+    rows = sorted((f for f in store.all(S.SENSORS) if f["attrs"]["Sensor_ID"] == sensor_id), key=lambda f: f["attrs"]["Timestamp"])
+    if len(rows) <= hours + 24:
+        return 0
+    n = 0
+    for i, r in enumerate(rows[-hours:]):
+        ref = rows[len(rows) - hours - 24 + i]["attrs"]
+        if (r["attrs"]["Pressure"], r["attrs"]["Flow"]) != (ref["Pressure"], ref["Flow"]):
+            store.update(S.SENSORS, r["id"], Pressure=ref["Pressure"], Flow=ref["Flow"], Anomaly_Flag="No")
+            n += 1
+    return n

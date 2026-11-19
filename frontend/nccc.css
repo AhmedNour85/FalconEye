@@ -42,6 +42,13 @@ select{padding-right:8px;max-width:230px}
 .kpi b{font-size:30px;line-height:1;font-variant-numeric:tabular-nums}.kpi span{color:var(--mut);font-size:13px}
 .kpi.hot{border-color:#1b835477;background:linear-gradient(135deg,#f0faf5,var(--card))}.kpi.hot b{color:#1b8354}
 .kpi.crit b{color:var(--crit)}.kpi.ok b{color:var(--ok)}
+/* clearer text and one icon per card; the card keeps its size (the icon fits inside the number's height) */
+.kpi{position:relative}
+.kpi b{font-weight:700;letter-spacing:-.01em}
+.kpi span{font-size:14px;font-weight:500;color:#344054}
+.k-ic{--k:#475467;margin-inline-start:auto;align-self:center;flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--k);background:color-mix(in srgb,var(--k) 12%,transparent)}
+.k-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi.hot .k-ic{--k:#1b8354}.kpi.open .k-ic{--k:#1570ef}.kpi.crit .k-ic{--k:#d92d20}.kpi.ok .k-ic{--k:#1b8354}
 
 /* layout */
 .grid{flex:1;display:grid;grid-template-columns:minmax(360px,0.9fr) 1.4fr;gap:14px;padding:14px 20px;min-height:0}
@@ -123,6 +130,57 @@ details.how summary{cursor:pointer;color:var(--acc2);font-size:13.5px}
 .activity{list-style:none;margin:0;padding:0 14px 12px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#4b5563}
 .activity li{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.activity b{color:color-mix(in srgb,var(--ac,#1b8354) 45%,#111827)}
 .activity:empty::after{content:"No hand-offs yet. Turn on Autopilot or press Scan now.";color:var(--mut)}
+/* the crew as one compact line (layout sample A): count, a row of faces, the latest hand-offs */
+.crewwrap{padding:14px 20px 0}
+.crewline{padding:10px 14px;display:grid;gap:8px}
+/* across the whole page on a wide screen: the count on the left, the faces and the moving hand-offs beside it */
+@media (min-width:1101px){.crewline{grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:18px}.crew-top{flex-wrap:nowrap;white-space:nowrap}.crew-top .now{margin-inline-start:14px;padding-inline-start:14px;border-inline-start:1px solid var(--line)}.crewline .agent-detail{grid-column:1/-1}}
+.crew-top{display:flex;align-items:baseline;gap:4px;flex-wrap:wrap}
+.crew-top h2{font-size:15px;margin:0}
+.crew-count{color:var(--tx);font-size:14px}
+.crew-count b{font-weight:700;font-variant-numeric:tabular-nums}.crew-count b.w{color:#1b8354}
+.crew-top .now{margin-inline-start:auto}
+.crew-row{display:flex;align-items:center;gap:14px;min-width:0}
+.crewline .stack{display:flex;flex:0 0 auto;padding-inline-start:6px}
+.crewline .ag{display:block;position:relative;background:none;border:0;padding:0;border-radius:50%;margin-inline-start:-6px;min-width:0;transition:transform .15s}
+.crewline .ag:hover,.crewline .ag[aria-expanded="true"]{transform:translateY(-2px);z-index:2}
+.crewline .ag[aria-expanded="true"] .av{box-shadow:0 0 0 2px #ffffff,0 0 0 4px var(--ac)}
+.crewline .ag.active{border:0;box-shadow:none;transform:translateY(-3px);z-index:3}
+.crewline .ag.working::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #1b8354;border-top-color:transparent;animation:crewring 3s linear infinite;pointer-events:none}
+@keyframes crewring{to{transform:rotate(360deg)}}
+/* neon: the turning ring glows */
+.crewline .ag.working::after{border-color:#12b76a;border-top-color:transparent;box-shadow:0 0 6px 1px rgba(18,183,106,.75),inset 0 0 4px rgba(18,183,106,.45)}
+.crewline .ag.working{z-index:1}
+/* hand-offs: one line that scrolls past by itself when it does not fit; hover, keyboard focus or the pause button stops it */
+.crewline .ticker{flex:1;min-width:0;overflow:hidden}
+.crewline .ticker.run{-webkit-mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent);mask-image:linear-gradient(90deg,transparent,#000 18px,#000 calc(100% - 18px),transparent)}
+.crewline .activity{display:flex;flex-direction:row;gap:0;width:max-content;padding:0;white-space:nowrap}
+.crewline .ticker:not(.run) .activity{width:auto;overflow:hidden;text-overflow:ellipsis;display:block}
+.crewline .activity li{display:inline;padding-inline-end:22px;position:relative}
+.crewline .activity li::after{content:"·";position:absolute;inset-inline-end:8px;color:var(--mut)}
+.crewline .ticker.run .activity{animation:crewticker var(--dur,30s) linear infinite}
+.crewline .ticker.run:hover .activity,.crewline .ticker.run:focus-within .activity,.crewline .ticker.paused .activity{animation-play-state:paused}
+@keyframes crewticker{to{transform:translateX(-50%)}}
+.tick-pause{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--mut);font-size:10px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.tick-pause:hover{border-color:var(--acc);color:var(--tx)}
+/* the agent card floats under the pressed face */
+.crewline{position:relative}
+.crewline .agent-detail{position:absolute;top:calc(100% + 8px);z-index:45;margin:0;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh);font-size:13.5px;animation:adpop .14s ease-out}
+.crewline .agent-detail::before{content:"";position:absolute;top:-6px;left:calc(var(--tip,40px) - 6px);width:10px;height:10px;background:inherit;border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+@keyframes adpop{from{opacity:0;transform:translateY(-4px)}}
+.ad-h{display:flex;align-items:center;gap:10px}
+.ad-h b{display:block;line-height:1.2;color:color-mix(in srgb,var(--ac,#1b8354) 55%,#111827)}.ad-h small{display:block;color:var(--mut);font-size:12.5px}
+.ad-st{margin-inline-start:auto;font-size:12px;color:var(--mut);white-space:nowrap}.ad-st.on{color:#1b8354;font-weight:600}
+.ad-x{border:0;background:none;color:var(--mut);font-size:20px;line-height:1;cursor:pointer;padding:0 2px;border-radius:6px}.ad-x:hover{color:var(--tx)}
+.ad-st+.ad-x{margin-inline-start:6px}.ad-h>div+.ad-x{margin-inline-start:auto}
+.crewline .agent-detail p{margin:8px 0 0}
+.ad-last span,.ad-tools span{color:var(--mut)}
+@media (prefers-reduced-motion:reduce){.crewline .agent-detail{animation:none}}
+@media (max-width:640px){.crew-row{flex-wrap:wrap}.crewline .ticker{flex-basis:calc(100% - 40px)}}
+/* reduced motion: nothing moves; every hand-off is listed instead */
+@media (prefers-reduced-motion:reduce){.crewline .ag.working::after{animation:none}
+  .crewline .ticker.run{-webkit-mask-image:none;mask-image:none}.crewline .ticker.run .activity{animation:none;width:auto;flex-wrap:wrap;white-space:normal}
+  .crewline .activity li[aria-hidden="true"]{display:none}.tick-pause{display:none!important}}
 
 /* ask */
 .askbox{padding:12px;display:flex;flex-direction:column;gap:10px}
@@ -140,8 +198,8 @@ details.how summary{cursor:pointer;color:var(--acc2);font-size:13.5px}
   .tiers{grid-template-columns:repeat(2,1fr)}.tiers .ag,.tiers .ag.exec,.tiers .ag.ops{grid-column:span 1}
 }
 @media (max-width:640px){
-  .kpis{grid-template-columns:1fr 1fr;padding:12px 14px 0}.grid{padding:12px 14px}.top{padding:12px 14px}
-  .kpi{flex-direction:column;gap:2px}.mapbox{height:320px}.panel-h{flex-wrap:wrap}
+  .kpis{grid-template-columns:1fr 1fr;padding:12px 14px 0}.crewwrap{padding:12px 14px 0}.grid{padding:12px 14px}.top{padding:12px 14px}
+  .kpi{flex-direction:column;gap:2px}.k-ic{position:absolute;inset-inline-end:10px;top:10px;width:28px;height:28px}.k-ic svg{width:16px;height:16px}.mapbox{height:320px}.panel-h{flex-wrap:wrap}
   .tools select{max-width:100%;flex:1 1 100%}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

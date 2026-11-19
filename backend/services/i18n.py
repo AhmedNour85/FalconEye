@@ -173,7 +173,9 @@ RULES: list[tuple[str, str]] = [
     (r"^status (.+)$", lambda m: f"الحالة {_STATUS_AR.get(m.group(1)) or TERMS.get(m.group(1), m.group(1))}"),
     (r"urgency = risk score \(calibrated by verified outcomes\) \+ ageing \(max \+(\d+)\)", r"الاستعجال = درجة الخطورة (معايرة بالنتائج المؤكدة) + عامل التقادم (حتى +\1)"),
     # street names: Arabic puts the type first
-    (r"\b((?:[A-Z][A-Za-z']+ )+)Street\b(?!\s+[A-Za-z])", r"شارع \1"), (r"\b((?:[A-Z][A-Za-z']+ )+)Road\b(?!\s+[A-Za-z])", r"طريق \1"),
+    # (lower-case connectors such as "bin" belong to the name: "Imam Saud bin Faisal Road")
+    (r"\b((?:[A-Z][A-Za-z']+ (?:(?:bin|bint|ibn|abu|al) )*)+)Street\b(?!\s+[A-Za-z])", r"شارع \1"),
+    (r"\b((?:[A-Z][A-Za-z']+ (?:(?:bin|bint|ibn|abu|al) )*)+)Road\b(?!\s+[A-Za-z])", r"طريق \1"),
     (r"^([\d]+) linked detection\(s\); confidence ([\d.]+)$", r"\1 رصد(ات) مرتبطة؛ الثقة \2"),
     (r"^incident (\S+) already has active work order (\S+)$", r"الحادثة \1 لديها أمر عمل نشط بالفعل \2"),
     (r"^incident (\S+) is (.+)$", r"الحادثة \1 حالتها: \2"),
@@ -342,7 +344,9 @@ RULES += [
 RULES += _mob.RULES
 _COMPILED = [(re.compile(p, re.S), r) for p, r in RULES]
 # a road that is not in the vocabulary keeps its name; the word "Road" or "Street" goes before it, as it is written in Arabic
-_ROAD_RE = re.compile(r"(?<![\w-])((?:[A-Z][\w'’.-]*)(?: [A-Z][\w'’.-]*){0,4}) (Road|Street)(?![\w])(?! [A-Z])")
+_ROAD_RE = re.compile(r"(?<![\w-])((?:[A-Z][\w'’.-]*)(?: (?:(?:bin|bint|ibn|abu|al) )*[A-Z][\w'’.-]*){0,5}) (Road|Street)(?![\w])(?! [A-Z])")
+# a road name kept in English after the Arabic road word: the vocabulary must not translate words inside it ("Faisal" is also a crew member's name)
+_KEPT_ROAD_RE = re.compile(r"(?:طريق|شارع) ((?:[A-Z][\w'’.-]*)(?: (?:bin|bint|ibn|abu|al|[A-Z][\w'’.-]*))*)")
 _ROAD_WORD = {"Road": "طريق", "Street": "شارع"}
 
 
@@ -398,8 +402,10 @@ def to_ar(text: str, terms_only: bool = False) -> str:
     for rx, rep in _COMPILED:
         out = rx.sub(rep, out)
     out = _ROAD_RE.sub(_road, out)
-    # keep "High/Low ..." words out of sentences; translate the rest of the vocabulary
-    out = _TERM_RE.sub(lambda m: m.group(0) if m.group(0) in _SEV_ONLY else TERMS[m.group(0)], out)
+    # keep "High/Low ..." words out of sentences; translate the rest of the vocabulary, but not inside a road name kept in English
+    kept = [m.span(1) for m in _KEPT_ROAD_RE.finditer(out)]
+    inside = lambda m: any(a <= m.start() < b and (m.start(), m.end()) != (a, b) for a, b in kept)   # noqa: E731  a word inside the name, not the whole name
+    out = _TERM_RE.sub(lambda m: m.group(0) if m.group(0) in _SEV_ONLY or inside(m) else TERMS[m.group(0)], out)
     # ids such as SEN-W-001 or INC-0042 are isolated so the hyphens do not reorder them inside right-to-left text
     return _ID_RE.sub(lambda m: "⁦" + m.group(0) + "⁩", out) if _ARABIC_RE.search(out) else out
 

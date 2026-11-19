@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Map with alert sheet · Falcon Eye sample</title>
+<meta name="description" content="Layout sample I: the map across the page, with the alerts in a sheet over its right side that can be hidden.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../frontend/nccc.css"><link rel="stylesheet" href="../frontend/mobility.css"><link rel="stylesheet" href="../frontend/theme.css">
+<link rel="stylesheet" href="live-samples.css">
+<style>
+  .stage{position:relative;margin:14px 20px 0;height:calc(100vh - 250px);min-height:520px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+  .stage #map{position:absolute;inset:0}
+  .sheet{position:absolute;top:12px;right:12px;bottom:12px;width:min(420px,46%);display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);z-index:5}
+  .sheet .feed{flex:1;min-height:0}
+  .sheet[data-collapsed="true"]{bottom:auto;min-height:0}
+  .sheet[data-collapsed="true"] .feed{display:none}
+  .crewchip{position:absolute;left:56px;top:12px;z-index:4;display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);padding:6px 10px;max-width:calc(100% - 520px)}
+  .crewchip .now-line{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .crewchip .now-line b{color:#1b8354}
+  .crewchip .faces{display:flex}.crewchip .faces .av{margin-inline-start:-6px}.crewchip .faces .av:first-child{margin-inline-start:0}
+  .below{display:grid;grid-template-columns:1fr;gap:14px;padding:14px 20px 20px}
+  @media (max-width:900px){
+    .stage{height:auto;min-height:0;overflow:visible;border:0;margin:12px 14px 0}
+    .stage #map{position:relative;height:340px;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+    .sheet{position:static;width:auto;margin-top:12px;box-shadow:none}
+    .crewchip{position:static;max-width:none;margin-bottom:12px;box-shadow:none}
+    .below{padding:12px 14px}
+  }
+</style>
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+<a class="skip" href="#alerts">Skip to alerts</a>
+<div id="head"></div>
+<section class="kpis" id="kpis" aria-label="Key numbers"></section>
+<main>
+  <div class="stage">
+    <div class="crewchip" role="group" aria-label="Digital crew: 11 agents, 2 working"><span class="faces" id="faces"></span><span class="now-line" id="nowline"></span></div>
+    <div id="map" role="img" aria-label="Map of open incidents in Riyadh"></div>
+    <section class="sheet panel alerts" id="alerts" aria-labelledby="alerts-h" data-collapsed="false">
+      <div class="panel-h"><h2 id="alerts-h">Alerts</h2>
+        <div class="tabs" role="group" aria-label="Filter alerts"><button id="t-action" type="button" aria-pressed="true">Needs action</button><button id="t-all" type="button" aria-pressed="false">All</button></div>
+        <button class="link" id="collapse" type="button" aria-expanded="true" aria-controls="feed">Hide</button></div>
+      <div class="feed" id="feed" aria-live="polite"></div>
+    </section>
+  </div>
+  <div class="below">
+    <div class="panel askbox"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input type="text" name="q" autocomplete="off" placeholder="Ask the crew… e.g. “Which incident needs attention first?”" aria-label="Ask the crew"><button class="btn primary" type="submit">Ask</button></form></div>
+    <section class="feeds" id="feeds" aria-label="Live data feeds" style="padding:0"></section>
+  </div>
+</main>
+<script src="live-samples.js"></script>
+<script>
+  S.flow = true;
+  $("#head").outerHTML = HEADER; sampleBar("Sample I · Map with alert sheet");
+  $("#faces").innerHTML = AGENTS.map(a => avatar(a.id, true)).join("");
+  $("#nowline").innerHTML = `<b>${AG.noura.name}</b> ${WORKING.noura}`;
+  $("#feeds").innerHTML = feeds();
+  function draw() {
+    $("#kpis").innerHTML = kpis();
+    $("#t-action").setAttribute("aria-pressed", S.tab === "action"); $("#t-all").setAttribute("aria-pressed", S.tab === "all");
+    renderFeed($("#feed"));
+  }
+  $("#t-action").onclick = () => { S.tab = "action"; draw(); }; $("#t-all").onclick = () => { S.tab = "all"; draw(); };
+  $("#collapse").onclick = e => { const s = $("#alerts"), c = s.dataset.collapsed !== "true"; s.dataset.collapsed = c; e.target.setAttribute("aria-expanded", !c); e.target.textContent = c ? "Show" : "Hide"; };
+  wire(document.body, draw); draw(); initMap();
+</script>
+</body>
+</html>

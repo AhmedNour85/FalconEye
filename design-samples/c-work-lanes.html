@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work lanes · Falcon Eye sample</title>
+<meta name="description" content="Layout sample C for the Falcon Eye Operation page: every incident in a lane by where it stands, with the map and the crew in a side rail.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="samples.css">
+<style>
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:14px;padding:14px 20px 20px;align-items:start}
+  .lanes{display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr;gap:12px;align-items:start}
+  .lane{background:var(--card2);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;gap:10px;min-width:0}
+  .lane-h{display:flex;align-items:center;gap:8px;padding:2px 4px}
+  .lane-h h2{font-size:14px}.lane-h span{margin-inline-start:auto;color:var(--mut);font-size:13px;font-variant-numeric:tabular-nums}
+  .lane.decide{background:var(--acc-soft);border-color:color-mix(in srgb,var(--acc) 35%,transparent)}
+  .tile{background:var(--card);border:1px solid var(--line);border-inline-start:4px solid var(--c);border-radius:10px;padding:10px 12px;cursor:pointer;transition:transform .12s var(--ease),box-shadow .15s}
+  .tile:hover{transform:translateY(-2px);box-shadow:var(--sh)}
+  .tile[aria-selected="true"]{box-shadow:0 0 0 2px var(--acc)}
+  .tile .t{font-weight:600;line-height:1.3}
+  .tile .m{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-top:6px}
+  .tile .acts{display:flex;gap:6px;margin-top:10px}
+  .rail{display:grid;gap:14px;position:sticky;top:12px}
+  .rail .map{height:260px}
+  .roster{list-style:none;margin:0;padding:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .roster li{display:flex;gap:8px;align-items:center;padding:6px;border-radius:8px;font-size:13px;min-width:0}
+  .roster li:hover{background:var(--card2)}
+  .roster small{display:block;color:var(--mut);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  dialog{border:0;border-radius:var(--r);padding:0;width:min(560px,calc(100vw - 28px));background:var(--card);color:var(--tx);box-shadow:0 20px 50px rgba(0,0,0,.3)}
+  dialog::backdrop{background:rgba(10,20,15,.45)}
+  .x{position:absolute;inset-inline-end:10px;top:10px}
+  @media (max-width:1200px){.lanes{grid-template-columns:1fr 1fr}}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}.rail{position:static}}
+  @media (max-width:640px){.lanes{grid-template-columns:1fr}.grid{padding:12px 14px}.tile .acts .btn{flex:1;min-height:44px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#lanes">Skip to the lanes</a>
+<div id="bar"></div><div id="head"></div>
+<div class="wrap" style="padding-top:14px"><section class="kpis" id="kpis" aria-label="Key numbers"></section></div>
+<main class="grid">
+  <section class="lanes" id="lanes" aria-label="Incidents by where they stand"></section>
+  <aside class="rail">
+    <section class="panel map" id="map"></section>
+    <section class="panel"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input aria-label="Ask the crew" placeholder="Ask the crew…"><button class="btn primary">Ask</button></form></section>
+    <section class="panel" aria-labelledby="c-h"><div class="panel-h"><h2 id="c-h">Digital crew</h2><span class="count">2 working</span></div><ul class="roster" id="roster"></ul></section>
+  </aside>
+</main>
+<dialog id="dlg" aria-label="Alert"><button class="iconbtn x" aria-label="Close" onclick="dlg.close()"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div id="dlg-body"></div></dialog>
+<script src="samples.js"></script>
+<script>
+  let sel = "INC-0034";
+  $("#bar").innerHTML = sampleBar("C · Work lanes"); $("#head").innerHTML = header();
+  $("#roster").innerHTML = CREW.map(c => `<li>${av(c.id, true)}<span style="min-width:0"><b>${c.name}</b><small>${WORKING.includes(c.id) ? "Working…" : c.role}</small></span></li>`).join("");
+  const LANES = [["decision", "Needs your decision", "decide"], ["field", "In the field", ""], ["verify", "Ready to verify", ""], ["info", "For information", ""]];
+  const tile = i => `<article class="tile" role="option" tabindex="0" data-id="${i.id}" aria-selected="${sel === i.id}" style="--c:${SEV_C[i.sev]}">
+    <div class="t">${i.title} · ${i.place}</div><div class="m"><span class="sev ${i.sev}">${i.sev}</span>${av(i.agent, true)}<span>${i.ago} ago</span>${i.apr ? `<span>${i.apr}</span>` : ""}</div>
+    ${i.kind === "decision" ? `<div class="acts"><button class="btn sm primary" data-approve="${i.apr}">Approve</button><button class="btn sm" data-reject="${i.apr}">Reject</button></div>` : ""}</article>`;
+  function draw() {
+    $("#kpis").innerHTML = kpis("");
+    $("#lanes").innerHTML = LANES.map(([k, name, cls]) => { const l = ITEMS.filter(i => i.kind === k);
+      return `<div class="lane ${cls}" role="listbox" aria-label="${name}"><div class="lane-h"><h2>${name}</h2><span>${l.length}</span></div>${l.map(tile).join("")}</div>`; }).join("");
+    $("#map").innerHTML = mapSVG(sel) + mapTag();
+  }
+  wire(document.body, id => { sel = id; draw(); $("#dlg-body").innerHTML = detail(id); if (!dlg.open) dlg.showModal(); });
+  draw();
+</script>
+</body>
+</html>

@@ -109,6 +109,12 @@ def close_incident(store: Store, p: dict) -> dict:
     if a["Category"] == "mobility":
         _close_mobility_records(store, inc, new)
     else:                                       # a repair's planned closure is over when its incident is closed
+        if a["Category"] == "water":
+            from backend.services.simulation import settle_sensor
+            for did in [d for d in (a.get("Detection_IDs") or "").split(",") if d]:
+                det = store.get(S.DETECTIONS, did)
+                if det and det["attrs"].get("Related_Asset_ID", "").startswith("SEN-W-"):
+                    settle_sensor(store, det["attrs"]["Related_Asset_ID"])
         for c in store.query(S.CLOSURES, Incident_ID=p["incident_id"]):
             if c["attrs"].get("Status") == "Approved":
                 store.update(S.CLOSURES, c["id"], Status="Ended", Updated=utcnow())

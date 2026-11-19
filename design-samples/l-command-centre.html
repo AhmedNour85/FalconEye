@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Command centre · Falcon Eye sample</title>
+<meta name="description" content="Layout sample L: dark by default, a compact alert list beside a large map, the selected alert over the map, and Ctrl+K to jump to any alert.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/dark/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="ui-kit.js"></script>
+<script>ukTheme(true)</script>
+<link rel="stylesheet" href="ui-kit.css">
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body class="min-h-screen">
+<a href="#list-h" class="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground">Skip to alerts</a>
+<header class="flex h-14 items-center gap-2 border-b px-3 sm:gap-3 sm:px-4">
+  <h1 class="flex items-center gap-2 font-semibold" id="brand">Falcon Eye</h1>
+  <button type="button" id="cmd-open" class="ml-2 hidden h-9 w-72 items-center gap-2 rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:inline-flex" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
+    <span aria-hidden="true">⌕</span>Jump to an alert…<kbd class="ml-auto rounded border bg-background px-1.5 text-[11px] font-medium">Ctrl K</kbd></button>
+  <div class="ml-auto" id="tools"></div>
+</header>
+<div class="flex flex-wrap items-center gap-x-6 gap-y-2 border-b px-4 py-2 text-sm" id="strip" aria-label="Key numbers and crew"></div>
+<main class="grid grid-cols-1 lg:h-[calc(100vh-148px)] lg:min-h-[520px] lg:grid-cols-[380px_minmax(0,1fr)]">
+  <section class="flex min-h-0 flex-col border-b lg:border-b-0 lg:border-r" aria-labelledby="list-h">
+    <div class="flex items-center gap-3 px-4 py-3"><h2 id="list-h" tabindex="-1" class="font-semibold">Alerts</h2>
+      <div class="ml-auto inline-flex h-8 items-center rounded-md bg-muted p-1 text-muted-foreground" role="group" aria-label="Filter alerts"><button type="button" id="f-action" class="rounded-sm px-2.5 py-0.5 text-xs font-medium">Needs action</button><button type="button" id="f-all" class="rounded-sm px-2.5 py-0.5 text-xs font-medium">All</button></div></div>
+    <div class="min-h-0 flex-1 overflow-auto px-2 pb-3" id="list"></div>
+  </section>
+  <section class="relative min-h-[420px]" aria-label="Map and the selected alert">
+    <div id="map" class="absolute inset-0" role="img" aria-label="Map of open incidents in Riyadh"></div>
+    <div id="sel" class="absolute bottom-3 left-3 right-3 z-10 max-h-[70%] overflow-auto rounded-lg border bg-card/95 p-4 shadow-xl backdrop-blur sm:right-auto sm:w-[440px]" aria-live="polite"></div>
+    <form class="absolute right-3 top-3 z-10 hidden w-[min(380px,45%)] gap-2 rounded-lg border bg-card/95 p-2 shadow-lg backdrop-blur sm:flex" onsubmit="event.preventDefault();ukToast('Sample only: the crew would answer here.')"><label class="sr-only" for="q">Question for the crew</label>
+      <input id="q" name="q" autocomplete="off" placeholder="Ask the crew…" class="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button type="submit" class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Ask</button></form>
+  </section>
+</main>
+<dialog id="cmd" class="uk-modal mt-[12vh] w-[min(560px,calc(100vw-2rem))] rounded-lg border bg-popover p-0 text-popover-foreground shadow-2xl" aria-label="Jump to an alert">
+  <div class="flex items-center gap-2 border-b px-3"><span aria-hidden="true" class="text-muted-foreground">⌕</span>
+    <input id="cmd-q" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list" aria-label="Search alerts" placeholder="Search by place, type or APR number…" class="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"></div>
+  <ul id="cmd-list" role="listbox" aria-label="Alerts" class="max-h-[320px] overflow-auto p-1"></ul>
+  <p class="border-t px-3 py-2 text-xs text-muted-foreground">↑ ↓ to move · Enter to open · Esc to close</p></dialog>
+<script src="live-samples.js"></script>
+<script>
+  ukSampleBar("Sample L · Command centre (dark)");
+  $("#brand").innerHTML = UK_LOGO + "Falcon Eye";
+  $("#tools").innerHTML = ukTools(`<button type="button" id="cmd-open-m" class="${UK_BTN} ${UK_VAR.ghost} ${UK_SIZE.icon} md:hidden" aria-label="Jump to an alert" aria-haspopup="dialog">⌕</button>`);
+  let sel = "NTF-0041";
+  const BAR = { Critical: "bg-red-600", High: "bg-orange-500", Medium: "bg-amber-500", Low: "bg-blue-600", Info: "bg-slate-400" };
+  function render() {
+    const w = waiting().length;
+    $("#strip").innerHTML = `<span><span class="text-lg font-semibold tabular-nums text-primary">${w}</span> <span class="text-muted-foreground">waiting for your decision</span></span>
+      <span><span class="font-semibold tabular-nums">8</span> <span class="text-muted-foreground">open</span></span><span><span class="font-semibold tabular-nums text-red-500">2</span> <span class="text-muted-foreground">critical</span></span><span><span class="font-semibold tabular-nums">14</span> <span class="text-muted-foreground">resolved</span></span>
+      <span class="ml-auto flex items-center gap-2"><span class="flex -space-x-2">${AGENTS.map(a => ukAvatar(a.id, "h-6 w-6 text-[10px]")).join("")}</span><span class="hidden text-muted-foreground xl:inline"><span class="text-foreground">Noura</span> ${WORKING.noura}</span></span>`;
+    [["f-action", "action"], ["f-all", "all"]].forEach(([id, t]) => { const b = $("#" + id), on = S.tab === t; b.setAttribute("aria-pressed", on); b.className = `rounded-sm px-2.5 py-0.5 text-xs font-medium transition-colors ${on ? "bg-background text-foreground shadow-sm" : "hover:text-foreground"}`; });
+    const st = ukStateBlock();
+    if (st) { $("#list").innerHTML = st; $("#sel").hidden = true; return; }
+    const list = visible(); if (!list.find(n => n.id === sel) && list[0]) sel = list[0].id;
+    $("#list").innerHTML = (ukViewerNote() ? `<div class="p-2">${ukViewerNote()}</div>` : "") + `<ul class="space-y-1">${list.map(n => `<li><button type="button" data-uk="open" data-id="${n.id}" aria-current="${sel === n.id}"
+        class="relative flex w-full items-start gap-3 rounded-md py-2.5 pl-4 pr-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=true]:bg-accent">
+        <span class="absolute bottom-2 left-1 top-2 w-1 rounded-full ${BAR[n.sev]}" aria-hidden="true"></span>
+        <span class="min-w-0 flex-1"><span class="block truncate text-sm font-medium" title="${esc(n.title)}">${esc(n.title)}</span><span class="mt-0.5 block text-xs text-muted-foreground">${n.sev} · ${n.ago}${n.apr ? " · " + n.apr : ""}</span></span>
+        <span class="shrink-0 text-xs font-medium ${n.apr && !n.done ? "text-primary" : n.error ? "text-red-500" : "text-muted-foreground"}">${ukStatus(n)}</span></button></li>`).join("")}</ul>`;
+    const n = ALERTS.find(a => a.id === sel); $("#sel").hidden = !n; if (n) $("#sel").innerHTML = ukDetail(n, "h3");
+  }
+  UK.render = render;
+  UK.open = id => { sel = id; render(); const n = ALERTS.find(a => a.id === id); if (n && n.lon && MAP) MAP.view.goTo({ center: [n.lon, n.lat], zoom: 14 }, { duration: 600 }); };
+  $("#f-action").onclick = () => { S.tab = "action"; render(); }; $("#f-all").onclick = () => { S.tab = "all"; render(); };
+
+  /* command palette: a dialog with a combobox and a listbox (WAI-ARIA combobox pattern) */
+  let hit = 0, last = null;
+  function cmdList() {
+    const q = $("#cmd-q").value.trim().toLowerCase();
+    const items = ALERTS.filter(a => !q || (a.title + " " + (a.apr || "") + " " + (a.inc || "") + " " + a.sev).toLowerCase().includes(q));
+    hit = Math.min(hit, Math.max(items.length - 1, 0));
+    $("#cmd-list").innerHTML = items.length ? items.map((a, i) => `<li id="cmd-${i}" role="option" aria-selected="${i === hit}" data-id="${a.id}" class="flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 text-sm aria-selected:bg-accent">
+        <span class="h-2 w-2 shrink-0 rounded-full ${BAR[a.sev]}" aria-hidden="true"></span><span class="min-w-0 flex-1 truncate">${esc(a.title)}</span><span class="shrink-0 text-xs text-muted-foreground">${a.apr || a.inc || ""}</span></li>`).join("")
+      : `<li class="px-3 py-6 text-center text-sm text-muted-foreground" role="option" aria-disabled="true">No alert matches "${esc(q)}". Try a place name such as Olaya.</li>`;
+    $("#cmd-q").setAttribute("aria-activedescendant", items.length ? "cmd-" + hit : "");
+    return items;
+  }
+  function cmdOpen() { last = document.activeElement; $("#cmd-q").value = ""; hit = 0; cmdList(); $("#cmd").showModal(); $("#cmd-q").focus(); }
+  function cmdPick(id) { $("#cmd").close(); UK.open(id); const b = $(`[data-uk="open"][data-id="${id}"]`); if (b) b.focus(); }
+  $("#cmd-open").onclick = cmdOpen; $("#cmd-open-m").onclick = cmdOpen;
+  $("#cmd").addEventListener("close", () => { if (last && !document.activeElement.closest("[data-uk]")) last.focus && last.focus(); });
+  $("#cmd-q").addEventListener("input", () => { hit = 0; cmdList(); });
+  $("#cmd-q").addEventListener("keydown", e => {
+    const items = cmdList();
+    if (e.key === "ArrowDown") { e.preventDefault(); hit = (hit + 1) % Math.max(items.length, 1); cmdList(); $("#cmd-" + hit)?.scrollIntoView({ block: "nearest" }); }
+    if (e.key === "ArrowUp") { e.preventDefault(); hit = (hit - 1 + items.length) % Math.max(items.length, 1); cmdList(); $("#cmd-" + hit)?.scrollIntoView({ block: "nearest" }); }
+    if (e.key === "Enter" && items[hit]) { e.preventDefault(); cmdPick(items[hit].id); }
+  });
+  $("#cmd-list").addEventListener("click", e => { const o = e.target.closest("[role=option][data-id]"); if (o) cmdPick(o.dataset.id); });
+  document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#cmd").open ? $("#cmd").close() : cmdOpen(); } });
+
+  ukWire(); render(); ukMap("map", id => UK.open(id));
+</script>
+</body>
+</html>

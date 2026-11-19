@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tabs · Falcon Eye sample</title>
+<meta name="description" content="Layout sample F: one panel on the left with tabs for Alerts, Crew and Data feeds; the map and Ask on the right.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../frontend/nccc.css"><link rel="stylesheet" href="../frontend/mobility.css"><link rel="stylesheet" href="../frontend/theme.css">
+<link rel="stylesheet" href="live-samples.css">
+<style>
+  .maintabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line)}
+  .maintabs button{border:0;background:none;padding:9px 14px;border-bottom:3px solid transparent;cursor:pointer;color:var(--mut);font-weight:600;display:flex;gap:8px;align-items:center}
+  .maintabs button[aria-selected="true"]{color:var(--tx);border-bottom-color:#1b8354}
+  .maintabs .n{background:var(--card2);border-radius:99px;padding:0 8px;font-size:12.5px;font-weight:600}
+  .maintabs button[aria-selected="true"] .n{background:#e6f3ec;color:#1b8354}
+  .subbar{display:flex;align-items:center;gap:10px;padding:10px 14px 0}
+  .subbar .link{margin-inline-start:auto}
+  .tabpanel .feeds{display:grid;grid-template-columns:1fr 1fr;padding:12px;gap:10px}
+  @media (max-width:640px){.tabpanel .feeds{grid-template-columns:1fr}.maintabs button{padding:9px 8px;gap:6px}}
+  @media (max-width:420px){.maintabs .n.opt{display:none}}
+</style>
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+<a class="skip" href="#work">Skip to alerts</a>
+<div id="head"></div>
+<section class="kpis" id="kpis" aria-label="Key numbers"></section>
+<main class="grid">
+  <section class="panel alerts" id="work" aria-label="Alerts, crew and data feeds">
+    <div class="maintabs" role="tablist" aria-label="Show">
+      <button role="tab" id="tab-alerts" aria-controls="p-alerts" aria-selected="true">Alerts <span class="n" id="n-alerts"></span></button>
+      <button role="tab" id="tab-crew" aria-controls="p-crew" aria-selected="false" tabindex="-1">Crew <span class="n opt">2 working</span></button>
+      <button role="tab" id="tab-feeds" aria-controls="p-feeds" aria-selected="false" tabindex="-1">Data feeds <span class="n opt">7</span></button>
+    </div>
+    <div class="tabpanel" id="p-alerts" role="tabpanel" aria-labelledby="tab-alerts" style="display:flex;flex-direction:column;min-height:0;flex:1">
+      <div class="subbar"><div class="tabs" role="group" aria-label="Filter alerts"><button id="t-action" aria-pressed="true">Needs action</button><button id="t-all" aria-pressed="false">All</button></div><button class="link" type="button" data-act="ackall">Mark all read</button></div>
+      <div class="feed" id="feed" aria-live="polite"></div>
+    </div>
+    <div class="tabpanel" id="p-crew" role="tabpanel" aria-labelledby="tab-crew" hidden><div class="tiers" id="roster"></div><div class="agent-detail" id="agent-detail" hidden></div><ul class="activity" id="activity" aria-label="Latest hand-offs"></ul></div>
+    <div class="tabpanel" id="p-feeds" role="tabpanel" aria-labelledby="tab-feeds" hidden><div class="feeds" id="feeds"></div></div>
+  </section>
+  <section class="right">
+    <div class="panel mapbox"><div id="map" role="img" aria-label="Map of open incidents in Riyadh"></div>
+      <div class="legend"><i class="d crit"></i>Critical <i class="d high"></i>High <i class="d med"></i>Medium <i class="d low"></i>Low</div></div>
+    <div class="panel askbox"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input type="text" placeholder="Ask the crew… e.g. “Which incident needs attention first?”" aria-label="Ask the crew"><button class="btn primary" type="submit">Ask</button></form></div>
+  </section>
+</main>
+<script src="live-samples.js"></script>
+<script>
+  $("#head").outerHTML = HEADER; sampleBar("Sample F · Tabs");
+  $("#feeds").innerHTML = feeds();
+  const tabs = $$(".maintabs [role=tab]");
+  function selectTab(t, focus) {
+    tabs.forEach(b => { const on = b === t; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; $("#" + b.getAttribute("aria-controls")).hidden = !on; });
+    $("#p-alerts").style.display = t.id === "tab-alerts" ? "flex" : "none"; if (focus) t.focus();
+  }
+  tabs.forEach((t, i) => { t.onclick = () => selectTab(t); t.onkeydown = e => {
+    const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (k) { e.preventDefault(); selectTab(tabs[(i + k + tabs.length) % tabs.length], true); }
+    if (e.key === "Home") { e.preventDefault(); selectTab(tabs[0], true); } if (e.key === "End") { e.preventDefault(); selectTab(tabs[tabs.length - 1], true); } }; });
+  function draw() {
+    $("#kpis").innerHTML = kpis(); $("#n-alerts").textContent = waiting().length + " to decide";
+    $("#t-action").setAttribute("aria-pressed", S.tab === "action"); $("#t-all").setAttribute("aria-pressed", S.tab === "all");
+    renderFeed($("#feed"));
+    $("#roster").innerHTML = roster(); $("#activity").innerHTML = activity();
+    const a = AG[S.detail], d = $("#agent-detail"); d.hidden = !a; if (a) d.innerHTML = `<b style="color:${a.color}">${a.name}</b> · ${a.role}`;
+  }
+  $("#t-action").onclick = () => { S.tab = "action"; draw(); }; $("#t-all").onclick = () => { S.tab = "all"; draw(); };
+  wire(document.body, draw); draw(); initMap();
+</script>
+</body>
+</html>

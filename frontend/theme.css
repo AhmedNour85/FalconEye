@@ -45,6 +45,8 @@ html[data-theme="dark"] .life li{color:#8da197}
 html[data-theme="dark"] .life li i{background:#3d5146}
 html[data-theme="dark"] .life li.ls-done{color:#cbd8d0}
 html[data-theme="dark"] .life li.ls-done i{background:#3cb87f}
+html[data-theme="dark"] .life li.ls-current{color:#f1f5f3;font-weight:600}
+html[data-theme="dark"] .life li.ls-current i{background:#1570ef}
 html[data-theme="dark"] .life li.ls-stopped{color:#ff8f84}
 html[data-theme="dark"] .life li.ls-stopped i{background:#ff6b5e}
 html[data-theme="dark"] table.strat th{color:#a3b5ab}
@@ -63,6 +65,8 @@ html[data-theme="dark"] .chg-i.on{border-color:#3cb87f;box-shadow:0 0 0 1px #3cb
 html[data-theme="dark"] .opts label:has(input:checked){border-color:#3cb87f;box-shadow:0 0 0 1px #3cb87f}
 html[data-theme="dark"] .av{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--ac,#3cb87f)}
 html[data-theme="dark"] .av.sm{box-shadow:0 0 0 2px var(--bg2),0 0 0 3px var(--ac)}
+html[data-theme="dark"] .crewline .ag[aria-expanded="true"] .av{box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--ac)}
+html[data-theme="dark"] .crewline .ag.working::after{border-color:#3cffa0;border-top-color:transparent;box-shadow:0 0 8px 2px rgba(60,255,160,.8),inset 0 0 5px rgba(60,255,160,.5)}
 html[data-theme="dark"] .modal{background:rgba(0,0,0,.65)}
 html[data-theme="dark"] .card.flash,html[data-theme="dark"] .fchip.fresh{animation-name:none;background:#2d3e35}
 html[data-theme="dark"] .rep-obs{border-left-color:#3cb87f}
@@ -81,3 +85,8 @@ html[data-theme="dark"] .trail li b{color:color-mix(in srgb,var(--ac,#3cb87f) 60
 html[data-theme="dark"] .btn[data-armed]{background:#ff6b5e;border-color:#ff6b5e;color:#2a0805}
 /* on pages without a header the language and theme buttons float; keep them side by side */
 .theme-toggle.floating{inset-inline-end:118px}
+html[data-theme="dark"] .crew-count b.w{color:#3cb87f}
+html[data-theme="dark"] .kpi span{color:#cbd8d0}
+html[data-theme="dark"] .kpi.hot .k-ic,html[data-theme="dark"] .kpi.ok .k-ic{--k:#3cb87f}html[data-theme="dark"] .kpi.open .k-ic{--k:#5aa9ff}html[data-theme="dark"] .kpi.crit .k-ic{--k:#ff6b5e}
+html[data-theme="dark"] .k-ic{background:color-mix(in srgb,var(--k) 18%,transparent)}
+html[data-theme="dark"] .ad-h b{color:color-mix(in srgb,var(--ac,#3cb87f) 60%,#ffffff)}html[data-theme="dark"] .ad-st.on{color:#3cb87f}

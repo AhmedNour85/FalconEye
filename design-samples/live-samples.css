@@ -1,0 +1,45 @@
+/* Set 2 additions. Only what the Operation page has no class for yet; everything else comes from frontend/nccc.css and mobility.css. */
+.sbar{display:flex;gap:12px 18px;align-items:center;flex-wrap:wrap;padding:8px 20px;background:#111827;color:#e5e7eb;font-size:13px}
+.sbar b{color:#ffffff}.sbar a{color:#8fdcb8}
+.sbar select{background:#1f2937;color:#ffffff;border:1px solid #374151;border-radius:6px;padding:4px 8px;margin-inline-start:6px}
+
+/* a card's message stays two lines until its details are opened */
+.c-msg.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .trail{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mut)}
+.card .trail li{display:flex;gap:8px;align-items:center}
+.card .trail b{color:color-mix(in srgb,var(--ac,#1b8354) 45%,#111827)}
+.card.Info{--c:#6b7280}.card.Info.new{box-shadow:none}
+
+.tabs button[aria-pressed="true"]{background:var(--card2);color:var(--tx)}
+
+/* demo tools in one menu */
+details.demo{position:relative}
+details.demo>summary{list-style:none}details.demo>summary::-webkit-details-marker{display:none}
+.demo-pop{position:absolute;right:0;top:46px;z-index:40;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sh);padding:10px;display:grid;gap:8px;width:240px}
+.demo-pop label{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+.demo-pop select{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px}
+
+/* loading, empty, offline and viewer states */
+.skel{height:118px;border-radius:12px;background:linear-gradient(90deg,var(--card2) 25%,#e9ebef 50%,var(--card2) 75%);background-size:200% 100%;animation:skel 1.4s infinite;margin-bottom:10px}
+@keyframes skel{to{background-position:-200% 0}}
+.emptystate{display:grid;gap:6px;justify-items:center;text-align:center;padding:36px 16px;color:var(--mut)}
+.emptystate b{color:var(--tx);font-size:16px}
+.emptystate.err b{color:var(--crit-t)}
+.emptystate .btn{margin-top:6px}
+.map-off{position:absolute;inset:0;align-content:center;background:var(--card2)}
+.viewer-note{margin:0;padding:10px 12px;border-radius:10px;background:#eff8ff;border:1px solid #b2ddff;color:#175cd3;font-size:13.5px}
+
+/* the crew, compact: faces and one line of what is happening */
+.crewbar{display:flex;align-items:center;gap:12px;padding:10px 14px}
+.crewbar .faces{display:flex}.crewbar .faces .av{margin-inline-start:-6px}.crewbar .faces .av:first-child{margin-inline-start:0}
+.crewbar .now-line{flex:1;min-width:0;font-size:13.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crewbar .now-line b{color:#1b8354}
+
+@media (max-width:560px){.crewbar{flex-wrap:wrap}.crewbar .now-line{order:3;flex-basis:100%}.crewbar .btn{margin-inline-start:auto}}
+.c-err{flex-basis:100%;margin:0;padding:8px 10px;border-radius:8px;background:#fef3f2;border:1px solid #fecdca;color:#b42318;font-size:13.5px}
+html[data-theme="dark"] .c-err{background:#3d1d1a;border-color:#7a2e26;color:#ff9a8f}
+.c-title,.c-msg{overflow-wrap:anywhere}
+.sbar a{display:inline-flex;align-items:center;min-height:32px}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+html[data-theme="dark"] .skel{background:var(--card2)}
+html[data-theme="dark"] .viewer-note{background:#142a44;border-color:#1f4a7a;color:#8cc2ff}

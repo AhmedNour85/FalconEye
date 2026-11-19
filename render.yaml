@@ -1,0 +1,32 @@
+# Render blueprint for the public Falcon Eye demo on ArcGIS Online (the default store).
+# Secrets are NOT here: Render asks for every "sync: false" value when the blueprint is first applied, and keeps them encrypted.
+# See docs/deploy.md before the first deploy (only one server may work on the CityView_* layers at a time).
+services:
+  - type: web
+    name: falcon-eye
+    runtime: python
+    plan: standard                      # always on, 2 GB. Free plans sleep and reload every layer on wake.
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m backend.main
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: HOST
+        value: 0.0.0.0
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"                      # only Render's proxy can reach the app
+      - key: ARCGIS_URL
+        sync: false
+      - key: ARCGIS_USERNAME
+        sync: false
+      - key: ARCGIS_PASSWORD
+        sync: false
+      - key: ARCGIS_LAYER_PREFIX
+        sync: false
+      - key: ARCGIS_JS_API_KEY
+        sync: false
+      - key: API_TOKENS                 # access codes and their roles, e.g. <long-code>=operator,<other-code>=viewer
+        sync: false
+      - key: PUBLIC_ORIGINS             # the public address, e.g. https://falcon-eye.onrender.com
+        sync: false

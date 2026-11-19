@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import json
 import logging
+from urllib.parse import quote
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -31,14 +32,17 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 PUBLIC_LAYERS = [n for n, d in S.LAYERS.items() if not d.internal and d.geometry and not d.static]   # the mobility reference layers have their own routes
 
 
+SESSION_ID = r"^[A-Za-z0-9_-]{1,64}$"   # chat session ids are logged to the audit layer, so keep them short and plain
+
+
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
-    session_id: str | None = None
+    session_id: str | None = Field(default=None, pattern=SESSION_ID)
 
 
 class ToolIn(BaseModel):
     args: dict = Field(default_factory=dict)
-    session_id: str | None = "ui"
+    session_id: str | None = Field(default="ui", pattern=SESSION_ID)
 
 
 class PlannerIn(BaseModel):
@@ -56,6 +60,7 @@ class SensorMod(BaseModel):
 
 
 ROLES = {"viewer": 0, "worker": 1, "operator": 2}
+SIGNIN_OPEN = ("/signin.html", "/signout", "/favicon.ico")    # reachable before signing in
 FORM_OFF = "The in-app investigator form is disabled. Field teams report through the ArcGIS Field Maps app; their reports are pulled in automatically."
 FIELD_PAGE = """<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Investigator form disabled</title>
 <style>body{font:16px/1.6 Segoe UI,system-ui,sans-serif;background:#f3f4f6;color:#111827;display:grid;place-items:center;min-height:100vh;margin:0}
@@ -103,7 +108,13 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
 
     @app.middleware("http")
     async def guard_every_api_route(request: Request, call_next):
-        """One guard in front of every /api route except the health check; security headers on every response."""
+        """One guard in front of every /api route except the health check; security headers on every response.
+        In token mode a page asked for without a session goes to the sign-in page first (its own files stay open: they carry no data)."""
+        path = request.url.path
+        if gd.mode == "token" and not path.startswith("/api/") and path not in SIGNIN_OPEN and (path.endswith(".html") or "." not in path.rsplit("/", 1)[-1])                 and not gd.page_allowed(request):
+            resp = RedirectResponse("/signin.html?next=" + quote(path + ("?" + request.url.query if request.url.query else ""), safe="/?=&"), status_code=302)
+            guardmod.apply_headers(resp)
+            return resp
         if request.url.path.startswith("/api/") and request.url.path not in guardmod.OPEN_PATHS:
             try:
                 request.state.role = gd.check(request)
@@ -138,6 +149,41 @@ def create_app(platform: Platform | None = None, agent: GeoAIAgent | None = None
                 raise HTTPException(403, f"role '{r}' cannot perform this action (needs {minimum})")
             return r
         return dep
+
+    # ---------------------------------------------------------------- sign-in (token mode)
+    def _address(request: Request) -> str:
+        return request.client.host if request.client else "?"
+
+    @app.post("/api/session")
+    def sign_in(request: Request, body: dict | None = None):
+        """An access code (one of API_TOKENS) for a session cookie. The code is checked, never stored in the browser."""
+        guardmod.refuse_cross_site(request)
+        if gd.mode != "token":
+            return {"role": request.headers.get("x-role") or "operator", "mode": "local"}
+        sid, r = gd.sign_in(str((body or {}).get("token") or ""), _address(request))
+        resp = JSONResponse({"role": r, "mode": "token"})
+        resp.set_cookie(guardmod.SESSION_COOKIE, sid, max_age=guardmod.SESSION_HOURS * 3600, httponly=True, samesite="strict",
+                        secure=request.url.scheme == "https", path="/")
+        return resp
+
+    @app.get("/api/session")
+    def who_am_i(request: Request):
+        return {"role": gd.check(request), "mode": gd.mode}            # /api/session skips the middleware, so check here (401/403 when signed out)
+
+    @app.delete("/api/session")
+    def sign_out(request: Request):
+        guardmod.refuse_cross_site(request)
+        gd.sign_out(request.cookies.get(guardmod.SESSION_COOKIE))
+        resp = JSONResponse({"signed_out": True})
+        resp.delete_cookie(guardmod.SESSION_COOKIE, path="/")
+        return resp
+
+    @app.get("/signout")
+    def sign_out_page(request: Request):
+        gd.sign_out(request.cookies.get(guardmod.SESSION_COOKIE))
+        resp = RedirectResponse("/signin.html", status_code=302)
+        resp.delete_cookie(guardmod.SESSION_COOKIE, path="/")
+        return resp
 
     # ---------------------------------------------------------------- meta
     @app.get("/api/health")

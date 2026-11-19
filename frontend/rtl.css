@@ -89,3 +89,9 @@ html.rtl #pl input[dir="ltr"] { text-align: left; }
 /* Executive Hub header (same look as the Operation header) */
 html.rtl .role .brand b { letter-spacing: 0; }
 html.rtl .role nav a { font-size: 14px; padding: 8px 12px; }
+
+/* the crew hand-off line scrolls the other way in Arabic */
+html.rtl .crewline .ticker.run .activity { animation-name: crewticker-rtl; }
+@keyframes crewticker-rtl { to { transform: translateX(50%); } }
+/* the crew count reads a little larger in Arabic, like the other Arabic text */
+html.rtl .crew-count { font-size: 15.5px; }

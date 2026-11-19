@@ -50,7 +50,23 @@ def known_places() -> dict:
                 out[_norm(needle)] = key
         for inner in re.findall(r"\(([^()]+)\)", i18n.to_ar(key)):
             out[_norm(inner)] = key
+    for _key, (full, _lon, _lat, other) in RN.EVENT_VENUES.items():      # event venues are asked for by their full name
+        for needle in {full, i18n.to_ar(full), *other}:
+            out[_norm(needle)] = full
     return out
+
+
+def place_names() -> list[str]:
+    """The places a person can ask about, by their full names (the model's short keys such as KAHC mean nothing to an operator)."""
+    from backend.mobility import riyadh_network as RN
+
+    return sorted({v[0] for v in RN.LOCATIONS.values()} | {v[0] for v in RN.EVENT_VENUES.values()})
+
+
+def main_roads_first(roads: list[str]) -> list[str]:
+    """Named roads only (no bare numbers, no 'unnamed …'); the main corridors that have an Arabic name first, then the rest A to Z."""
+    named = [r for r in roads if r and not re.match(r"^\d", r) and not r.lower().startswith("unnamed") and "synthetic" not in r.lower()]
+    return sorted(named, key=lambda r: (r not in i18n.TERMS, r.lower()))
 
 
 def _find_road(t: str) -> str | None:
@@ -186,7 +202,7 @@ def _window_text(w: dict | None, lang: str) -> str:
 
 
 def known_list(kind: str, lang: str) -> str:
-    items = [r for r in known_roads() if "synthetic" not in r.lower()] if kind == "road" else sorted({v for v in known_places().values()})
+    items = main_roads_first(known_roads()) if kind == "road" else place_names()
     shown = ", ".join(_ar(i) if lang == "ar" else i for i in items[:14])
     if lang == "ar":
         return f"لم أجد {'هذا الطريق' if kind == 'road' else 'هذا المكان'} في نموذج المرور. {'الطرق' if kind == 'road' else 'الأماكن'} التي أعرفها: {shown}."

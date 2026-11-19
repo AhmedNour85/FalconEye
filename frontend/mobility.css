@@ -57,4 +57,4 @@ table.strat { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8
 table.strat th, table.strat td { padding: 6px 8px; text-align: start; border-bottom: 1px solid #d1d5db; vertical-align: top; }
 table.strat th { color: #6b7280; font-weight: 600; font-size: 12px; }
 table.strat tr.rec td { background: rgba(63, 182, 139, .14); }
-table.strat tr.skip { opacity: .6; }
+table.strat tr.skipped { opacity: .6; }

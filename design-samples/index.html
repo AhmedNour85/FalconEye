@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operation page layouts · Falcon Eye</title>
+<meta name="description" content="A review of the Falcon Eye Operation page and three layout samples to choose from.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="samples.css">
+<style>
+  main{max-width:1180px;margin:0 auto;padding:28px 20px 48px}
+  h1{font-size:30px;line-height:1.15}
+  .lead{color:var(--mut);max-width:62ch;margin:8px 0 0}
+  h2.sec{font-size:19px;margin:34px 0 12px}
+  .review{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .finding{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+  .finding b{display:block;margin-bottom:4px}
+  .finding p{margin:0;color:var(--mut);font-size:14.5px}
+  .keep{border-inline-start:4px solid var(--acc)}.fix{border-inline-start:4px solid var(--high)}
+  .options{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .opt{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;color:inherit;text-decoration:none;transition:transform .15s var(--ease),box-shadow .15s}
+  .opt:hover{transform:translateY(-2px);box-shadow:var(--sh)}
+  .opt .body{padding:14px 16px 16px;display:grid;gap:8px;flex:1}
+  .opt h3{font-size:17px}
+  .opt p{margin:0;color:var(--mut);font-size:14.5px}
+  .opt ul{margin:0;padding-inline-start:18px;font-size:14px;display:grid;gap:3px}
+  .opt .go{margin-top:auto;color:var(--acc);font-weight:600}
+  .sketch{height:150px;background:var(--card2);border-bottom:1px solid var(--line);padding:12px;display:grid;gap:6px}
+  .sketch i{display:block;border-radius:5px;background:var(--line)}
+  .sketch .a{background:var(--acc-soft);outline:1px solid color-mix(in srgb,var(--acc) 40%,transparent)}
+  .sketch .m{background:#dbe6df}
+  .s-a{grid-template-columns:1fr 1.3fr;grid-template-rows:14px 10px 1fr 1fr}
+  .s-a .k{grid-column:1/-1}.s-a .c{grid-column:1/-1}.s-a .q{grid-row:3/5}
+  .s-b{grid-template-columns:.8fr 1.6fr .9fr;grid-template-rows:14px 1fr}
+  .s-b .k{grid-column:1/-1}
+  .s-c{grid-template-columns:1.3fr 1fr 1fr 1fr .9fr;grid-template-rows:14px 1fr 1fr}
+  .s-c .k{grid-column:1/-1}.s-c .l{grid-row:2/4}.s-c .r1{grid-column:5}.s-c .r2{grid-column:5}
+  .same{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-size:14.5px}
+  .same ul{margin:6px 0 0;padding-inline-start:18px;display:grid;gap:3px;color:var(--mut)}
+  @media (max-width:900px){.review,.options{grid-template-columns:1fr}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 11C5 6 8.5 4.5 12 4.5S19 6 22 11C19 16 15.5 17.5 12 17.5S5 16 2 11Z"/><circle cx="12" cy="11" r="3.8"/></svg>Falcon Eye</div><span class="status">Layout samples · the Operation page itself is unchanged</span></header>
+<main>
+  <h1>Operation page: review and layout samples</h1>
+  <p class="lead">Checked at 1440×900 with 10 alerts and 7 decisions waiting. Each sample below uses made-up data and works on its own; nothing in them calls the app.</p>
+
+  <h2 class="sec">What the review found</h2>
+  <div class="review">
+    <div class="finding fix"><b>Decisions start below the fold</b><p>The crew roster takes the top of the left column (about 240 px), so at 1440×900 Alerts start halfway down the screen and about one and a half cards show.</p></div>
+    <div class="finding fix"><b>The first Approve is the fourth card</b><p>Two Executive briefs and a road-closure notice with only "Got it" come before the first card that needs a decision. Each card is about 286 px tall.</p></div>
+    <div class="finding fix"><b>Everything shouts Critical</b><p>An Executive brief is tagged Critical with a red border and glow, the same as a burst main. When every card is red, the real emergencies don't stand out.</p></div>
+    <div class="finding fix"><b>The key numbers do nothing when pressed</b><p>"Waiting for your decision 7" is the most useful number on the page, but it is not a button. It could filter the list to those 7.</p></div>
+    <div class="finding fix"><b>Demo tools sit beside operator tools</b><p>Scan now, Compare imagery and Simulate an event share the header with the AI Agents switch at the same weight. In a live room they belong in one menu.</p></div>
+    <div class="finding fix"><b>The map corners are crowded</b><p>Search, Urban change, the Mobility layers list, 2D/3D and the legend all float over the map. The feed cards for the 7 data sources sit below the fold.</p></div>
+    <div class="finding keep"><b>Keep: the approval safety</b><p>Two presses to approve, "If approved" text, the lifecycle strip and "How the crew handled this" are clear and should stay in every layout.</p></div>
+    <div class="finding keep"><b>Keep: one brand, two languages</b><p>The green, IBM Plex Sans Arabic, right-to-left and dark mode already work. The samples use the same green and font.</p></div>
+  </div>
+
+  <h2 class="sec">Set 4: shadcn/ui style, light and dark</h2>
+  <p class="lead" style="margin-top:-4px">A cleaner, neutral style in the shadcn/ui manner (Tailwind CSS), keeping the Falcon Eye green, the font and the real map. Each page has a dark mode (the moon button). Approve opens a confirm dialog instead of the two-press button. It keeps the same safety and also shows what will happen. The failure, retry and states from set 3 are here too.</p>
+  <div class="options">
+    <a class="opt" href="j-table-sheet.html">
+      <div class="sketch" aria-hidden="true" style="grid-template-columns:.45fr 1.3fr .8fr;grid-template-rows:14px 1fr"><i style="grid-row:1/3"></i><i class="k" style="grid-column:2/4"></i><i class="a"></i><i class="m"></i></div>
+      <div class="body"><h3>J · Table and sheet</h3><p>An admin-app layout: sidebar, numbers, a table.</p>
+        <ul><li>The crew lives in the left sidebar with what each is doing</li><li>Alerts as a sortable-looking table with Approve on each row</li><li>Open a row: the full alert slides in from the right</li></ul><span class="go">Open sample J →</span></div></a>
+    <a class="opt" href="k-cards-map.html">
+      <div class="sketch s-a" aria-hidden="true" style="grid-template-columns:1fr 1.05fr;grid-template-rows:14px 12px 1fr"><i class="k" style="grid-column:1/-1"></i><i></i><i class="m" style="grid-row:3/4"></i><i class="a"></i></div>
+      <div class="body"><h3>K · Cards and map</h3><p>Closest to today, in the new style.</p>
+        <ul><li>Each alert is a full card with its progress bar and actions</li><li>The crew is one row of faces; "Show all 11" opens the list</li><li>Map, Ask and data feeds stay in view on the right</li></ul><span class="go">Open sample K →</span></div></a>
+    <a class="opt" href="l-command-centre.html">
+      <div class="sketch" aria-hidden="true" style="grid-template-columns:.7fr 1.6fr;grid-template-rows:14px 1fr;background:#14211b"><i class="k" style="grid-column:1/-1;background:#2b3b33"></i><i style="background:#2b3b33"></i><i class="m" style="background:#1d2a23"></i></div>
+      <div class="body"><h3>L · Command centre (dark)</h3><p>For a control room: dark, dense, map-led.</p>
+        <ul><li>A compact alert list beside a large map</li><li>The selected alert floats over the map</li><li>Ctrl+K jumps to any alert by place or APR number</li></ul><span class="go">Open sample L →</span></div></a>
+  </div>
+
+  <h2 class="sec">Set 3: same look, new ways to decide</h2>
+  <p class="lead" style="margin-top:-4px">Also built on the Operation page's own styles and the real map. Here Approve behaves the way a real request would: it shows "Approving…", then the result, and moves you to the next decision. APR-0008 fails once on purpose, so you can see a failure that leaves the other alerts alone.</p>
+  <div class="same" style="margin:12px 0 14px"><b>States every set-3 page handles</b><ul>
+    <li><b>Loading:</b> grey placeholders, announced as busy.</li>
+    <li><b>No alerts:</b> says so, with Scan now.</li>
+    <li><b>Server offline:</b> says what failed, shows no stale data, offers Try again. The map says it needs internet.</li>
+    <li><b>Approving:</b> the card's buttons are disabled until the answer comes back, so nothing is sent twice.</li>
+    <li><b>Done:</b> "✓ Approved and done · WO-… created" on the card, read out to screen readers; focus moves to the next decision.</li>
+    <li><b>One failure:</b> the reason in plain words and Try again, on that card only.</li>
+    <li><b>Viewer:</b> no Approve or Reject anywhere, and a line that says why.</li>
+    <li><b>Long names:</b> long road and person names wrap or shorten; nothing runs off the screen.</li>
+  </ul></div>
+  <div class="options">
+    <a class="opt" href="g-inbox.html">
+      <div class="sketch s-a" aria-hidden="true" style="grid-template-columns:.8fr 1.3fr;grid-template-rows:14px 1fr 1fr"><i class="k" style="grid-column:1/-1"></i><i style="grid-row:2/4"></i><i class="a"></i><i class="m"></i></div>
+      <div class="body"><h3>G · Inbox</h3><p>Like an email inbox: a short list, one alert open.</p>
+        <ul><li>One line per alert, grouped "To decide" and "Everything else"</li><li>The open alert in full, with the map zoomed to it</li><li>Pressing a point on the map opens its alert; the link keeps the choice</li></ul><span class="go">Open sample G →</span></div></a>
+    <a class="opt" href="h-one-at-a-time.html">
+      <div class="sketch s-b" aria-hidden="true" style="grid-template-columns:1.1fr 1fr;grid-template-rows:14px 10px 1fr 18px"><i class="k" style="grid-column:1/-1"></i><i class="a"></i><i class="m" style="grid-row:3/5"></i><i class="a" style="grid-row:3"></i><i></i></div>
+      <div class="body"><h3>H · One at a time</h3><p>A shift's decisions as a short checklist.</p>
+        <ul><li>"Decision 1 of 5" with a progress bar</li><li>Approve, Reject or Skip for now; then Next decision</li><li>Everything that needs no decision sits below</li></ul><span class="go">Open sample H →</span></div></a>
+    <a class="opt" href="i-map-sheet.html">
+      <div class="sketch" aria-hidden="true" style="grid-template-columns:1.6fr .9fr;grid-template-rows:14px 1fr"><i class="k" style="grid-column:1/-1"></i><i class="m"></i><i class="a"></i></div>
+      <div class="body"><h3>I · Map with alert sheet</h3><p>The city across the page, alerts over its edge.</p>
+        <ul><li>The map uses almost the whole screen</li><li>Alerts in a sheet on its right; Hide gives the map back</li><li>Phone: map first, then the alerts under it</li></ul><span class="go">Open sample I →</span></div></a>
+  </div>
+
+  <h2 class="sec">Set 2: same look, different layout</h2>
+  <p class="lead" style="margin-top:-4px">These use the Operation page's own styles, cards, crew colours and the real ArcGIS map, so only the arrangement differs. Each has a "Preview a state" menu: loading, no alerts, server offline, and signed in as a viewer (no Approve).</p>
+  <div class="same" style="margin:12px 0 14px"><b>Design contract for set 2</b><ul>
+    <li><b>The page's job:</b> let the operator see what needs a decision and decide it, without scrolling at 1440×900.</li>
+    <li><b>Main action:</b> Approve, two presses, on the alert card. Never offered to a viewer.</li>
+    <li><b>States:</b> loading, no alerts, server offline, viewer, normal.</li>
+    <li><b>Order:</b> decisions first, then reports to check, then information. Briefs are Info, not Critical.</li>
+    <li><b>Rejected:</b> a new colour scheme, a drawn map, removing the crew from view.</li>
+  </ul></div>
+  <div class="options">
+    <a class="opt" href="d-decisions-first.html">
+      <div class="sketch s-a" aria-hidden="true"><i class="k"></i><i class="c"></i><i class="q a"></i><i class="m" style="grid-row:3/5"></i></div>
+      <div class="body"><h3>D · Decisions first</h3><p>Today's page, smallest change.</p>
+        <ul><li>The crew folds into one line of faces with "Show the crew"</li><li>Alerts move up: two decisions on the first screen</li><li>Card text is two lines until you open Details</li></ul><span class="go">Open sample D →</span></div></a>
+    <a class="opt" href="e-crew-rail.html">
+      <div class="sketch s-c" aria-hidden="true" style="grid-template-columns:.5fr 1fr 1.3fr;grid-template-rows:14px 1fr"><i class="k" style="grid-column:1/-1"></i><i></i><i class="a"></i><i class="m"></i></div>
+      <div class="body"><h3>E · Crew rail</h3><p>Three columns; everything in view at once.</p>
+        <ul><li>The crew as a narrow list on the left, always visible</li><li>Alerts in the middle, map and Ask on the right</li><li>Phone: the crew comes first, then alerts</li></ul><span class="go">Open sample E →</span></div></a>
+    <a class="opt" href="f-tabs.html">
+      <div class="sketch s-b" aria-hidden="true" style="grid-template-columns:1fr 1.4fr"><i class="k" style="grid-column:1/-1"></i><i class="a"></i><i class="m"></i></div>
+      <div class="body"><h3>F · Tabs</h3><p>One panel on the left, three tabs.</p>
+        <ul><li>Alerts, Crew and Data feeds share the left panel</li><li>The data feeds move up from below the fold</li><li>Arrow keys move between the tabs</li></ul><span class="go">Open sample F →</span></div></a>
+  </div>
+
+  <h2 class="sec">Set 1: new look (you passed on these)</h2>
+  <div class="options">
+    <a class="opt" href="a-decision-queue.html">
+      <div class="sketch s-a" aria-hidden="true"><i class="k"></i><i class="c"></i><i class="q a"></i><i></i><i class="m"></i></div>
+      <div class="body"><h3>A · Decision queue</h3><p>Built for an operator at a desk: the list of decisions is the page.</p>
+        <ul><li>Short rows with Approve and Reject on each</li><li>The selected alert in full on the right, the map under it</li><li>The crew as one line of faces and the latest hand-offs</li></ul><span class="go">Open sample A →</span></div></a>
+    <a class="opt" href="b-map-first.html">
+      <div class="sketch s-b" aria-hidden="true"><i class="k"></i><i class="a"></i><i class="m"></i><i></i></div>
+      <div class="body"><h3>B · Map first</h3><p>Built for a control-room wall: the city is the page.</p>
+        <ul><li>A large map fills the window, nothing scrolls</li><li>Alerts on the left, the selected one and Ask on the right</li><li>The crew floats over the map with its latest hand-off</li></ul><span class="go">Open sample B →</span></div></a>
+    <a class="opt" href="c-work-lanes.html">
+      <div class="sketch s-c" aria-hidden="true"><i class="k"></i><i class="l a"></i><i class="l"></i><i class="l"></i><i class="l"></i><i class="r1 m"></i><i class="r2"></i></div>
+      <div class="body"><h3>C · Work lanes</h3><p>Built for a supervisor: where every incident stands, at a glance.</p>
+        <ul><li>Four lanes: decide, in the field, verify, for information</li><li>Press a card to open it in full</li><li>Map, Ask and the whole crew in a side rail</li></ul><span class="go">Open sample C →</span></div></a>
+  </div>
+
+  <h2 class="sec">Changed in every sample</h2>
+  <div class="same"><ul>
+    <li>The four key numbers are buttons that filter the list.</li>
+    <li>Briefs are "Info", not Critical, and sit below the decisions.</li>
+    <li>Scan, Compare imagery and Simulate move into one "Demo tools" menu.</li>
+    <li>Map layers become one row of chips instead of a floating list.</li>
+  </ul></div>
+</main>
+</body>
+</html>

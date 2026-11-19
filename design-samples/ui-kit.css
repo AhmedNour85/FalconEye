@@ -1,0 +1,36 @@
+/* Set 4 tokens, in the shadcn/ui shape (HSL triplets read by the Tailwind config in ui-kit.js). Primary is the Falcon Eye green #1b8354. */
+:root{
+  --background:0 0% 100%;--foreground:150 20% 9%;
+  --card:0 0% 100%;--card-foreground:150 20% 9%;
+  --popover:0 0% 100%;--popover-foreground:150 20% 9%;
+  --primary:153 66% 31%;--primary-foreground:0 0% 100%;
+  --secondary:150 12% 95%;--secondary-foreground:150 20% 12%;
+  --muted:150 12% 96%;--muted-foreground:150 8% 38%;
+  --accent:150 14% 94%;--accent-foreground:150 20% 12%;
+  --destructive:4 74% 49%;--destructive-foreground:0 0% 100%;
+  --border:150 12% 89%;--input:150 12% 86%;--ring:153 66% 31%;
+  --radius:0.5rem;
+}
+.dark{
+  --background:150 18% 6%;--foreground:150 15% 93%;
+  --card:150 16% 9%;--card-foreground:150 15% 93%;
+  --popover:150 16% 9%;--popover-foreground:150 15% 93%;
+  --primary:152 52% 48%;--primary-foreground:150 40% 6%;
+  --secondary:150 12% 15%;--secondary-foreground:150 15% 93%;
+  --muted:150 12% 14%;--muted-foreground:150 8% 66%;
+  --accent:150 12% 16%;--accent-foreground:150 15% 93%;
+  --destructive:4 80% 62%;--destructive-foreground:0 0% 100%;
+  --border:150 10% 19%;--input:150 10% 22%;--ring:152 52% 48%;
+}
+[hidden]{display:none!important}   /* a Tailwind display class (grid, flex) must never show a hidden element */
+html{color-scheme:light}html.dark{color-scheme:dark}
+body{background:hsl(var(--background));color:hsl(var(--foreground));font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+dialog{color:inherit}
+dialog::backdrop{background:rgb(0 0 0 / .5)}
+dialog.uk-sheet{margin:0 0 0 auto;height:100vh;max-height:100vh;width:min(480px,100vw);max-width:100vw;border-radius:0}
+dialog[open].uk-sheet{animation:uk-slide .2s ease-out}
+dialog[open].uk-modal{animation:uk-pop .15s ease-out}
+@keyframes uk-slide{from{transform:translateX(24px);opacity:0}}
+@keyframes uk-pop{from{transform:scale(.97);opacity:0}}
+.esri-view .esri-view-surface--inset-outline:focus::after{outline:2px solid hsl(var(--ring))}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

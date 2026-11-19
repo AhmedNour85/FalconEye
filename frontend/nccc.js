@@ -329,12 +329,17 @@ async function openStrategies(sid) {
   $("#strat").hidden = false; $("#strat-body").innerHTML = `<p class="m">${T("Loading the comparison…")}</p>`; $("#strat-sub").textContent = sid;
   let d; try { d = await api("mobility/scenarios/" + encodeURIComponent(sid) + "/strategies"); } catch (e) { $("#strat-body").innerHTML = `<p>${esc(e.message)}</p>`; return; }
   const num = (v, u) => v == null ? "–" : (Math.round(v * 10) / 10).toLocaleString() + (u || "");
-  const rows = d.strategies.map(x => `<tr class="${x.recommended ? "rec" : ""}${x.skipped ? " skip" : ""}"><td><b>${esc(x.strategy_name || x.name)}</b>${x.recommended ? ` <span class="badge go">${T("Recommended")}</span>` : ""}</td>` +
+  const dn = d.strategies.find(x => x.id === "do_nothing");
+  const noDelay = !dn || !(dn.extra_trip_hours > 0);          // doing nothing costs nothing: "less delay than doing nothing" has no meaning, so it is left blank, not 0 %
+  const negative = d.strategies.some(x => !x.skipped && x.extra_trip_hours < 0);
+  // the row class is "skipped", not "skip": "skip" is the skip-to-content link's class in nccc.css and would move the row off screen
+  const rows = d.strategies.map(x => `<tr class="${x.recommended ? "rec" : ""}${x.skipped ? " skipped" : ""}"><td><b>${esc(x.strategy_name || x.name)}</b>${x.recommended ? ` <span class="badge go">${T("Recommended")}</span>` : ""}</td>` +
     (x.skipped ? `<td colspan="4" class="m">${T("Not applicable to this closure")}</td>` :
-      `<td>${num(x.extra_trip_hours)}</td><td>${num(x.hospital_delta_min)}</td><td>${num(x.benefit_vs_do_nothing_pct, " %")}</td><td>${esc(TV(x.effort || ""))}</td>`) + `</tr>`).join("");
+      `<td>${num(x.extra_trip_hours)}</td><td>${num(x.hospital_delta_min)}</td><td>${noDelay ? "–" : num(x.benefit_vs_do_nothing_pct, " %")}</td><td>${esc(TV(x.effort || ""))}</td>`) + `</tr>`).join("");
   $("#strat-body").innerHTML = `<p><span class="badge wait">${T("Modelled")}</span> ${esc(d.verdict || "")}</p>
     <div class="tablewrap"><table class="strat"><thead><tr><th>${T("Strategy")}</th><th>${T("Extra trip-hours")}</th><th>${T("Hospital access change (min)")}</th><th>${T("Less delay than doing nothing")}</th><th>${T("Effort")}</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="m"><b>${T("Assumptions")}</b></p><ul class="m">${(d.assumptions || []).map(a => `<li>${esc(a)}</li>`).join("")}</ul>
+    ${negative ? `<p class="m">${T("A negative number means fewer trip-hours than with no closure at all: the strategy takes trips off the roads.")}</p>` : ""}
     <p class="m">${T("Calculated from the road network and synthetic demand, not measured.")}</p>`;
 }
 function closeStrategies() { $("#strat").hidden = true; }
@@ -355,7 +360,7 @@ function renderBell() {
   $("#bell").setAttribute("aria-label", unread.length ? T("{n} unread alerts", { n: unread.length }) : T("Alerts, none unread"));
   if (m.hidden) return;
   m.innerHTML = `<div class="bm-h"><span>${unread.length ? T("{n} unread", { n: unread.length }) : T("Alerts")}</span><button class="link" data-bm="all" type="button">${T("Mark all read")}</button></div><div class="bm-list">` +
-    (unread.length ? unread.slice(0, 12).map(n => `<button class="bm-i" data-bm="${esc(n.Notif_ID)}" type="button" style="--c:${SEV_COLOR[n.Severity] || "#1570ef"}"><i></i><span><b>${esc(n.Title)}</b><small>${esc(TV(n.Severity))} · ${ago(n.Created)}</small></span></button>`).join("") : '<div class="bm-e">${T("You are all caught up.")}</div>') +
+    (unread.length ? unread.slice(0, 12).map(n => `<button class="bm-i" data-bm="${esc(n.Notif_ID)}" type="button" style="--c:${SEV_COLOR[n.Severity] || "#1570ef"}"><i></i><span><b>${esc(n.Title)}</b><small>${esc(TV(n.Severity))} · ${ago(n.Created)}</small></span></button>`).join("") : `<div class="bm-e">${T("You are all caught up.")}</div>`) +
     `</div>`;
   m.querySelectorAll("[data-bm]").forEach(b => b.onclick = async e => {
     e.stopPropagation();
@@ -370,20 +375,60 @@ function renderBell() {
 
 /* ---------------------------------------------------------------- crew */
 function renderRoster() {
-  const sig = [S.detail, Math.floor(Date.now() / 60000), ...S.state.crew.agents.map(a => a.working + a.last_at)].join("|");
+  const sig = [S.detail, Math.floor(Date.now() / 60000), S.state.crew.autopilot, S.state.crew.last_cycle && S.state.crew.last_cycle.cycle, ...S.state.crew.agents.map(a => a.working + a.last_at)].join("|");
   if (sig === S.rosterSig) return;
   S.rosterSig = sig;
-  const tier = { executive: "exec", operations: "ops", specialist: "" };
-  $("#roster").innerHTML = S.state.crew.agents.map(a => `<button class="ag ${tier[a.tier]}" style="--ac:${a.color}" data-id="${a.id}" type="button" aria-expanded="${S.detail === a.id}">${avatar(a.id)}
-    <span class="ag-t"><b>${esc(a.name)}</b><small>${esc(a.working ? T("Working…") : a.last_at ? T("Active {t}", { t: ago(a.last_at) }) : a.role)}</small></span></button>`).join("");
-  $("#roster").querySelectorAll(".ag").forEach(b => b.onclick = () => { S.detail = S.detail === b.dataset.id ? "" : b.dataset.id; renderRoster(); });
-  const d = $("#agent-detail"), a = S.agents[S.detail];
+  /* one line like layout sample A: the count, a row of faces (press one for its detail), the latest hand-offs */
+  /* "working": a tool of theirs is running right now, or (AI Agents on) they took a step in the latest scan.
+     A tool call lasts milliseconds, so the first alone almost always reads 0 between scans. */
+  const crew = S.state.crew, agents = crew.agents;
+  const inScan = new Set(crew.autopilot && crew.last_cycle ? (crew.last_cycle.steps || []).map(s => s.agent) : []);
+  const busy = a => !!a.working || inScan.has(a.id), working = agents.filter(busy).length;
+  $("#crew-count").innerHTML = " · " + esc(T("{n} agents, {w} working", { n: "\u0001", w: "\u0002" })).replace("\u0001", `<b>${agents.length}</b>`).replace("\u0002", `<b class="w">${working}</b>`);
+  $("#roster").innerHTML = agents.map(a => { const st = a.working || busy(a) && !a.last_at ? T("Working…") : a.last_at ? T("Active {t}", { t: ago(a.last_at) }) : a.role;
+    return `<button class="ag${busy(a) ? " working" : ""}" style="--ac:${a.color}" data-id="${a.id}" type="button" aria-expanded="${S.detail === a.id}" aria-label="${esc(a.name + " · " + st)}" title="${esc(a.name + " · " + a.role + " · " + st)}">${avatar(a.id, true)}</button>`; }).join("");
+  $("#roster").querySelectorAll(".ag").forEach(b => b.onclick = e => { e.stopPropagation(); S.detail = S.detail === b.dataset.id ? "" : b.dataset.id; renderRoster(); });
+  /* the detail floats under the pressed face, over the page, instead of pushing the page down */
+  const d = $("#agent-detail"), a = agents.find(x => x.id === S.detail);
   d.hidden = !a;
-  if (a) d.innerHTML = `<b style="color:${a.color}">${esc(a.name)}</b> · ${esc(a.role)}<br>${esc(a.focus)}.<br>${T("Tools:")} ${a.tools.map(t => `<code>${esc(t)}</code>`).join(" ")}`;
+  if (!a) return;
+  const st = busy(a) ? T("Working…") : a.last_at ? T("Active {t}", { t: ago(a.last_at) }) : "";
+  d.innerHTML = `<div class="ad-h">${avatar(a.id)}<div><b style="--ac:${a.color}">${esc(a.name)}</b><small>${esc(a.role)}</small></div>
+      ${st ? `<span class="ad-st${busy(a) ? " on" : ""}">${esc(st)}</span>` : ""}<button class="ad-x" type="button" aria-label="${esc(T("Close"))}">×</button></div>
+    <p>${esc(a.focus)}.</p>
+    ${a.last_action ? `<p class="ad-last"><span>${T("Last step:")}</span> ${esc(a.last_action)}</p>` : ""}
+    <p class="ad-tools"><span>${T("Tools:")}</span> ${a.tools.map(t => `<code>${esc(t)}</code>`).join(" ")}</p>`;
+  d.querySelector(".ad-x").onclick = () => { const id = S.detail; S.detail = ""; renderRoster(); $(`#roster .ag[data-id="${id}"]`)?.focus(); };
+  const box = $(".crewline").getBoundingClientRect(), face = $(`#roster .ag[data-id="${a.id}"]`).getBoundingClientRect();
+  const w = Math.min(380, box.width - 28), x = Math.max(14, Math.min(face.left - box.left + face.width / 2 - 40, box.width - w - 14));
+  d.style.width = w + "px"; d.style.left = x + "px"; d.style.top = (face.bottom - box.top + 10) + "px";   // just under the faces, also when the hand-offs wrap below them
+  const dx = d.getBoundingClientRect().left - (box.left + x);                     // right-to-left layout can shift it; put it where it was meant to be
+  if (Math.abs(dx) > 1) d.style.left = (x - dx) + "px";
+  d.style.setProperty("--tip", (face.left + face.width / 2 - d.getBoundingClientRect().left) + "px");
 }
+/* a click anywhere else or Escape closes the agent card */
+document.addEventListener("click", e => { if (S.detail && !e.target.closest("#agent-detail")) { S.detail = ""; renderRoster(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.detail) { const id = S.detail; S.detail = ""; renderRoster(); $(`#roster .ag[data-id="${id}"]`)?.focus(); } });
 
 function renderActivity() {
-  $("#activity").innerHTML = S.state.crew.activity.slice(0, 4).map(s => `<li><b style="--ac:${(S.agents[s.agent] || {}).color}">${esc(aName(s.agent))}</b> ${esc(s.action)}${s.detail ? " · " + esc(s.detail) : ""}</li>`).join("");
+  /* the latest hand-offs scroll past in a loop when they do not fit; redrawn only when they change, so the scroll does not jump */
+  const acts = S.state.crew.activity.slice(0, 8), sig = acts.map(s => s.agent + s.action + s.detail + s.at).join("|");
+  if (sig === S.actSig) return;
+  S.actSig = sig;
+  const li = (s, dup) => `<li${dup ? ' aria-hidden="true"' : ""}><b style="--ac:${(S.agents[s.agent] || {}).color}">${esc(aName(s.agent))}</b> ${esc(s.action)}${s.detail ? " · " + esc(s.detail) : ""}</li>`;
+  const t = $("#ticker"), u = $("#activity"), p = $("#tick-pause");
+  u.innerHTML = acts.map(s => li(s)).join("") + acts.map(s => li(s, true)).join("");   // a second copy makes the loop seamless
+  const half = u.scrollWidth / 2, run = acts.length > 1 && half > t.clientWidth;
+  if (!run) u.querySelectorAll('[aria-hidden="true"]').forEach(x => x.remove());
+  u.style.setProperty("--dur", Math.max(18, Math.round(half / 40)) + "s");              // about 40 px a second
+  t.classList.toggle("run", run); p.hidden = !run;
+}
+
+function toggleTicker() {
+  const t = $("#ticker"), p = $("#tick-pause"), paused = !t.classList.contains("paused");
+  t.classList.toggle("paused", paused); p.setAttribute("aria-pressed", paused);
+  const lab = paused ? T("Play hand-offs") : T("Pause hand-offs");
+  p.setAttribute("aria-label", lab); p.title = lab; p.textContent = paused ? "▶" : "❚❚";
 }
 
 async function playback(steps) {
@@ -574,10 +619,17 @@ function md(t) {
   return out.join("") + (list ? "</ul>" : "");
 }
 
+// each browser tab keeps its own chat session, so one operator's "approve" never acts on another tab's proposal
+const CHAT_SID = (() => {
+  const make = () => "op-" + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, "") : Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 24);
+  try { let v = sessionStorage.getItem("fe-chat-sid"); if (!/^op-[a-z0-9]{8,24}$/.test(v || "")) { v = make(); sessionStorage.setItem("fe-chat-sid", v); } return v; }
+  catch (e) { return make(); }
+})();
+
 async function ask(text) {
   const box = $("#answer"); box.hidden = false; box.innerHTML = `<p style="color:var(--mut)">${T("The crew is working on it…")}</p>`; box.scrollIntoView({ block: "nearest" });
   try {
-    const r = await api("nccc/ask", "POST", { message: text, session_id: "nccc" });
+    const r = await api("nccc/ask", "POST", { message: text, session_id: CHAT_SID });
     box.innerHTML = `<button class="x" aria-label="${T("Close answer")}" type="button">×</button><div class="by">${T("Handled by")} ${r.agents.map(a => avatar(a, true)).join(" ")} ${r.agents.map(aName).join(" → ")}</div>${md(r.reply)}` +
       (r.suggestions && r.suggestions.length ? `<div class="chips">${r.suggestions.map(s => `<button type="button">${esc(s)}</button>`).join("")}</div>` : "");
     box.querySelector(".x").onclick = () => box.hidden = true;
@@ -595,6 +647,7 @@ $("#bell").onclick = e => { e.stopPropagation(); const m = $("#bellmenu"); m.hid
 document.addEventListener("click", e => { if (!e.target.closest(".bellwrap")) closeBell(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeBell(); });
 $("#autopilot").onchange = e => setAutopilot(e.target.checked);
+$("#tick-pause").onclick = toggleTicker;
 $("#scan").onclick = () => runScan(() => api("nccc/scan", "POST"), T("Crew is scanning…"));
 $("#sim").onchange = e => { const v = e.target.value; if (v) runScan(() => api("nccc/events/" + v, "POST"), T("Event received - crew is reacting…")); };
 $("#ask").onsubmit = e => { e.preventDefault(); const q = $("#q").value.trim(); if (q) { ask(q); $("#q").value = ""; } };

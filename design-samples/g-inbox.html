@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inbox · Falcon Eye sample</title>
+<meta name="description" content="Layout sample G: a one-line list of alerts on the left, the selected alert in full with its map on the right.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../frontend/nccc.css"><link rel="stylesheet" href="../frontend/mobility.css"><link rel="stylesheet" href="../frontend/theme.css">
+<link rel="stylesheet" href="live-samples.css">
+<style>
+  .inbox{display:grid;grid-template-columns:minmax(340px,.8fr) 1.3fr;gap:14px;padding:14px 20px;align-items:start}
+  .list{list-style:none;margin:0;padding:6px}
+  .irow{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:10px;cursor:pointer;transition:background-color .15s}
+  .irow:hover{background:var(--card2)}
+  .irow[aria-current="true"]{background:#e6f3ec;box-shadow:inset 3px 0 0 #1b8354}
+  .irow .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+  .irow .t{font-weight:600;line-height:1.3;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .irow .m{grid-column:2;color:var(--mut);font-size:12.5px;display:flex;gap:8px;flex-wrap:wrap}
+  .irow .tag{grid-row:1/3;grid-column:3;font-size:12px;font-weight:600;color:#1b8354;white-space:nowrap}
+  .irow .tag.no{color:var(--mut);font-weight:500}
+  .side{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;position:sticky;top:10px}
+  .side .card{border-radius:12px}
+  .mapwrap{position:relative;height:clamp(260px,34vh,380px);border-radius:var(--r);overflow:hidden}
+  .mapwrap #map{position:absolute;inset:0}
+  .group-h{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;padding:10px 10px 2px}
+  html[data-theme="dark"] .irow[aria-current="true"]{background:#17382a}
+  .inbox>*{min-width:0}
+  @media (max-width:1100px){.inbox{grid-template-columns:minmax(0,1fr)}.side{position:static}}
+  @media (max-width:640px){.inbox{padding:12px 14px}}
+</style>
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+<a class="skip" href="#list">Skip to alerts</a>
+<div id="head"></div>
+<section class="kpis" id="kpis" aria-label="Key numbers"></section>
+<main class="inbox">
+  <section class="panel" aria-labelledby="alerts-h">
+    <div class="panel-h"><h2 id="alerts-h">Alerts</h2>
+      <div class="tabs" role="group" aria-label="Filter alerts"><button id="t-action" type="button" aria-pressed="true">Needs action</button><button id="t-all" type="button" aria-pressed="false">All</button></div></div>
+    <div id="list"></div>
+  </section>
+  <div class="side">
+    <section id="detail" aria-label="Selected alert"></section>
+    <div class="panel mapwrap"><div id="map" role="img" aria-label="Map of open incidents in Riyadh"></div></div>
+    <div class="panel askbox"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input type="text" name="q" autocomplete="off" placeholder="Ask the crew… e.g. “Which incident needs attention first?”" aria-label="Ask the crew"><button class="btn primary" type="submit">Ask</button></form></div>
+  </div>
+</main>
+<script src="live-samples.js"></script>
+<script>
+  S.flow = true;
+  const url = new URL(location.href);
+  let sel = url.searchParams.get("sel") || "NTF-0041";
+  $("#head").outerHTML = HEADER; sampleBar("Sample G · Inbox");
+  const C = { Critical: "#d92d20", High: "#dc6803", Medium: "#f79009", Low: "#1570ef", Info: "#6b7280" };
+  const irow = n => `<li><button class="irow" type="button" data-sel="${n.id}" aria-current="${sel === n.id}" style="--c:${C[n.sev]}">
+      <span class="dot" aria-hidden="true"></span><span class="t">${esc(n.title)}</span>
+      <span class="tag${n.apr && !n.done ? "" : " no"}">${n.done ? (n.done === "approve" ? "Approved" : "Rejected") : n.error ? "Failed" : n.apr ? "Decide" : n.kind === "verified" ? "Check" : "Info"}</span>
+      <span class="m"><span>${n.sev}</span><span>${n.ago}</span>${n.apr ? `<span>${n.apr}</span>` : ""}</span></button></li>`;
+  function draw() {
+    $("#kpis").innerHTML = kpis();
+    $("#t-action").setAttribute("aria-pressed", S.tab === "action"); $("#t-all").setAttribute("aria-pressed", S.tab === "all");
+    const box = $("#list");
+    if (feedState(box)) { $("#detail").innerHTML = ""; return; }
+    const list = visible();
+    if (!list.find(n => n.id === sel) && list[0]) sel = list[0].id;
+    const dec = list.filter(n => n.apr && !n.done), rest = list.filter(n => !(n.apr && !n.done));
+    box.innerHTML = (isViewer() ? `<p class="viewer-note" role="note" style="margin:10px">You are signed in as a viewer: you can follow every alert, but only an operator can approve or reject.</p>` : "")
+      + (dec.length ? `<div class="group-h" id="g1">To decide · ${dec.length}</div><ul class="list" aria-labelledby="g1">${dec.map(irow).join("")}</ul>` : "")
+      + (rest.length ? `<div class="group-h" id="g2">Everything else · ${rest.length}</div><ul class="list" aria-labelledby="g2">${rest.map(irow).join("")}</ul>` : "");
+    const n = ALERTS.find(a => a.id === sel);
+    $("#detail").innerHTML = n ? card(n, false) : "";
+  }
+  function pick(id, focusDetail) {
+    sel = id; url.searchParams.set("sel", id); history.replaceState(null, "", url);
+    draw(); const n = ALERTS.find(a => a.id === id); if (n && n.lon) showOnMap(n);
+    if (focusDetail) { const t = $("#detail .c-title"); if (t) { t.tabIndex = -1; t.focus(); } }
+  }
+  document.addEventListener("click", e => { const r = e.target.closest("[data-sel]"); if (r) pick(r.dataset.sel, window.innerWidth <= 1100); });
+  $("#t-action").onclick = () => { S.tab = "action"; draw(); }; $("#t-all").onclick = () => { S.tab = "all"; draw(); };
+  focusCard = id => pick(id);                                          // a point on the map selects its alert
+  wire(document.body, draw); draw(); initMap();
+  const wait = setInterval(() => { if (MAP) { clearInterval(wait); const n = ALERTS.find(a => a.id === sel); if (n && n.lon) MAP.view.when(() => showOnMap(n)); } }, 200);
+</script>
+</body>
+</html>

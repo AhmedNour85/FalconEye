@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crew rail · Falcon Eye sample</title>
+<meta name="description" content="Layout sample E: the crew in a narrow rail on the left, alerts in the middle, the map and Ask on the right.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../frontend/nccc.css"><link rel="stylesheet" href="../frontend/mobility.css"><link rel="stylesheet" href="../frontend/theme.css">
+<link rel="stylesheet" href="live-samples.css">
+<style>
+  /* three columns on a wide screen; the rail is the crew, nothing else changes */
+  @media (min-width:1101px){
+    .grid.g3{grid-template-columns:232px minmax(380px,.95fr) 1.25fr}
+    .rail{position:sticky;top:10px;max-height:calc(100vh - 200px);display:flex;flex-direction:column}
+    .rail .tiers{grid-template-columns:1fr;overflow:auto;flex:1}
+    .rail .tiers .ag,.rail .tiers .ag.exec,.rail .tiers .ag.ops{grid-column:span 1}
+    .rail .activity{border-top:1px solid var(--line);padding-top:10px}
+    .rail .activity li{white-space:normal}
+  }
+  .rail .tier-h{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px 0}
+</style>
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+<a class="skip" href="#alerts">Skip to alerts</a>
+<div id="head"></div>
+<section class="kpis" id="kpis" aria-label="Key numbers"></section>
+<main class="grid g3">
+  <aside class="panel crew rail" aria-labelledby="crew-h">
+    <div class="panel-h"><h2 id="crew-h">Digital crew</h2><span class="now live">2 working</span></div>
+    <div class="tiers" id="roster"></div>
+    <div class="agent-detail" id="agent-detail" hidden></div>
+    <ul class="activity" id="activity" aria-label="Latest hand-offs"></ul>
+  </aside>
+  <section class="panel alerts" id="alerts" aria-labelledby="alerts-h">
+    <div class="panel-h"><h2 id="alerts-h">Alerts</h2>
+      <div class="tabs" role="tablist"><button role="tab" id="t-action" aria-selected="true">Needs action</button><button role="tab" id="t-all" aria-selected="false">All</button></div>
+      <button class="link" type="button" data-act="ackall">Mark all read</button></div>
+    <div class="feed" id="feed" aria-live="polite"></div>
+  </section>
+  <section class="right">
+    <div class="panel mapbox"><div id="map" role="img" aria-label="Map of open incidents in Riyadh"></div>
+      <div class="legend"><i class="d crit"></i>Critical <i class="d high"></i>High <i class="d med"></i>Medium <i class="d low"></i>Low</div></div>
+    <div class="panel askbox"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input type="text" placeholder="Ask the crew… e.g. “Which incident needs attention first?”" aria-label="Ask the crew"><button class="btn primary" type="submit">Ask</button></form></div>
+  </section>
+</main>
+<section class="feeds" id="feeds" aria-label="Live data feeds"></section>
+<script src="live-samples.js"></script>
+<script>
+  $("#head").outerHTML = HEADER; sampleBar("Sample E · Crew rail");
+  $("#feeds").innerHTML = feeds();
+  function draw() {
+    $("#kpis").innerHTML = kpis();
+    $("#t-action").setAttribute("aria-selected", S.tab === "action"); $("#t-all").setAttribute("aria-selected", S.tab === "all");
+    renderFeed($("#feed"));
+    $("#roster").innerHTML = roster(); $("#activity").innerHTML = activity(3);
+    const a = AG[S.detail], d = $("#agent-detail"); d.hidden = !a; if (a) d.innerHTML = `<b style="color:${a.color}">${a.name}</b> · ${a.role}`;
+  }
+  $("#t-action").onclick = () => { S.tab = "action"; draw(); }; $("#t-all").onclick = () => { S.tab = "all"; draw(); };
+  wire(document.body, draw); draw(); initMap();
+</script>
+</body>
+</html>

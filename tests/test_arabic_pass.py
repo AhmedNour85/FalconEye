@@ -43,3 +43,10 @@ def test_every_named_place_and_hospital_reads_in_arabic():
     names = {full for full, _a, _b in RN.LOCATIONS.values()} | set(RN.LOCATIONS) | {h[0] for h in RN.HOSPITALS} | {e[0] for e in RN.EMERGENCY}
     left = {n: ar(n) for n in names if english_left(ar(n)) or not re.search(r"[؀-ۿ]", ar(n))}
     assert not left, left
+
+
+def test_a_road_name_with_bin_keeps_its_whole_name_after_the_arabic_road_word():
+    from backend.services import i18n
+    for text in ("Traffic Incident - Imam Saud bin Faisal Road", "Closure on Imam Saud bin Faisal Road tomorrow"):
+        out = i18n.to_ar(text)
+        assert "طريق Imam Saud bin Faisal" in out and "bin طريق" not in out, out

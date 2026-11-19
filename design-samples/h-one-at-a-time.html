@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>One at a time · Falcon Eye sample</title>
+<meta name="description" content="Layout sample H: the decisions one at a time, each with its map, then everything else.">
+<link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../frontend/nccc.css"><link rel="stylesheet" href="../frontend/mobility.css"><link rel="stylesheet" href="../frontend/theme.css">
+<link rel="stylesheet" href="live-samples.css">
+<style>
+  .focus{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;padding:14px 20px;align-items:start}
+  .step{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px}
+  .step h2{font-size:17px}
+  .bar{flex:1;min-width:120px;height:6px;border-radius:99px;background:var(--card2);overflow:hidden}
+  .bar i{display:block;height:100%;background:#1b8354;transition:width .3s}
+  .step .btn{margin-inline-start:auto}
+  #current .card{border-radius:12px;font-size:16px}
+  #current .c-title{font-size:19px}
+  .mapwrap{position:relative;height:clamp(280px,46vh,480px);border-radius:var(--r);overflow:hidden}
+  .mapwrap #map{position:absolute;inset:0}
+  .next{list-style:none;margin:0;padding:6px 10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:4px}
+  .next li{min-width:0;display:flex;gap:10px;align-items:center;font-size:14px;padding:6px 4px;border-bottom:1px solid var(--line)}
+  .next li:last-child{border-bottom:0}
+  .next .d{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto}
+  .next .x{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .next small{margin-inline-start:auto;color:var(--mut);white-space:nowrap}
+  .others{padding:0 20px 20px}
+  .others .feed{max-height:none}
+  .alldone{display:grid;gap:8px;justify-items:center;text-align:center;padding:36px 16px}
+  .alldone b{font-size:18px}
+  .focus>div{min-width:0;grid-template-columns:minmax(0,1fr)}
+  @media (max-width:1000px){.focus{grid-template-columns:minmax(0,1fr)}.focus>div{position:static!important}}
+  @media (max-width:640px){.focus{padding:12px 14px}.others{padding:0 14px 14px}.step .btn{margin-inline-start:0;width:100%}}
+</style>
+<script src="https://js.arcgis.com/4.30/"></script>
+</head>
+<body>
+<a class="skip" href="#current">Skip to the current decision</a>
+<div id="head"></div>
+<section class="kpis" id="kpis" aria-label="Key numbers"></section>
+<main>
+  <div class="focus">
+    <div style="display:grid;gap:14px">
+      <section class="panel"><div class="step"><h2 id="step-h" tabindex="-1"></h2><div class="bar" aria-hidden="true"><i id="bar"></i></div><button class="btn" id="skip" type="button">Skip for now</button></div></section>
+      <section id="current" aria-labelledby="step-h" aria-live="polite"></section>
+      <section class="panel" aria-labelledby="next-h"><div class="panel-h"><h2 id="next-h">Up next</h2></div><ul class="next" id="next"></ul></section>
+    </div>
+    <div style="display:grid;gap:14px;position:sticky;top:10px">
+      <div class="panel mapwrap"><div id="map" role="img" aria-label="Map of the current decision in Riyadh"></div></div>
+      <div class="panel askbox"><form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input type="text" name="q" autocomplete="off" placeholder="Ask the crew about this decision…" aria-label="Ask the crew"><button class="btn primary" type="submit">Ask</button></form></div>
+    </div>
+  </div>
+  <section class="others" aria-labelledby="others-h"><div class="panel"><div class="panel-h"><h2 id="others-h">Everything else</h2></div><div class="feed" id="feed"></div></div></section>
+</main>
+<script src="live-samples.js"></script>
+<script>
+  S.flow = true;
+  $("#head").outerHTML = HEADER; sampleBar("Sample H · One at a time");
+  const C = { Critical: "#d92d20", High: "#dc6803", Medium: "#f79009", Low: "#1570ef" };
+  const queue = ALERTS.filter(a => a.apr).map(a => a.id);
+  let at = 0;
+  const total = queue.length, cur = () => ALERTS.find(a => a.id === queue[at]);
+  function draw() {
+    $("#kpis").innerHTML = kpis();
+    const left = ALERTS.filter(a => a.apr && !a.done).length, made = total - left;
+    $("#bar").style.width = (made / total * 100) + "%";
+    const box = $("#current");
+    if (feedState(box)) { $("#step-h").textContent = "Decisions"; $("#next").innerHTML = ""; $("#feed").innerHTML = ""; $("#skip").hidden = true; return; }
+    const n = cur();
+    if (!n) {
+      $("#step-h").textContent = `All ${total} decisions made`; $("#skip").hidden = true;
+      box.innerHTML = `<div class="panel alldone" role="status"><b>Nothing is waiting for you</b><span class="c-meta">New decisions appear here as the crew proposes them.</span></div>`;
+    } else {
+      $("#step-h").textContent = n.done ? `Decision ${at + 1} of ${total} · done` : `Decision ${at + 1} of ${total}`;
+      $("#skip").hidden = !!n.done || isViewer() || left < 2; $("#skip").textContent = "Skip for now";
+      box.innerHTML = card(n, false) + (n.done ? `<div style="margin-top:10px"><button class="btn primary" id="go-next" type="button">${left ? "Next decision" : "Finish"}</button></div>` : "");
+      const g = $("#go-next"); if (g) g.onclick = advance;
+    }
+    const up = queue.slice(at + 1).map(id => ALERTS.find(a => a.id === id)).filter(a => !a.done);
+    $("#next").innerHTML = up.length ? up.map(a => `<li style="--c:${C[a.sev]}"><span class="d" aria-hidden="true"></span><span class="x">${esc(a.title)}</span><small>${a.sev} · ${a.apr}</small></li>`).join("") : `<li><span class="c-meta">Nothing else waiting.</span></li>`;
+    $("#feed").innerHTML = sorted(ALERTS.filter(a => !a.apr)).map(a => card(a)).join("");
+  }
+  function advance() {
+    const nextOpen = queue.findIndex((id, k) => k > at && !ALERTS.find(a => a.id === id).done);
+    const anyOpen = queue.findIndex(id => !ALERTS.find(a => a.id === id).done);
+    at = nextOpen >= 0 ? nextOpen : anyOpen >= 0 ? anyOpen : queue.length;
+    draw(); const n = cur(); if (n && n.lon) showOnMap(n); $("#step-h").focus();
+  }
+  $("#skip").onclick = () => { const id = queue.splice(at, 1)[0]; queue.push(id); draw(); const n = cur(); if (n && n.lon) showOnMap(n); $("#step-h").focus(); };
+  wire(document.body, draw); draw(); initMap();
+  const w = setInterval(() => { if (MAP) { clearInterval(w); const n = cur(); if (n) MAP.view.when(() => showOnMap(n)); } }, 200);
+</script>
+</body>
+</html>

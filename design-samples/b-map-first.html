@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map first · Falcon Eye sample</title>
+<meta name="description" content="Layout sample B for the Falcon Eye Operation page: the map in the middle, alerts on the left, the selected alert and Ask on the right.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="samples.css">
+<style>
+  .kpis.tight .kpi{padding:9px 14px}.kpis.tight .kpi b{font-size:22px}
+  .shell{display:grid;grid-template-columns:340px 1fr 380px;gap:14px;padding:14px 20px 20px;height:calc(100vh - 190px);min-height:560px}
+  .shell>.panel{display:flex;flex-direction:column;min-height:0}
+  .scroll{overflow:auto;min-height:0;flex:1}
+  .centre{position:relative;display:flex;flex-direction:column;gap:0;padding:0}
+  .centre .map{flex:1;border-radius:var(--r)}
+  .crewbox{position:absolute;inset-inline-start:12px;top:12px;background:color-mix(in srgb,var(--card) 95%,transparent);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;display:flex;gap:10px;align-items:center;max-width:58%;box-shadow:var(--sh);z-index:2}
+  .crewbox .last{font-size:12.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .crewbox .last b{color:var(--tx)}
+  .map-layers{top:auto;bottom:52px}
+  .right .ask{border-top:1px solid var(--line);margin-top:auto}
+  .queue .row{grid-template-columns:4px 1fr}
+  .seg{display:flex;gap:4px;margin-inline-start:auto}
+  .seg button{border:1px solid var(--line2);background:var(--card);border-radius:99px;padding:3px 10px;font-size:12.5px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--acc-soft);border-color:var(--acc);color:var(--acc)}
+  @media (max-width:1100px){.shell{grid-template-columns:320px 1fr;height:auto}.right{grid-column:1/-1}.centre .map{min-height:420px}}
+  @media (max-width:900px){.shell{grid-template-columns:1fr;padding:12px 14px}.centre .map{min-height:340px}.crewbox{max-width:calc(100% - 24px)}.crewbox .last{display:none}}
+</style>
+</head>
+<body>
+<a class="skip" href="#queue">Skip to alerts</a>
+<div id="bar"></div><div id="head"></div>
+<div class="wrap" style="padding-top:14px"><section class="kpis tight" id="kpis" aria-label="Key numbers, press one to filter the list"></section></div>
+<main class="shell">
+  <section class="panel" aria-labelledby="q-h">
+    <div class="panel-h"><h2 id="q-h">Alerts</h2><div class="seg"><button data-tab="decision" aria-pressed="true">Decisions</button><button data-tab="open" aria-pressed="false">All</button></div></div>
+    <div class="scroll"><ul class="queue" id="queue" role="listbox" aria-label="Alerts"></ul></div>
+  </section>
+  <section class="centre" aria-label="Map">
+    <div class="crewbox"><span class="stack" id="stack"></span><span class="last" id="last"></span></div>
+    <div class="map panel" id="map"></div>
+  </section>
+  <section class="panel right" aria-label="Selected alert">
+    <div class="scroll" id="detail" aria-live="polite"></div>
+    <form class="ask" onsubmit="event.preventDefault();toast('Sample only: the crew would answer here.')"><input aria-label="Ask the crew" placeholder="Ask the crew…"><button class="btn primary">Ask</button></form>
+  </section>
+</main>
+<script src="samples.js"></script>
+<script>
+  let f = "decision", sel = "INC-0034";
+  $("#bar").innerHTML = sampleBar("B · Map first"); $("#head").innerHTML = header();
+  $("#stack").innerHTML = CREW.map(c => av(c.id, true)).join("");
+  let h = 0; const tick = () => { const [a, d] = HANDOFFS[h++ % HANDOFFS.length]; $("#last").innerHTML = `<b>${crew(a).name}</b> ${d}`; };
+  tick(); setInterval(tick, 3500);
+  function draw() {
+    $("#kpis").innerHTML = kpis(f);
+    $$(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.tab === (f === "decision" ? "decision" : "open")));
+    const list = filtered(f);
+    $("#queue").innerHTML = list.length ? list.map(i => row(i, sel, false)).join("") : `<li style="padding:20px;color:var(--mut)">Nothing here.</li>`;
+    $("#detail").innerHTML = detail(sel);
+    $("#map").innerHTML = mapSVG(sel) + `<div class="map-layers">${mapLayers()}</div>` + mapTag();
+  }
+  wire(document.body, id => { sel = id; draw(); });
+  $("#kpis").addEventListener("click", e => { const k = e.target.closest("[data-filter]"); if (k) { f = k.dataset.filter; draw(); } });
+  $$(".seg button").forEach(b => b.onclick = () => { f = b.dataset.tab; draw(); });
+  draw();
+</script>
+</body>
+</html>

@@ -67,6 +67,12 @@ LOCATIONS = {
     "KAPark": ("King Abdullah Park", 46.7140, 24.6590),
 }
 
+# Event venues that are not demand zones: an event there is simulated at the nearest junction, and they do not take part in the trip demand or
+# in hospital access, so adding one changes no other modelled number. Approximate positions, like the places above. key -> (name, lon, lat, other names)
+EVENT_VENUES = {
+    "KingFahdStadium": ("King Fahd International Stadium", 46.8386, 24.7892, ("King Fahd Stadium", "ملعب الملك فهد", "استاد الملك فهد")),
+}
+
 HOSPITALS = [  # name, lon, lat, beds (beds are synthetic placeholders)
     ("King Fahad Medical City", 46.6990, 24.6850, 1200),
     ("King Khalid University Hospital", 46.6180, 24.7130, 850),

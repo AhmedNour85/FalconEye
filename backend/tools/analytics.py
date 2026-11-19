@@ -79,6 +79,11 @@ def _neighbours(ctx: ToolContext, pipe: dict) -> list[dict]:
 LEAK_MIN_DROP_PCT, LEAK_MIN_Z = 10.0, 3.5
 
 
+def _incident_open(ctx: ToolContext, incident_id: str | None) -> bool:
+    inc = ctx.store.get(S.INCIDENTS, incident_id) if incident_id else None
+    return bool(inc) and inc["attrs"]["Status"] not in ("Resolved", "Closed - False Positive")
+
+
 def detect_water_leaks(ctx: ToolContext, area: str | None = None, min_risk: float = 0.0) -> dict:
     """Detect SUSPECTED water leaks from pressure/flow anomalies; persist detection records."""
     series = _series(ctx)
@@ -140,9 +145,10 @@ def detect_water_leaks(ctx: ToolContext, area: str | None = None, min_risk: floa
                     f"{len(corr)} adjacent sensor(s) show a milder drop. Pattern is consistent with a leak but also with valve operation or a pump transient; "
                     f"field verification is required before treating it as a confirmed leak.")
         # persist (one open detection per pipeline)
-        existing = [f for f in ctx.store.query(S.DETECTIONS, Pipeline_ID=pipe["id"], Category="water")
-                    if f["attrs"]["Status"] in ("Suspected", "Verified-True")]
-        existing = [f for f in existing if f["attrs"]["Status"] == "Suspected"]
+        on_pipe = ctx.store.query(S.DETECTIONS, Pipeline_ID=pipe["id"], Category="water")
+        if any(f["attrs"]["Status"] in ("Verified-True", "Verified-False") and _incident_open(ctx, f["attrs"].get("Incident_ID")) for f in on_pipe):
+            continue                    # the field has already been to this pipe and its incident is still being handled: not a new finding
+        existing = [f for f in on_pipe if f["attrs"]["Status"] == "Suspected"]
         did = existing[0]["id"] if existing else ctx.store.next_id("DET")
         prev = existing[0]["attrs"] if existing else {}
         rec = {"Detection_ID": did, "Detection_Type": "Water Leak (Suspected)", "Location": f"{pipe['attrs']['Area_Name']} - {lonlat_str(q)}", "Confidence": conf,

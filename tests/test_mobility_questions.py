@@ -161,3 +161,64 @@ def test_a_closure_question_creates_no_approval_and_no_record_to_act_on(ready, a
     n_ap, n_wo = len(ready.approvals.pending()), ready.store.count(S.WORK_ORDERS)
     ask(agent, "What happens if King Fahd Road is closed tomorrow from 8 to 4?")
     assert len(ready.approvals.pending()) == n_ap and ready.store.count(S.WORK_ORDERS) == n_wo
+
+
+# ---------------- QA-05: the plan's stadium question, and lists a person can read ----------------
+def test_the_plans_stadium_question_is_an_event_at_king_fahd_stadium():
+    for q in ("What happens to traffic if 40,000 people attend an event at King Fahd Stadium?",
+              "ماذا يحدث للمرور إذا حضر 40000 شخص مباراة في ملعب الملك فهد؟"):
+        p = MQ.parse(q)
+        assert p and p["intent"] == "event_impact", (q, p)
+        assert p["args"]["place"] == "King Fahd International Stadium" and p["args"]["attendance"] == 40000
+
+
+@pytest.fixture()
+def stadium_on_this_network(monkeypatch):
+    """The tests run on the 73-section skeleton, which does not reach east Riyadh: put the venue on one of its junctions.
+    (On the full network the stadium resolves to a junction about 0.4 km away; checked by hand 2026-11-17.)"""
+    from backend.mobility import network_model
+    from backend.mobility import riyadh_network as RN
+    m = network_model.get_model()
+    lon, lat = m.node_ll(m.zones["Malaz"])
+    full, _lon, _lat, other = RN.EVENT_VENUES["KingFahdStadium"]
+    monkeypatch.setitem(RN.EVENT_VENUES, "KingFahdStadium", (full, lon + 0.001, lat, other))
+    return m
+
+
+def test_the_stadium_is_an_event_venue_only_and_does_not_change_the_model_zones(stadium_on_this_network):
+    from backend.mobility import riyadh_network as RN
+    m = stadium_on_this_network
+    assert "King Fahd International Stadium" in {v[0] for v in RN.EVENT_VENUES.values()}
+    assert set(m.zones) == set(RN.LOCATIONS)                              # demand zones and hospital-access districts are as before
+    assert m.resolve_place("King Fahd International Stadium") in m.G
+    assert m.resolve_place("King Fahd Stadium") in m.G
+
+
+def test_a_venue_the_road_network_does_not_reach_is_not_resolved(monkeypatch):
+    from backend.mobility import network_model
+    from backend.mobility import riyadh_network as RN
+    full, _lon, _lat, other = RN.EVENT_VENUES["KingFahdStadium"]
+    monkeypatch.setitem(RN.EVENT_VENUES, "KingFahdStadium", (full, 47.5, 25.5, other))      # far outside Riyadh
+    assert network_model.get_model().resolve_place(full) is None
+
+
+def test_the_stadium_event_runs(ready, agent, stadium_on_this_network):
+    r = ask(agent, "What happens to traffic if 40,000 people attend an event at King Fahd Stadium?")
+    assert [t["tool"] for t in r["trace"]] == ["simulate_event"] and r["trace"][0]["ok"], r["reply"]
+    assert "King Fahd International Stadium" in r["reply"]
+
+
+def test_the_list_of_known_places_uses_full_names_not_codes():
+    text = MQ.known_list("place", "en")
+    assert "King Abdullah Financial District" in text and "King Fahd International Stadium" in text
+    for code in ("KAHC", "KAPark", "RiyadhFront", "KKIA"):
+        assert not re.search(rf"\b{code}\b", text), code
+
+
+def test_the_list_of_known_roads_starts_with_main_named_roads(monkeypatch):
+    full = ["40", "500", "509", "AL Hair", "Abdul Rahman Bin Owf St", "King Fahd Road", "Olaya Street", "unnamed primary", "Zahra Street"]   # as on the full network
+    monkeypatch.setattr(MQ, "known_roads", lambda: full)
+    text = MQ.known_list("road", "en")
+    shown = text.split("include: ", 1)[1].rstrip(".").split(", ")
+    assert not any(re.match(r"^\d", r) or r.lower().startswith("unnamed") for r in shown), shown
+    assert "King Fahd Road" in shown[:6], shown
