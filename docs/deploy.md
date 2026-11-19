@@ -47,7 +47,22 @@ git remote add origin https://github.com/<you>/<repo>.git
 git push -u origin main
 ```
 
-## 3. Create the service on Render
+## 3. Free: run it on a Hugging Face Space
+
+A free Space has 2 CPUs and 16 GB of memory. It sleeps after 48 hours without visitors; the first visit after that waits 2 to 3 minutes while it starts and loads the layers. The Space holds two files only, from `deploy/huggingface/`; its build fetches the code from GitHub.
+
+1. Create a free account on huggingface.co.
+2. Choose **New Space**. Name it, for example `falcon-eye`. Choose **Docker**, then **Blank**, hardware **CPU basic (free)**, and **Public** (a private Space asks every visitor to sign in to Hugging Face). Choose **Create Space**.
+3. In the Space's **Settings → Variables and secrets**, choose **New secret** for each of these, with the same values as in your `.env`:
+   `ARCGIS_URL`, `ARCGIS_USERNAME`, `ARCGIS_PASSWORD`, `ARCGIS_LAYER_PREFIX`, `ARCGIS_JS_API_KEY`, `API_TOKENS`, `GEOAI_FIELD_USERS`.
+   Add one more, `PUBLIC_ORIGINS`, set to the Space's direct address: `https://<your-hf-name>-<space-name>.hf.space`, all in lowercase (for example `https://ahmednour85-falcon-eye.hf.space`).
+4. **Stop the server on your PC** and wait about 3 minutes, so its lock in ArcGIS Online runs out.
+5. In the Space's **Files** tab, choose **Add file → Create a new file**. Name it `Dockerfile` and paste the content of `deploy/huggingface/Dockerfile`. Commit it. Then open `README.md` in the Space, choose **Edit**, replace everything with the content of `deploy/huggingface/README.md`, and commit. The build starts by itself; follow it under **Logs**. The first build takes about 10 minutes.
+6. When the Space shows **Running**, open the direct address (`https://….hf.space`), not the Space page on huggingface.co: the app refuses to be shown inside another site, so the Space page stays blank.
+
+**Updating:** push to GitHub, then choose **Settings → Factory rebuild**. The build fetches the new code. If the new copy says the lock is held, wait 3 minutes and choose **Factory rebuild** again.
+
+## 4. Paid: create the service on Render
 
 1. In Render, choose **New → Blueprint** and pick the repository. Render reads `render.yaml`: a Python web service on an always-on plan, started with `python -m backend.main`, with the health check on `/api/health`.
 2. Render asks for each secret:
