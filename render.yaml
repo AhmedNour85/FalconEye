@@ -5,7 +5,7 @@ services:
   - type: web
     name: falcon-eye
     runtime: python
-    plan: standard                      # always on, 2 GB. Free plans sleep and reload every layer on wake.
+    plan: free                          # free: 512 MB, sleeps after 15 min without visitors (the first visit after that waits 1-3 min). "standard" is always on, 2 GB.
     buildCommand: pip install -r requirements.txt
     startCommand: python -m backend.main
     healthCheckPath: /api/health
