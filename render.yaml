@@ -30,3 +30,9 @@ services:
         sync: false
       - key: PUBLIC_ORIGINS             # the public address, e.g. https://falcon-eye.onrender.com
         sync: false
+      - key: GEOAI_FIELD_USERS          # worker id -> Field Maps username, the same value as in your .env
+        sync: false
+      - key: GEOAI_FIELD_FORM           # the in-app investigator form, as on the PC
+        value: "1"
+      - key: GEOAI_FIELD_LANG           # task text on investigators' phones: Arabic first, then English
+        value: both
